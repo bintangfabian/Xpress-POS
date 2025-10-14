@@ -11,14 +11,15 @@ import 'package:intl/intl.dart';
 
 import '../../../../data/models/response/product_response_model.dart';
 import '../../models/product_quantity.dart';
+import '../../models/product_variant.dart';
 
 part 'checkout_event.dart';
 part 'checkout_state.dart';
 part 'checkout_bloc.freezed.dart';
 
 class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
-  List<String>? _pendingVariants;
-  void setPendingVariants(List<String>? v) => _pendingVariants = v;
+  List<ProductVariant>? _pendingVariants;
+  void setPendingVariants(List<ProductVariant>? v) => _pendingVariants = v;
 
   CheckoutBloc() : super(const _Loaded([], null, 0, 0, 10, 5, 0, 0, '', null)) {
     on<_AddItem>((event, emit) {
@@ -282,7 +283,7 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
     });
   }
 
-  bool _listEquals(List<String>? a, List<String>? b) {
+  bool _listEquals(List<ProductVariant>? a, List<ProductVariant>? b) {
     if (identical(a, b)) return true;
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;

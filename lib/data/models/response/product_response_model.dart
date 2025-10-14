@@ -18,7 +18,9 @@ class ProductResponseModel {
 
   factory ProductResponseModel.fromMap(Map<String, dynamic> json) {
     final root = json;
-    final status = (root['status'] ?? root['message'] ?? (root['success'] == true ? 'success' : null)) as String?;
+    final status = (root['status'] ??
+        root['message'] ??
+        (root['success'] == true ? 'success' : null)) as String?;
 
     dynamic node = root['data'];
     List<dynamic> rawList = const [];
@@ -36,7 +38,8 @@ class ProductResponseModel {
 
     return ProductResponseModel(
       status: status,
-      data: List<Product>.from(rawList.map((x) => Product.fromMap(x as Map<String, dynamic>))),
+      data: List<Product>.from(
+          rawList.map((x) => Product.fromMap(x as Map<String, dynamic>))),
     );
   }
 
@@ -92,13 +95,12 @@ class Product {
         categoryId: _extractCategoryId(json),
         name: (json["name"] ?? json["title"])?.toString(),
         description: (json["description"] ?? json["desc"] ?? "")?.toString(),
-        image: (json["image"] ?? json["image_url"] ?? json["photo"])?.toString(),
+        image:
+            (json["image"] ?? json["image_url"] ?? json["photo"])?.toString(),
         price: _extractPrice(json),
         stock: _asInt(json["stock"]) ?? _asInt(json["quantity"]) ?? 0,
         minStockLevel: _asInt(json['min_stock_level']) ?? 0,
-        trackInventory: json['track_inventory'] is bool
-            ? json['track_inventory'] as bool
-            : (json['track_inventory']?.toString().toLowerCase() == 'true'),
+        trackInventory: _parseBool(json['track_inventory']),
         status: _asInt(json["status"]) ?? 1,
         isFavorite: _asInt(json["is_favorite"]) ?? 0,
         createdAt: _tryParseDate(json["created_at"]),
@@ -124,6 +126,8 @@ class Product {
         image: json["image"],
         price: json["price"],
         stock: json["stock"],
+        minStockLevel: json["minStockLevel"],
+        trackInventory: _parseBool(json["trackInventory"]),
         status: json["status"],
         isFavorite: json["isFavorite"],
         createdAt: json["createdAt"] == null
@@ -143,6 +147,8 @@ class Product {
         "image": image,
         "price": price?.replaceAll(RegExp(r'\.0+$'), ''),
         "stock": stock,
+        "minStockLevel": minStockLevel,
+        "trackInventory": trackInventory == true ? 1 : 0,
         "status": status,
         "isFavorite": isFavorite,
         "createdAt": createdAt?.toIso8601String(),
@@ -226,7 +232,8 @@ class Category {
 
   factory Category.fromMap(Map<String, dynamic> json) => Category(
         id: _asInt(json["id"]) ?? _asInt(json["category_id"]),
-        name: (json["name"] ?? json["title"] ?? json["category_name"])?.toString(),
+        name: (json["name"] ?? json["title"] ?? json["category_name"])
+            ?.toString(),
         description: (json["description"] ?? json["desc"] ?? "")?.toString(),
         image: (json["image"] ?? json["image_url"])?.toString(),
         createdAt: _tryParseDate(json["created_at"]),
@@ -287,4 +294,27 @@ DateTime? _tryParseDate(dynamic value) {
   } catch (_) {
     return null;
   }
+}
+
+bool _parseBool(dynamic value) {
+  if (value == null) {
+    print('_parseBool: value is null, returning false');
+    return false;
+  }
+  if (value is bool) {
+    print('_parseBool: value is bool = $value');
+    return value;
+  }
+  if (value is int) {
+    print('_parseBool: value is int = $value, returning ${value == 1}');
+    return value == 1;
+  }
+  if (value is String) {
+    final lower = value.toLowerCase();
+    final result = lower == 'true' || lower == '1';
+    print('_parseBool: value is String = "$value", returning $result');
+    return result;
+  }
+  print('_parseBool: unknown type ${value.runtimeType}, returning false');
+  return false;
 }

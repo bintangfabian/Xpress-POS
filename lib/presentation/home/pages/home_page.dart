@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/data/models/response/table_model.dart';
+import 'package:xpress/data/models/response/product_response_model.dart';
 import 'package:xpress/presentation/home/bloc/local_product/local_product_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/sync_product/sync_product_bloc.dart';
 import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/presentation/home/widgets/custom_button.dart';
 import 'package:xpress/presentation/home/widgets/custom_tab_bar.dart';
-import 'package:xpress/presentation/home/widgets/home_title.dart';
 import 'package:xpress/presentation/home/widgets/order_menu.dart';
 
 import '../../../core/assets/assets.gen.dart';
@@ -20,6 +20,9 @@ import 'package:xpress/presentation/home/dialogs/variant_dialog.dart';
 import 'package:xpress/presentation/setting/bloc/get_categories/get_categories_bloc.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/presentation/home/dialogs/open_bill_dialog.dart';
+import 'package:xpress/presentation/home/dialogs/clear_order_dialog.dart';
+import 'package:xpress/presentation/home/widgets/sort_dropdown.dart';
+import 'package:xpress/presentation/home/models/product_variant.dart';
 
 class HomePage extends StatefulWidget {
   final bool isTable;
@@ -40,21 +43,42 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final searchController = TextEditingController();
   String? _orderType; // dinein / takeaway
-  final Map<int, List<String>> _selectedVariants = {};
+  final Map<int, List<ProductVariant>> _selectedVariants = {};
   String _orderNumber = '#0001';
+  String _searchQuery = '';
+  SortOption? _sortOption;
 
   @override
   void initState() {
+    // Force delete and re-sync products to ensure trackInventory is loaded
+    _forceResyncProducts();
+
+    context.read<GetCategoriesBloc>().add(const GetCategoriesEvent.fetch());
+    _loadNextOrderNumber();
+    super.initState();
+  }
+
+  Future<void> _forceResyncProducts() async {
+    print('========================================');
+    print('FORCE RESYNC: Deleting all products...');
+
+    // Clear local products
+    await ProductLocalDatasource.instance.deleteAllProducts();
+
+    print('FORCE RESYNC: Products deleted, starting sync...');
+
+    if (!mounted) return;
+
+    // Sync from server
+    context.read<SyncProductBloc>().add(const SyncProductEvent.syncProduct());
+
+    // Load local products
     context
         .read<LocalProductBloc>()
         .add(const LocalProductEvent.getLocalProduct());
 
-    // Auto-sync products from server into local storage on page load
-    // so Home uses latest data from the database server
-    context.read<SyncProductBloc>().add(const SyncProductEvent.syncProduct());
-    context.read<GetCategoriesBloc>().add(const GetCategoriesEvent.fetch());
-    _loadNextOrderNumber();
-    super.initState();
+    print('FORCE RESYNC: Complete');
+    print('========================================');
   }
 
   Future<void> _loadNextOrderNumber() async {
@@ -114,11 +138,38 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Header + search
-                      HomeTitle(
-                        controller: searchController,
-                        onChanged: (value) {},
-                        showSortButton: true,
-                        onSortPressed: () {},
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Daftar Menu',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 328,
+                            height: 48,
+                            child: SearchInput(
+                              controller: searchController,
+                              onChanged: (value) {
+                                setState(() {
+                                  _searchQuery = value.toLowerCase();
+                                });
+                              },
+                              hintText: 'Search Menu',
+                            ),
+                          ),
+                          SortDropdown(
+                            selectedOption: _sortOption,
+                            onChanged: (option) {
+                              setState(() {
+                                _sortOption = option;
+                              });
+                            },
+                          ),
+                        ],
                       ),
 
                       const SpaceHeight(16),
@@ -384,20 +435,8 @@ class _HomePageState extends State<HomePage> {
                                         padding: const EdgeInsets.all(16),
                                         itemCount: products.length,
                                         itemBuilder: (_, i) {
-                                          final vid = products[i].product.id;
-                                          final vars = vid != null
-                                              ? (_selectedVariants[vid]
-                                                          ?.isNotEmpty ==
-                                                      true
-                                                  ? _selectedVariants[vid]!
-                                                      .first
-                                                  : null)
-                                              : null;
-                                          // Fix: OrderMenu expects variants as List<String>?
                                           return OrderMenu(
                                             data: products[i],
-                                            variants:
-                                                vars != null ? [vars] : null,
                                           );
                                         },
                                       ),
@@ -424,11 +463,23 @@ class _HomePageState extends State<HomePage> {
                                                     fontSize: 20)),
                                             Text(
                                               products
-                                                  .map((e) =>
-                                                      (e.product.price
-                                                              ?.toIntegerFromText ??
-                                                          0) *
-                                                      e.quantity)
+                                                  .map((e) {
+                                                    final basePrice = e
+                                                            .product
+                                                            .price
+                                                            ?.toIntegerFromText ??
+                                                        0;
+                                                    final variantPrice =
+                                                        e.variants?.fold<int>(
+                                                                0,
+                                                                (sum, v) =>
+                                                                    sum +
+                                                                    v.priceAdjustment) ??
+                                                            0;
+                                                    return (basePrice +
+                                                            variantPrice) *
+                                                        e.quantity;
+                                                  })
                                                   .fold(0, (a, b) => a + b)
                                                   .currencyFormatRp,
                                               style: const TextStyle(
@@ -480,18 +531,28 @@ class _HomePageState extends State<HomePage> {
                                       icon: Assets.icons.trash.svg(
                                           height: 24,
                                           width: 24,
-                                          color: AppColors.grey),
+                                          colorFilter: const ColorFilter.mode(
+                                              AppColors.grey, BlendMode.srcIn)),
                                       borderColor: AppColors.grey,
                                       padding: EdgeInsets.zero,
-                                      onPressed: () {
-                                        context.read<CheckoutBloc>().add(
-                                            const CheckoutEvent.clearOrder());
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  "Pesanan berhasil dihapus")),
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (_) =>
+                                              const ClearOrderDialog(),
                                         );
+
+                                        if (confirm == true) {
+                                          if (!mounted) return;
+                                          context.read<CheckoutBloc>().add(
+                                              const CheckoutEvent.clearOrder());
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    "Pesanan berhasil dihapus")),
+                                          );
+                                        }
                                       },
                                     ),
                                     const SizedBox(width: 8),
@@ -513,13 +574,23 @@ class _HomePageState extends State<HomePage> {
                                                 totalPrice,
                                                 draftName,
                                                 ordType) {
-                                              total = products
-                                                  .map((e) =>
-                                                      (e.product.price
-                                                              ?.toIntegerFromText ??
-                                                          0) *
-                                                      e.quantity)
-                                                  .fold(0, (a, b) => a + b);
+                                              total = products.map((e) {
+                                                final basePrice = e
+                                                        .product
+                                                        .price
+                                                        ?.toIntegerFromText ??
+                                                    0;
+                                                final variantPrice = e.variants
+                                                        ?.fold<int>(
+                                                            0,
+                                                            (sum, v) =>
+                                                                sum +
+                                                                v.priceAdjustment) ??
+                                                    0;
+                                                return (basePrice +
+                                                        variantPrice) *
+                                                    e.quantity;
+                                              }).fold(0, (a, b) => a + b);
                                               orderType = ordType;
                                             },
                                             orElse: () {},
@@ -638,46 +709,110 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildProductGrid({int? filterCategoryId}) {
-    return BlocBuilder<LocalProductBloc, LocalProductState>(
-      builder: (context, state) {
-        return state.maybeWhen(
-          orElse: () => const Center(child: CircularProgressIndicator()),
-          loaded: (products) {
-            final filtered = filterCategoryId == null
-                ? products
-                : products
-                    .where((e) => e.category?.id == filterCategoryId)
-                    .toList();
+    return BlocBuilder<GetCategoriesBloc, GetCategoriesState>(
+      builder: (context, categoriesState) {
+        return BlocBuilder<LocalProductBloc, LocalProductState>(
+          builder: (context, state) {
+            return state.maybeWhen(
+              orElse: () => const Center(child: CircularProgressIndicator()),
+              loaded: (products) {
+                // 1. Filter by category - create mutable copy
+                var filtered = filterCategoryId == null
+                    ? List<Product>.from(products)
+                    : products
+                        .where((e) => e.category?.id == filterCategoryId)
+                        .toList();
 
-            if (filtered.isEmpty) return const Center(child: Text("No Items"));
+                // 2. Filter by search query
+                if (_searchQuery.isNotEmpty) {
+                  filtered = filtered
+                      .where((e) =>
+                          (e.name ?? '').toLowerCase().contains(_searchQuery))
+                      .toList();
+                }
 
-            return GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1.0,
-              ),
-              itemCount: filtered.length,
-              itemBuilder: (_, i) => ProductCard(
-                data: filtered[i],
-                onCartButton: () async {
-                  final res = await showDialog<List<String>>(
-                    context: context,
-                    builder: (_) => VariantDialog(product: filtered[i]),
-                  );
-                  if (res != null) {
-                    final bloc = context.read<CheckoutBloc>();
-                    bloc.setPendingVariants(res);
-                    bloc.add(CheckoutEvent.addItem(filtered[i]));
-                    if (filtered[i].id != null) {
-                      setState(() {
-                        _selectedVariants[filtered[i].id!] = res;
+                // 3. Sort by selected option
+                if (_sortOption != null) {
+                  switch (_sortOption!) {
+                    case SortOption.nameAZ:
+                      filtered.sort(
+                          (a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+                      break;
+                    case SortOption.nameZA:
+                      filtered.sort(
+                          (a, b) => (b.name ?? '').compareTo(a.name ?? ''));
+                      break;
+                    case SortOption.priceLowHigh:
+                      filtered.sort((a, b) {
+                        final priceA = a.price?.toIntegerFromText ?? 0;
+                        final priceB = b.price?.toIntegerFromText ?? 0;
+                        return priceA.compareTo(priceB);
                       });
-                    }
+                      break;
+                    case SortOption.priceHighLow:
+                      filtered.sort((a, b) {
+                        final priceA = a.price?.toIntegerFromText ?? 0;
+                        final priceB = b.price?.toIntegerFromText ?? 0;
+                        return priceB.compareTo(priceA);
+                      });
+                      break;
                   }
-                },
-              ),
+                } else if (filterCategoryId == null) {
+                  // 4. Default sorting by category order (Coffee → Tea → Pastry → Snack)
+                  categoriesState.maybeWhen(
+                    success: (categories) {
+                      filtered.sort((a, b) {
+                        final catIdA = a.category?.id ?? 999;
+                        final catIdB = b.category?.id ?? 999;
+
+                        // Find index in categories list
+                        final indexA =
+                            categories.indexWhere((c) => c.id == catIdA);
+                        final indexB =
+                            categories.indexWhere((c) => c.id == catIdB);
+
+                        final orderA = indexA == -1 ? 999 : indexA;
+                        final orderB = indexB == -1 ? 999 : indexB;
+
+                        return orderA.compareTo(orderB);
+                      });
+                    },
+                    orElse: () {},
+                  );
+                }
+
+                if (filtered.isEmpty)
+                  return const Center(child: Text("No Items"));
+
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) => ProductCard(
+                    data: filtered[i],
+                    onCartButton: () async {
+                      final res = await showDialog<List<ProductVariant>>(
+                        context: context,
+                        builder: (_) => VariantDialog(product: filtered[i]),
+                      );
+                      if (res != null) {
+                        final bloc = context.read<CheckoutBloc>();
+                        bloc.setPendingVariants(res);
+                        bloc.add(CheckoutEvent.addItem(filtered[i]));
+                        if (filtered[i].id != null) {
+                          setState(() {
+                            _selectedVariants[filtered[i].id!] = res;
+                          });
+                        }
+                      }
+                    },
+                  ),
+                );
+              },
             );
           },
         );

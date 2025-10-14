@@ -21,8 +21,8 @@ class _MemberDialogState extends State<MemberDialog> {
   void initState() {
     super.initState();
     if (widget.initial != null) {
-      final idx = widget.members.indexWhere(
-          (e) => e.toLowerCase() == widget.initial!.toLowerCase());
+      final idx = widget.members
+          .indexWhere((e) => e.toLowerCase() == widget.initial!.toLowerCase());
       if (idx >= 0) selectedIndex = idx;
     }
   }
@@ -111,7 +111,9 @@ class _MemberDialogState extends State<MemberDialog> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
+                                color: isSelected
+                                    ? AppColors.primaryActive
+                                    : AppColors.primaryLight,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: isSelected
@@ -120,8 +122,11 @@ class _MemberDialogState extends State<MemberDialog> {
                                 ),
                               ),
                               child: Text(filtered[i],
-                                  style:
-                                      const TextStyle(color: AppColors.black)),
+                                  style: TextStyle(
+                                      color: isSelected
+                                          ? AppColors.white
+                                          : AppColors.black,
+                                      fontWeight: FontWeight.w600)),
                             ),
                           );
                         },

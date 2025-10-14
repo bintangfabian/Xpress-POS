@@ -1,6 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 class TableModel {
-  int? id;
+  String? id; // Changed to String to support UUID
   final String? tableNumber; // Changed to String to support T001 format
   final String? name; // Added name field
   final int? capacity; // Added capacity field
@@ -27,7 +27,7 @@ class TableModel {
   // from map
   factory TableModel.fromMap(Map<String, dynamic> map) {
     return TableModel(
-      id: map['id'],
+      id: map['id']?.toString(), // Convert to string to support UUID
       tableNumber: map['table_number']?.toString(),
       name: map['name']?.toString(),
       capacity: map['capacity'] is int

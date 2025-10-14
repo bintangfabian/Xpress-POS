@@ -5,10 +5,11 @@ import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/data/models/response/table_model.dart';
-import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 import 'package:xpress/presentation/table/models/draft_order_model.dart';
-import 'package:xpress/presentation/table/pages/payment_table_page.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
+import 'package:xpress/presentation/table/dialogs/table_status_dialog.dart';
+import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
+import 'package:xpress/data/datasources/table_remote_datasource.dart';
 
 class CardTableWidget extends StatefulWidget {
   final TableModel table;
@@ -83,7 +84,6 @@ class _CardTableWidgetState extends State<CardTableWidget> {
   @override
   Widget build(BuildContext context) {
     final status = widget.table.status;
-    final isAvailable = status.toLowerCase() == 'available';
     final backgroundColor = _getBackgroundColor(status);
     final textColor = _getTextColor(status);
     final statusText = _getStatusText(status);
@@ -91,21 +91,105 @@ class _CardTableWidgetState extends State<CardTableWidget> {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () async {
-        if (isAvailable) {
-          // ✅ Pindah ke DashboardPage dengan table terpilih
+        // Log info meja yang diklik
+        log('========================================');
+        log('TABLE CLICKED:');
+        log('  - Table Number: ${widget.table.tableNumber}');
+        log('  - Table Name: ${widget.table.name}');
+        log('  - Table ID: ${widget.table.id}');
+        log('  - Current Status: ${widget.table.status}');
+        log('========================================');
+
+        // Tampilkan dialog untuk memilih aksi
+        final result = await showDialog<String>(
+          context: context,
+          builder: (context) => TableStatusDialog(
+            currentStatus: widget.table.status,
+            onStatusChanged: (newStatus) {
+              log('Status dialog callback - closing with result: $newStatus');
+              Navigator.pop(context, newStatus);
+            },
+          ),
+        );
+
+        log('Dialog returned with result: $result');
+        if (result == null) {
+          log('User cancelled dialog');
+          return; // User membatalkan dialog
+        }
+
+        // Handle berdasarkan pilihan
+        if (!mounted) return;
+
+        if (result == 'add_order') {
+          // Tambah Pesanan - selalu ke HomePage untuk buat/tambah pesanan
           context.push(DashboardPage(
-            initialIndex: 0, // langsung ke HomePage
+            initialIndex: 0,
             selectedTable: widget.table,
           ));
         } else {
-          context.read<CheckoutBloc>().add(
-                CheckoutEvent.loadDraftOrder(data!),
+          // Update status meja (available, reserved, occupied)
+          log('Preparing to update status to: $result');
+
+          if (widget.table.id == null || widget.table.id!.isEmpty) {
+            log('ERROR: Table ID is null or empty');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('ID Meja tidak ditemukan'),
+                backgroundColor: AppColors.danger,
+              ),
+            );
+            return;
+          }
+
+          log('Starting update process...');
+
+          // Update status ke database (tanpa loading indicator untuk test)
+          final datasource = TableRemoteDatasource();
+          final updateResult = await datasource.updateTableStatus(
+            tableId: widget.table.id!,
+            status: result,
+          );
+
+          log('Update completed, processing result...');
+
+          // Handle result
+          if (!mounted) {
+            log('Widget not mounted, skipping UI update');
+            return;
+          }
+
+          updateResult.fold(
+            (error) {
+              log('Update FAILED with error: $error');
+              // Show error
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: $error'),
+                  backgroundColor: AppColors.danger,
+                  duration: const Duration(seconds: 5),
+                ),
               );
-          log("Data Draft Order: ${data!.toMap()}");
-          context.push(PaymentTablePage(
-            table: widget.table,
-            draftOrder: data!,
-          ));
+            },
+            (_) {
+              log('Update SUCCESS! Refreshing table list...');
+              // Refresh table list
+              context.read<GetTableBloc>().add(
+                    const GetTableEvent.getTables(),
+                  );
+
+              log('Showing success snackbar...');
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✓ Status meja berhasil diubah'),
+                  backgroundColor: AppColors.success,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              log('All done!');
+            },
+          );
         }
       },
       child: Container(

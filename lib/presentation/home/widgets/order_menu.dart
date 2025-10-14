@@ -9,16 +9,15 @@ import '../../../core/constants/colors.dart';
 
 class OrderMenu extends StatelessWidget {
   final ProductQuantity data;
-  final List<String>? variants;
-  const OrderMenu({super.key, required this.data, this.variants});
+  const OrderMenu({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final price = data.product.price?.toIntegerFromText ?? 0;
-    final subtotal = price * data.quantity;
-    final effectiveVariants = (data.variants != null && data.variants!.isNotEmpty)
-        ? data.variants
-        : variants;
+    final basePrice = data.product.price?.toIntegerFromText ?? 0;
+    final variantPrice =
+        data.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ?? 0;
+    final totalPrice = basePrice + variantPrice;
+    final subtotal = totalPrice * data.quantity;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -42,16 +41,17 @@ class OrderMenu extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  "@${price.currencyFormatRp}",
+                  "@${basePrice.currencyFormatRp}",
                   style: const TextStyle(fontSize: 12, color: AppColors.grey),
                 ),
-                if (effectiveVariants != null && effectiveVariants.isNotEmpty) ...[
+                if (data.variants != null && data.variants!.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  ...effectiveVariants.map((v) => Padding(
+                  ...data.variants!.map((v) => Padding(
                         padding: const EdgeInsets.only(left: 8, top: 2),
                         child: Text(
-                          v,
-                          style: const TextStyle(fontSize: 12, color: AppColors.black),
+                          '${v.name} (+${v.priceAdjustment.currencyFormatRp})',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.black),
                         ),
                       )),
                 ],
@@ -79,8 +79,12 @@ class OrderMenu extends StatelessWidget {
                     icon: const Icon(Icons.remove,
                         size: 20, color: AppColors.danger),
                     onPressed: () {
-                      context.read<CheckoutBloc>().setPendingVariants(effectiveVariants);
-                      context.read<CheckoutBloc>().add(CheckoutEvent.removeItem(data.product));
+                      context
+                          .read<CheckoutBloc>()
+                          .setPendingVariants(data.variants);
+                      context
+                          .read<CheckoutBloc>()
+                          .add(CheckoutEvent.removeItem(data.product));
                     },
                   ),
                 ),
@@ -116,8 +120,12 @@ class OrderMenu extends StatelessWidget {
                     icon: const Icon(Icons.add,
                         size: 20, color: AppColors.success),
                     onPressed: () {
-                      context.read<CheckoutBloc>().setPendingVariants(effectiveVariants);
-                      context.read<CheckoutBloc>().add(CheckoutEvent.addItem(data.product));
+                      context
+                          .read<CheckoutBloc>()
+                          .setPendingVariants(data.variants);
+                      context
+                          .read<CheckoutBloc>()
+                          .add(CheckoutEvent.addItem(data.product));
                     },
                   ),
                 ),

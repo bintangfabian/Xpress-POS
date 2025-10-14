@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:xpress/data/models/response/product_response_model.dart';
+import 'package:xpress/presentation/home/models/product_variant.dart';
 
 class ProductQuantity {
   final Product product;
   int quantity;
-  final List<String>? variants;
+  final List<ProductVariant>? variants;
   ProductQuantity({
     required this.product,
     required this.quantity,
@@ -24,9 +25,12 @@ class ProductQuantity {
   }
 
   @override
-  int get hashCode => product.hashCode ^ quantity.hashCode ^ (variants?.join('|').hashCode ?? 0);
+  int get hashCode =>
+      product.hashCode ^
+      quantity.hashCode ^
+      (variants?.map((v) => v.toString()).join('|').hashCode ?? 0);
 
-  bool _listEquals(List<String>? a, List<String>? b) {
+  bool _listEquals(List<ProductVariant>? a, List<ProductVariant>? b) {
     if (identical(a, b)) return true;
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;
@@ -41,7 +45,7 @@ class ProductQuantity {
     return {
       'product': product.toMap(),
       'quantity': quantity,
-      'variants': variants,
+      'variants': variants?.map((v) => v.toMap()).toList(),
     };
   }
 
@@ -71,7 +75,11 @@ class ProductQuantity {
     return ProductQuantity(
       product: Product.fromMap(map['product']),
       quantity: map['quantity']?.toInt() ?? 0,
-      variants: (map['variants'] as List?)?.map((e) => e.toString()).toList(),
+      variants: (map['variants'] as List?)
+          ?.map((e) => e is Map<String, dynamic>
+              ? ProductVariant.fromMap(e)
+              : ProductVariant(name: e.toString(), priceAdjustment: 0))
+          .toList(),
     );
   }
 

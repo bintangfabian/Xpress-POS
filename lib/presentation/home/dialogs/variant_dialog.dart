@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
-import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/core/utils/image_utils.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
@@ -10,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/presentation/home/models/product_variant.dart';
 
 class VariantDialog extends StatefulWidget {
   final Product product;
@@ -62,7 +62,7 @@ List<_VariantItem> _parseOptions(String body) {
 }
 
 class _VariantDialogState extends State<VariantDialog> {
-  final Set<String> selected = {};
+  final Map<String, int> selected = {}; // name -> priceAdjustment
   bool _loading = true;
   List<_VariantItem> _options = [];
 
@@ -76,7 +76,19 @@ class _VariantDialogState extends State<VariantDialog> {
     try {
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
-      final id = widget.product.id ?? widget.product.productId;
+
+      // IMPORTANT: Use productId for API (this is the actual server ID)
+      // id is local database ID, productId is from server
+      final id = widget.product.productId ?? widget.product.id;
+
+      print('========================================');
+      print('VARIANT DIALOG - Fetching options for:');
+      print('Product Name: ${widget.product.name}');
+      print('Product ID (local): ${widget.product.id}');
+      print('Product ProductId (server): ${widget.product.productId}');
+      print('Using ID for API: $id');
+      print('========================================');
+
       if (id == null) {
         setState(() {
           _options = [];
@@ -84,13 +96,23 @@ class _VariantDialogState extends State<VariantDialog> {
         });
         return;
       }
-      final uri = Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/products/$id/options');
+
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/products/$id/options');
+
+      print('VARIANT DIALOG - API URL: $uri');
+
       final headers = {
         'Authorization': 'Bearer ${auth.token}',
         'Accept': 'application/json',
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
+
       var res = await http.get(uri, headers: headers);
+
+      print('VARIANT DIALOG - Response Status: ${res.statusCode}');
+      print('VARIANT DIALOG - Response Body: ${res.body}');
+
       if (res.statusCode == 403) {
         res = await http.get(uri, headers: {
           'Authorization': 'Bearer ${auth.token}',
@@ -99,17 +121,20 @@ class _VariantDialogState extends State<VariantDialog> {
       }
       if (res.statusCode == 200) {
         final parsed = _parseOptions(res.body);
+        print('VARIANT DIALOG - Parsed ${parsed.length} options');
         setState(() {
           _options = parsed;
           _loading = false;
         });
       } else {
+        print('VARIANT DIALOG - No options found');
         setState(() {
           _options = [];
           _loading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      print('VARIANT DIALOG - Error: $e');
       setState(() {
         _options = [];
         _loading = false;
@@ -184,13 +209,13 @@ class _VariantDialogState extends State<VariantDialog> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: AppColors.successLight,
+                                      color: _getStockColor(),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      "Stok: ${widget.product.stock ?? 0}",
+                                      "Stok: ${_getDisplayStock()}",
                                       style: TextStyle(
-                                        color: AppColors.success,
+                                        color: _getStockTextColor(),
                                         fontWeight: FontWeight.w600,
                                         fontSize: 12,
                                       ),
@@ -253,101 +278,105 @@ class _VariantDialogState extends State<VariantDialog> {
                           const Center(child: CircularProgressIndicator())
                         else
                           Flexible(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              maxHeight: 370, // adjust as needed
-                            ),
-                            child: Scrollbar(
-                              thickness: 0,
-                              thumbVisibility: true,
-                              child: ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: _options.isNotEmpty
-                                    ? _options.length
-                                    : widget.options.length,
-                                itemBuilder: (context, idx) {
-                                  final label = _options.isNotEmpty
-                                      ? _options[idx].label
-                                      : widget.options[idx];
-                                  final price = _options.isNotEmpty
-                                      ? _options[idx].priceAdjustment
-                                      : 0;
-                                  final isSelected = selected.contains(label);
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxHeight: 370, // adjust as needed
+                              ),
+                              child: Scrollbar(
+                                thickness: 0,
+                                thumbVisibility: true,
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: _options.isNotEmpty
+                                      ? _options.length
+                                      : widget.options.length,
+                                  itemBuilder: (context, idx) {
+                                    final label = _options.isNotEmpty
+                                        ? _options[idx].label
+                                        : widget.options[idx];
+                                    final price = _options.isNotEmpty
+                                        ? _options[idx].priceAdjustment
+                                        : 0;
+                                    final isSelected =
+                                        selected.containsKey(label);
 
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: Row(
-                                      children: [
-                                        // Tombol select di kiri
-                                        InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              if (isSelected) {
-                                                selected.remove(label);
-                                              } else {
-                                                selected.add(label);
-                                              }
-                                            });
-                                          },
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              border: isSelected
-                                                  ? Border.all(
-                                                      color: AppColors.primary,
-                                                      width: 2)
-                                                  : Border.all(
-                                                      color: AppColors
-                                                          .greyLightActive,
-                                                      width: 2),
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 8.0),
+                                      child: Row(
+                                        children: [
+                                          // Tombol select di kiri
+                                          InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                if (isSelected) {
+                                                  selected.remove(label);
+                                                } else {
+                                                  selected[label] = price;
+                                                }
+                                              });
+                                            },
+                                            child: Container(
+                                              width: 48,
+                                              height: 48,
+                                              decoration: BoxDecoration(
+                                                color: AppColors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: isSelected
+                                                    ? Border.all(
+                                                        color:
+                                                            AppColors.primary,
+                                                        width: 2)
+                                                    : Border.all(
+                                                        color: AppColors
+                                                            .greyLightActive,
+                                                        width: 2),
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: isSelected
+                                                  ? Container(
+                                                      width: 24,
+                                                      height: 24,
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            AppColors.primary,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(4),
+                                                      ),
+                                                    )
+                                                  : null,
                                             ),
-                                            alignment: Alignment.center,
-                                            child: isSelected
-                                                ? Container(
-                                                    width: 24,
-                                                    height: 24,
-                                                    decoration: BoxDecoration(
-                                                      color: AppColors.primary,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              4),
-                                                    ),
-                                                  )
-                                                : null,
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        // Nama varian
-                                        Expanded(
-                                          child: Text(
-                                            label,
+                                          const SizedBox(width: 12),
+                                          // Nama varian
+                                          Expanded(
+                                            child: Text(
+                                              label,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          // Harga varian di kanan
+                                          Text(
+                                            "+ ${price.currencyFormatRp}",
                                             style: const TextStyle(
                                               fontSize: 16,
-                                              fontWeight: FontWeight.w500,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.grey,
                                             ),
                                           ),
-                                        ),
-                                        // Harga varian di kanan
-                                        Text(
-                                          "+ ${price.currencyFormatRp}",
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -370,8 +399,15 @@ class _VariantDialogState extends State<VariantDialog> {
                     child: Button.filled(
                       color: AppColors.success,
                       label: 'Selesai',
-                      onPressed: () =>
-                          Navigator.pop(context, selected.toList()),
+                      onPressed: () {
+                        final variants = selected.entries
+                            .map((e) => ProductVariant(
+                                  name: e.key,
+                                  priceAdjustment: e.value,
+                                ))
+                            .toList();
+                        Navigator.pop(context, variants);
+                      },
                     ),
                   ),
                 ],
@@ -428,5 +464,30 @@ class _VariantDialogState extends State<VariantDialog> {
         );
       },
     );
+  }
+
+  // Helper methods for stock display
+  int _getDisplayStock() {
+    final isTrackingInventory = widget.product.trackInventory ?? false;
+    final actualStock = widget.product.stock ?? 0;
+    return !isTrackingInventory ? 999 : actualStock;
+  }
+
+  Color _getStockColor() {
+    final isTrackingInventory = widget.product.trackInventory ?? false;
+    if (!isTrackingInventory) return AppColors.successLight;
+
+    final stock = widget.product.stock ?? 0;
+    final minStock = widget.product.minStockLevel ?? 0;
+    return stock <= minStock ? AppColors.dangerLight : AppColors.successLight;
+  }
+
+  Color _getStockTextColor() {
+    final isTrackingInventory = widget.product.trackInventory ?? false;
+    if (!isTrackingInventory) return AppColors.success;
+
+    final stock = widget.product.stock ?? 0;
+    final minStock = widget.product.minStockLevel ?? 0;
+    return stock <= minStock ? AppColors.danger : AppColors.success;
   }
 }

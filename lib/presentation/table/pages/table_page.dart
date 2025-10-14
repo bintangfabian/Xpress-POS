@@ -114,11 +114,6 @@ class _TablePageState extends State<TablePage> {
                       color: AppColors.dangerLight,
                       label: "Terpakai",
                     ),
-                    SizedBox(width: 24),
-                    LegendItem(
-                      color: AppColors.greyLight,
-                      label: "Dalam Perbaikan",
-                    ),
                   ],
                 ),
               ),

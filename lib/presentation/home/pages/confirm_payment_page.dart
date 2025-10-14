@@ -836,17 +836,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                             itemCount: products.length + 1,
                             itemBuilder: (context, i) {
                               if (i < products.length) {
-                                final vid = products[i].product.id;
-                                final vars = vid != null
-                                    ? (_selectedVariants[vid]?.isNotEmpty ==
-                                            true
-                                        ? _selectedVariants[vid]!.first
-                                        : null)
-                                    : null;
-                                // Fix: OrderMenu expects variants as List<String>?
                                 return OrderMenu(
                                   data: products[i],
-                                  variants: vars != null ? [vars] : null,
                                 );
                               } else {
                                 // After the last product, show the "Detail Pesanan" section

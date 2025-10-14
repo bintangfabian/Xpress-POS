@@ -34,6 +34,18 @@ class ProductLocalDatasource {
   //           "created_at": "2024-02-08T14:30:22.000000Z",
   //           "updated_at": "2024-02-08T15:14:22.000000Z"
 
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add new columns to existing products table
+      await db.execute('''
+        ALTER TABLE $tableProduct ADD COLUMN minStockLevel INTEGER DEFAULT 0
+      ''');
+      await db.execute('''
+        ALTER TABLE $tableProduct ADD COLUMN trackInventory INTEGER DEFAULT 0
+      ''');
+    }
+  }
+
   Future<void> _createDb(Database db, int version) async {
     await db.execute('''
       CREATE TABLE $tableProduct (
@@ -46,6 +58,8 @@ class ProductLocalDatasource {
         image TEXT,
         price TEXT,
         stock INTEGER,
+        minStockLevel INTEGER DEFAULT 0,
+        trackInventory INTEGER DEFAULT 0,
         status INTEGER,
         isFavorite INTEGER,
         createdAt TEXT,
@@ -127,7 +141,12 @@ class ProductLocalDatasource {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = dbPath + filePath;
-    return await openDatabase(path, version: 1, onCreate: _createDb);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDb,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<Database> get database async {
