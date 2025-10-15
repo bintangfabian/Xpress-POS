@@ -14,14 +14,29 @@ class OrderResponseModel {
 
   String toJson() => json.encode(toMap());
 
-  factory OrderResponseModel.fromMap(Map<String, dynamic> json) =>
-      OrderResponseModel(
-        status: json["status"],
-        data: json["data"] == null
-            ? []
-            : List<ItemOrder>.from(
-                json["data"]!.map((x) => ItemOrder.fromMap(x))),
-      );
+  factory OrderResponseModel.fromMap(Map<String, dynamic> json) {
+    print('=== PARSING ORDER RESPONSE ===');
+    print('JSON keys: ${json.keys.toList()}');
+    print('success: ${json["success"]} (type: ${json["success"].runtimeType})');
+    print('status: ${json["status"]} (type: ${json["status"].runtimeType})');
+    print('data: ${json["data"]} (type: ${json["data"].runtimeType})');
+    print('data length: ${json["data"]?.length}');
+    if (json["data"] != null &&
+        json["data"] is List &&
+        json["data"].isNotEmpty) {
+      print('First data item: ${json["data"][0]}');
+      print('First data item keys: ${json["data"][0].keys.toList()}');
+    }
+    print('=============================');
+
+    return OrderResponseModel(
+      status: json["status"] ?? (json["success"] == true ? "success" : "error"),
+      data: json["data"] == null
+          ? []
+          : List<ItemOrder>.from(
+              json["data"]!.map((x) => ItemOrder.fromMap(x))),
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         "status": status,
@@ -31,83 +46,444 @@ class OrderResponseModel {
 }
 
 class ItemOrder {
-  int? id;
-  int? paymentAmount;
-  int? subTotal;
-  int? tax;
-  int? discount;
+  String? id;
+  String? orderNumber;
+  String? status;
+  String? subtotal;
+  String? taxAmount;
   String? discountAmount;
-  int? serviceCharge;
-  int? total;
+  String? serviceCharge;
+  String? totalAmount;
+  int? totalItems;
   String? paymentMethod;
-  int? totalItem;
-  int? idKasir;
-  String? namaKasir;
-  DateTime? transactionTime;
+  String? notes;
   DateTime? createdAt;
   DateTime? updatedAt;
+  DateTime? completedAt;
+  User? user;
+  Member? member;
+  Table? table;
+  List<OrderItem>? items;
+  List<Payment>? payments;
+  List<Refund>? refunds;
+  bool? canBeModified;
+  bool? isCompleted;
+  bool? isPaid;
 
   ItemOrder({
     this.id,
-    this.paymentAmount,
-    this.subTotal,
-    this.tax,
-    this.discount,
+    this.orderNumber,
+    this.status,
+    this.subtotal,
+    this.taxAmount,
     this.discountAmount,
     this.serviceCharge,
-    this.total,
+    this.totalAmount,
+    this.totalItems,
     this.paymentMethod,
-    this.totalItem,
-    this.idKasir,
-    this.namaKasir,
-    this.transactionTime,
+    this.notes,
     this.createdAt,
     this.updatedAt,
+    this.completedAt,
+    this.user,
+    this.member,
+    this.table,
+    this.items,
+    this.payments,
+    this.refunds,
+    this.canBeModified,
+    this.isCompleted,
+    this.isPaid,
   });
 
   factory ItemOrder.fromJson(String str) => ItemOrder.fromMap(json.decode(str));
 
   String toJson() => json.encode(toMap());
 
-  factory ItemOrder.fromMap(Map<String, dynamic> json) => ItemOrder(
-        id: json["id"],
-        paymentAmount: json["payment_amount"],
-        subTotal: json["sub_total"],
-        tax: json["tax"],
-        discount: json["discount"],
-        discountAmount: json["discount_amount"],
-        serviceCharge: json["service_charge"],
-        total: json["total"],
-        paymentMethod: json["payment_method"]!,
-        totalItem: json["total_item"],
-        idKasir: json["id_kasir"],
-        namaKasir: json["nama_kasir"],
-        transactionTime: json["transaction_time"] == null
+  factory ItemOrder.fromMap(Map<String, dynamic> json) {
+    print('=== PARSING ORDER ===');
+    print('JSON keys: ${json.keys.toList()}');
+    print('id: ${json["id"]} (type: ${json["id"].runtimeType})');
+    print('id is null: ${json["id"] == null}');
+    print('id is empty: ${json["id"]?.toString().isEmpty ?? true}');
+    print('id length: ${json["id"]?.toString().length}');
+    print(
+        'order_number: ${json["order_number"]} (type: ${json["order_number"].runtimeType})');
+    print(
+        'total_amount: ${json["total_amount"]} (type: ${json["total_amount"].runtimeType})');
+    print(
+        'subtotal: ${json["subtotal"]} (type: ${json["subtotal"].runtimeType})');
+    print('user: ${json["user"]}');
+    print('table: ${json["table"]}');
+    print('items: ${json["items"]}');
+    print('====================');
+
+    return ItemOrder(
+      id: json["id"]?.toString(),
+      orderNumber: json["order_number"]?.toString(),
+      status: json["status"]?.toString(),
+      subtotal: json["subtotal"]?.toString(),
+      taxAmount: json["tax_amount"]?.toString(),
+      discountAmount: json["discount_amount"]?.toString(),
+      serviceCharge: json["service_charge"]?.toString(),
+      totalAmount: json["total_amount"]?.toString(),
+      totalItems: json["total_items"],
+      paymentMethod: json["payment_method"]?.toString(),
+      notes: json["notes"]?.toString(),
+      createdAt: json["created_at"] == null
+          ? null
+          : DateTime.parse(json["created_at"]),
+      updatedAt: json["updated_at"] == null
+          ? null
+          : DateTime.parse(json["updated_at"]),
+      completedAt: json["completed_at"] == null
+          ? null
+          : DateTime.parse(json["completed_at"]),
+      user: json["user"] == null ? null : User.fromMap(json["user"]),
+      member: json["member"] == null ? null : Member.fromMap(json["member"]),
+      table: json["table"] == null ? null : Table.fromMap(json["table"]),
+      items: json["items"] == null
+          ? null
+          : List<OrderItem>.from(
+              json["items"].map((x) => OrderItem.fromMap(x))),
+      payments: json["payments"] == null
+          ? null
+          : List<Payment>.from(json["payments"].map((x) => Payment.fromMap(x))),
+      refunds: json["refunds"] == null
+          ? null
+          : List<Refund>.from(json["refunds"].map((x) => Refund.fromMap(x))),
+      canBeModified: json["can_be_modified"],
+      isCompleted: json["is_completed"],
+      isPaid: json["is_paid"],
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "order_number": orderNumber,
+        "status": status,
+        "subtotal": subtotal,
+        "tax_amount": taxAmount,
+        "discount_amount": discountAmount,
+        "service_charge": serviceCharge,
+        "total_amount": totalAmount,
+        "total_items": totalItems,
+        "payment_method": paymentMethod,
+        "notes": notes,
+        "created_at": createdAt?.toIso8601String(),
+        "updated_at": updatedAt?.toIso8601String(),
+        "completed_at": completedAt?.toIso8601String(),
+        "user": user?.toMap(),
+        "member": member?.toMap(),
+        "table": table?.toMap(),
+        "items": items == null
             ? null
-            : DateTime.parse(json["transaction_time"]),
+            : List<dynamic>.from(items!.map((x) => x.toMap())),
+        "payments": payments == null
+            ? null
+            : List<dynamic>.from(payments!.map((x) => x.toMap())),
+        "refunds": refunds == null
+            ? null
+            : List<dynamic>.from(refunds!.map((x) => x.toMap())),
+        "can_be_modified": canBeModified,
+        "is_completed": isCompleted,
+        "is_paid": isPaid,
+      };
+}
+
+class User {
+  int? id;
+  String? name;
+
+  User({this.id, this.name});
+
+  factory User.fromMap(Map<String, dynamic> json) => User(
+        id: json["id"],
+        name: json["name"]?.toString(),
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "name": name,
+      };
+}
+
+class Member {
+  String? id;
+  String? name;
+
+  Member({this.id, this.name});
+
+  factory Member.fromMap(Map<String, dynamic> json) => Member(
+        id: json["id"]?.toString(),
+        name: json["name"]?.toString(),
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "name": name,
+      };
+}
+
+class Table {
+  String? id;
+  String? tableNumber;
+  String? name;
+  int? capacity;
+  String? status;
+  String? statusDisplay;
+  String? location;
+  bool? isActive;
+  DateTime? createdAt;
+  DateTime? updatedAt;
+  DateTime? occupiedAt;
+  DateTime? lastClearedAt;
+  int? totalOccupancyCount;
+  String? averageOccupancyDuration;
+  String? notes;
+  bool? isAvailable;
+  bool? isOccupied;
+  bool? canBeOccupied;
+  int? currentOccupancyDuration;
+  bool? isOccupiedTooLong;
+  String? formattedAverageDuration;
+
+  Table({
+    this.id,
+    this.tableNumber,
+    this.name,
+    this.capacity,
+    this.status,
+    this.statusDisplay,
+    this.location,
+    this.isActive,
+    this.createdAt,
+    this.updatedAt,
+    this.occupiedAt,
+    this.lastClearedAt,
+    this.totalOccupancyCount,
+    this.averageOccupancyDuration,
+    this.notes,
+    this.isAvailable,
+    this.isOccupied,
+    this.canBeOccupied,
+    this.currentOccupancyDuration,
+    this.isOccupiedTooLong,
+    this.formattedAverageDuration,
+  });
+
+  factory Table.fromMap(Map<String, dynamic> json) => Table(
+        id: json["id"]?.toString(),
+        tableNumber: json["table_number"]?.toString(),
+        name: json["name"]?.toString(),
+        capacity: json["capacity"],
+        status: json["status"]?.toString(),
+        statusDisplay: json["status_display"]?.toString(),
+        location: json["location"]?.toString(),
+        isActive: json["is_active"],
         createdAt: json["created_at"] == null
             ? null
             : DateTime.parse(json["created_at"]),
         updatedAt: json["updated_at"] == null
             ? null
             : DateTime.parse(json["updated_at"]),
+        occupiedAt: json["occupied_at"] == null
+            ? null
+            : DateTime.parse(json["occupied_at"]),
+        lastClearedAt: json["last_cleared_at"] == null
+            ? null
+            : DateTime.parse(json["last_cleared_at"]),
+        totalOccupancyCount: json["total_occupancy_count"],
+        averageOccupancyDuration:
+            json["average_occupancy_duration"]?.toString(),
+        notes: json["notes"]?.toString(),
+        isAvailable: json["is_available"],
+        isOccupied: json["is_occupied"],
+        canBeOccupied: json["can_be_occupied"],
+        currentOccupancyDuration: json["current_occupancy_duration"],
+        isOccupiedTooLong: json["is_occupied_too_long"],
+        formattedAverageDuration:
+            json["formatted_average_duration"]?.toString(),
       );
 
   Map<String, dynamic> toMap() => {
         "id": id,
-        "payment_amount": paymentAmount,
-        "sub_total": subTotal,
-        "tax": tax,
-        "discount": discount,
-        "discount_amount": discountAmount,
-        "service_charge": serviceCharge,
-        "total": total,
-        "payment_method": paymentMethod,
-        "total_item": totalItem,
-        "id_kasir": idKasir,
-        "nama_kasir": namaKasir,
-        "transaction_time": transactionTime?.toIso8601String(),
+        "table_number": tableNumber,
+        "name": name,
+        "capacity": capacity,
+        "status": status,
+        "status_display": statusDisplay,
+        "location": location,
+        "is_active": isActive,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
+        "occupied_at": occupiedAt?.toIso8601String(),
+        "last_cleared_at": lastClearedAt?.toIso8601String(),
+        "total_occupancy_count": totalOccupancyCount,
+        "average_occupancy_duration": averageOccupancyDuration,
+        "notes": notes,
+        "is_available": isAvailable,
+        "is_occupied": isOccupied,
+        "can_be_occupied": canBeOccupied,
+        "current_occupancy_duration": currentOccupancyDuration,
+        "is_occupied_too_long": isOccupiedTooLong,
+        "formatted_average_duration": formattedAverageDuration,
+      };
+}
+
+class OrderItem {
+  String? id;
+  int? productId;
+  String? productName;
+  String? productSku;
+  int? quantity;
+  String? unitPrice;
+  String? totalPrice;
+  List<dynamic>? productOptions;
+  String? notes;
+  DateTime? createdAt;
+  DateTime? updatedAt;
+  Product? product;
+  int? lineTotal;
+
+  OrderItem({
+    this.id,
+    this.productId,
+    this.productName,
+    this.productSku,
+    this.quantity,
+    this.unitPrice,
+    this.totalPrice,
+    this.productOptions,
+    this.notes,
+    this.createdAt,
+    this.updatedAt,
+    this.product,
+    this.lineTotal,
+  });
+
+  factory OrderItem.fromMap(Map<String, dynamic> json) => OrderItem(
+        id: json["id"]?.toString(),
+        productId: json["product_id"],
+        productName: json["product_name"]?.toString(),
+        productSku: json["product_sku"]?.toString(),
+        quantity: json["quantity"],
+        unitPrice: json["unit_price"]?.toString(),
+        totalPrice: json["total_price"]?.toString(),
+        productOptions: json["product_options"] == null
+            ? null
+            : List<dynamic>.from(json["product_options"]),
+        notes: json["notes"]?.toString(),
+        createdAt: json["created_at"] == null
+            ? null
+            : DateTime.parse(json["created_at"]),
+        updatedAt: json["updated_at"] == null
+            ? null
+            : DateTime.parse(json["updated_at"]),
+        product:
+            json["product"] == null ? null : Product.fromMap(json["product"]),
+        lineTotal: json["line_total"],
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "product_id": productId,
+        "product_name": productName,
+        "product_sku": productSku,
+        "quantity": quantity,
+        "unit_price": unitPrice,
+        "total_price": totalPrice,
+        "product_options": productOptions,
+        "notes": notes,
+        "created_at": createdAt?.toIso8601String(),
+        "updated_at": updatedAt?.toIso8601String(),
+        "product": product?.toMap(),
+        "line_total": lineTotal,
+      };
+}
+
+class Product {
+  int? id;
+  String? name;
+  String? sku;
+  String? image;
+  bool? trackInventory;
+  int? stock;
+
+  Product({
+    this.id,
+    this.name,
+    this.sku,
+    this.image,
+    this.trackInventory,
+    this.stock,
+  });
+
+  factory Product.fromMap(Map<String, dynamic> json) => Product(
+        id: json["id"],
+        name: json["name"]?.toString(),
+        sku: json["sku"]?.toString(),
+        image: json["image"]?.toString(),
+        trackInventory: json["track_inventory"],
+        stock: json["stock"],
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "name": name,
+        "sku": sku,
+        "image": image,
+        "track_inventory": trackInventory,
+        "stock": stock,
+      };
+}
+
+class Payment {
+  String? id;
+  String? amount;
+  String? method;
+  DateTime? createdAt;
+
+  Payment({this.id, this.amount, this.method, this.createdAt});
+
+  factory Payment.fromMap(Map<String, dynamic> json) => Payment(
+        id: json["id"]?.toString(),
+        amount: json["amount"]?.toString(),
+        method: json["method"]?.toString(),
+        createdAt: json["created_at"] == null
+            ? null
+            : DateTime.parse(json["created_at"]),
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "amount": amount,
+        "method": method,
+        "created_at": createdAt?.toIso8601String(),
+      };
+}
+
+class Refund {
+  String? id;
+  String? amount;
+  String? reason;
+  DateTime? createdAt;
+
+  Refund({this.id, this.amount, this.reason, this.createdAt});
+
+  factory Refund.fromMap(Map<String, dynamic> json) => Refund(
+        id: json["id"]?.toString(),
+        amount: json["amount"]?.toString(),
+        reason: json["reason"]?.toString(),
+        createdAt: json["created_at"] == null
+            ? null
+            : DateTime.parse(json["created_at"]),
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "amount": amount,
+        "reason": reason,
+        "created_at": createdAt?.toIso8601String(),
       };
 }

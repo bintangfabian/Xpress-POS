@@ -15,6 +15,7 @@ class QrisSuccessDialog extends StatelessWidget {
   final int change;
   final String orderType;
   final int? tableNumber;
+  final Future<bool> Function()? onSubmitOrder;
 
   const QrisSuccessDialog({
     super.key,
@@ -22,6 +23,7 @@ class QrisSuccessDialog extends StatelessWidget {
     required this.change,
     required this.orderType,
     this.tableNumber,
+    this.onSubmitOrder,
   });
 
   String _formatDate(DateTime dt) => DateFormat('d MMMM yyyy').format(dt);
@@ -112,8 +114,26 @@ class QrisSuccessDialog extends StatelessWidget {
                     borderColor: AppColors.grey,
                     fontWeight: FontWeight.w600,
                     onPressed: () async {
+                      // Submit order to server
+                      if (onSubmitOrder != null) {
+                        final success = await onSubmitOrder!();
+                        if (!success) {
+                          // Show error if submission failed
+                          // ignore: use_build_context_synchronously
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Gagal menyimpan order ke server'),
+                              backgroundColor: AppColors.danger,
+                            ),
+                          );
+                          // Continue anyway to save locally
+                        }
+                      }
+
+                      // Save to local history
                       final now2 = DateTime.now();
-                      final id = await OrderHistoryLocalDatasource.instance.getCurrentOrderId();
+                      final id = await OrderHistoryLocalDatasource.instance
+                          .getCurrentOrderId();
                       await OrderHistoryLocalDatasource.instance.addHistory({
                         'orderId': id,
                         'total': total,
@@ -123,14 +143,21 @@ class QrisSuccessDialog extends StatelessWidget {
                         'orderType': orderType,
                         'tableNumber': tableNumber,
                       });
-                      await OrderHistoryLocalDatasource.instance.incrementOrderId();
+                      await OrderHistoryLocalDatasource.instance
+                          .incrementOrderId();
+
                       // reset checkout
                       // ignore: use_build_context_synchronously
-                      context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
+                      context
+                          .read<CheckoutBloc>()
+                          .add(const CheckoutEvent.clearOrder());
+
                       // navigate to Home
                       // ignore: use_build_context_synchronously
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const DashboardPage(initialIndex: 0)),
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const DashboardPage(initialIndex: 0)),
                         (route) => false,
                       );
                     },

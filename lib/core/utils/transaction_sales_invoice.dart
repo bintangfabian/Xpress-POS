@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:xpress/core/extensions/date_time_ext.dart';
-import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:flutter/services.dart';
 
 import 'package:xpress/core/utils/helper_pdf_service.dart';
@@ -9,6 +8,7 @@ import 'package:xpress/data/models/response/order_remote_datasource.dart';
 import 'package:pdf/widgets.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:intl/intl.dart';
 
 class TransactionSalesInvoice {
   static late Font ttf;
@@ -81,16 +81,16 @@ class TransactionSalesInvoice {
     ];
     final data = itemOrders.map((item) {
       return [
-        item.total!.currencyFormatRp,
-        item.subTotal!.currencyFormatRp,
-        item.tax!.currencyFormatRp,
-        int.parse(item.discountAmount!.replaceAll('.00', '')).currencyFormatRp,
-        item.serviceCharge!.currencyFormatRp,
-        item.transactionTime!.toFormattedDate2(),
+        _formatCurrency(item.totalAmount ?? '0'),
+        _formatCurrency(item.subtotal ?? '0'),
+        _formatCurrency(item.taxAmount ?? '0'),
+        _formatCurrency(item.discountAmount ?? '0'),
+        _formatCurrency(item.serviceCharge ?? '0'),
+        item.createdAt?.toFormattedDate2() ?? 'N/A',
       ];
     }).toList();
 
-    return Table.fromTextArray(
+    return pw.Table.fromTextArray(
       headers: headers,
       data: data,
       border: null,
@@ -157,5 +157,14 @@ class TransactionSalesInvoice {
         ],
       ),
     );
+  }
+
+  static String _formatCurrency(String amount) {
+    try {
+      final value = double.tryParse(amount) ?? 0.0;
+      return NumberFormat('#,###').format(value.toInt());
+    } catch (e) {
+      return '0';
+    }
   }
 }

@@ -35,6 +35,7 @@ class _DashboardPageState extends State<DashboardPage> {
   late int _selectedIndex; // ✅ diubah jadi late
   late int _contentIndex; // ✅ index konten yang ditampilkan
   TableModel? _selectedTable; // ✅ simpan table yg dipilih
+  String? _selectedOrderId; // ✅ simpan order id yang dipilih
   String _orderType = 'dinein';
 
   @override
@@ -74,8 +75,9 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       const TablePage(),
       ReportPage(
-        onOpenDetail: () {
+        onOpenDetail: (String orderId) {
           setState(() {
+            _selectedOrderId = orderId; // simpan order id
             _contentIndex = 6; // tampilkan halaman detail transaksi
             _selectedIndex = 2; // navbar tetap aktif di Report
           });
@@ -91,6 +93,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       // Index 6 = TransactionDetailPage
       TransactionDetailPage(
+        orderId: _selectedOrderId,
         onBack: () {
           setState(() {
             _contentIndex = 2; // kembali ke ReportPage content

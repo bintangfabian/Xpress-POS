@@ -36,9 +36,10 @@ class VariantDialog extends StatefulWidget {
 }
 
 class _VariantItem {
+  final String? id; // UUID from server
   final String label;
   final int priceAdjustment;
-  _VariantItem(this.label, this.priceAdjustment);
+  _VariantItem(this.label, this.priceAdjustment, {this.id});
 }
 
 List<_VariantItem> _parseOptions(String body) {
@@ -51,10 +52,11 @@ List<_VariantItem> _parseOptions(String body) {
       if (d is List) list = d;
     }
     return list.map<_VariantItem>((e) {
+      final id = e['id']?.toString(); // Capture UUID
       final name = (e['value'] ?? e['name'] ?? '').toString();
       final adj = (e['price_adjustment'] ?? 0).toString();
       final padj = int.tryParse(adj.replaceAll('.00', '')) ?? 0;
-      return _VariantItem(name, padj);
+      return _VariantItem(name, padj, id: id);
     }).toList();
   } catch (_) {
     return [];
@@ -62,7 +64,8 @@ List<_VariantItem> _parseOptions(String body) {
 }
 
 class _VariantDialogState extends State<VariantDialog> {
-  final Map<String, int> selected = {}; // name -> priceAdjustment
+  final Map<String, _VariantItem> selected =
+      {}; // name -> _VariantItem (includes id)
   bool _loading = true;
   List<_VariantItem> _options = [];
 
@@ -291,12 +294,11 @@ class _VariantDialogState extends State<VariantDialog> {
                                       ? _options.length
                                       : widget.options.length,
                                   itemBuilder: (context, idx) {
-                                    final label = _options.isNotEmpty
-                                        ? _options[idx].label
-                                        : widget.options[idx];
-                                    final price = _options.isNotEmpty
-                                        ? _options[idx].priceAdjustment
-                                        : 0;
+                                    final item = _options.isNotEmpty
+                                        ? _options[idx]
+                                        : _VariantItem(widget.options[idx], 0);
+                                    final label = item.label;
+                                    final price = item.priceAdjustment;
                                     final isSelected =
                                         selected.containsKey(label);
 
@@ -312,7 +314,8 @@ class _VariantDialogState extends State<VariantDialog> {
                                                 if (isSelected) {
                                                   selected.remove(label);
                                                 } else {
-                                                  selected[label] = price;
+                                                  selected[label] =
+                                                      item; // Store full item with id
                                                 }
                                               });
                                             },
@@ -402,8 +405,9 @@ class _VariantDialogState extends State<VariantDialog> {
                       onPressed: () {
                         final variants = selected.entries
                             .map((e) => ProductVariant(
+                                  id: e.value.id, // Include UUID
                                   name: e.key,
-                                  priceAdjustment: e.value,
+                                  priceAdjustment: e.value.priceAdjustment,
                                 ))
                             .toList();
                         Navigator.pop(context, variants);

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:dartz/dartz.dart';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
-import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/data/models/response/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/summary_response_model.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
@@ -43,6 +42,7 @@ class OrderRemoteDatasource {
     } catch (_) {}
     return '#0001';
   }
+
   //save order to remote server
   Future<bool> saveOrder(OrderModel orderModel) async {
     try {
@@ -82,43 +82,104 @@ class OrderRemoteDatasource {
   }
 
   Future<Either<String, OrderResponseModel>> getOrderByRangeDate(
-    String stratDate,
+    String startDate,
     String endDate,
   ) async {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
-      final storeId = await AuthLocalDataSource().getStoreId();
-      final uri = Uri.parse(
-          '${Variables.baseUrl}/api/orders?start_date=$stratDate&end_date=$endDate');
-      var response = await http.get(
-        uri,
-        headers: {
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      // Try multiple possible endpoints
+      final endpoints = [
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/transactions?start_date=$startDate&end_date=$endDate&per_page=1000',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/orders?start_date=$startDate&end_date=$endDate&per_page=1000',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/sales?start_date=$startDate&end_date=$endDate&per_page=1000',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/reports/transactions?start_date=$startDate&end_date=$endDate&per_page=1000',
+      ];
+
+      for (int i = 0; i < endpoints.length; i++) {
+        final uri = Uri.parse(endpoints[i]);
+        log("Trying endpoint ${i + 1}/${endpoints.length}: $uri");
+
+        final headers = {
           'Authorization': 'Bearer ${authData.token}',
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'X-Store-Id': storeId.toString(),
-        },
-      );
-      if (response.statusCode == 403) {
-        response = await http.get(
-          uri,
-          headers: {
-            'Authorization': 'Bearer ${authData.token}',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        );
+          if (storeUuid != null && storeUuid.isNotEmpty)
+            'X-Store-Id': storeUuid,
+        };
+
+        log("Fetching orders: $uri");
+        var response = await http.get(uri, headers: headers);
+
+        if (response.statusCode == 403) {
+          // Retry without store header if forbidden
+          headers.remove('X-Store-Id');
+          response = await http.get(uri, headers: headers);
+        }
+
+        log("Orders Response: ${response.statusCode}");
+        log("Orders Response Body: ${response.body}");
+
+        if (response.statusCode == 200) {
+          try {
+            final responseData = jsonDecode(response.body);
+            log("=== RAW API RESPONSE DEBUG ===");
+            log("Response type: ${responseData.runtimeType}");
+            log("Response keys: ${responseData.keys.toList()}");
+            log("Success: ${responseData['success']}");
+            log("Data type: ${responseData['data'].runtimeType}");
+            log("Data length: ${responseData['data']?.length}");
+            if (responseData['data'] != null &&
+                responseData['data'] is List &&
+                responseData['data'].isNotEmpty) {
+              log("First data item: ${responseData['data'][0]}");
+              log("First data item keys: ${responseData['data'][0].keys.toList()}");
+            }
+            log("=================================");
+          } catch (e) {
+            log("Error parsing response: $e");
+          }
+
+          final orderResponse = OrderResponseModel.fromJson(response.body);
+          log("Parsed orders count: ${orderResponse.data?.length}");
+          if (orderResponse.data != null && orderResponse.data!.isNotEmpty) {
+            final firstOrder = orderResponse.data!.first;
+            log("=== FIRST ORDER DEBUG ===");
+            log("First order ID: ${firstOrder.id}");
+            log("First order orderNumber: ${firstOrder.orderNumber}");
+            log("First order totalAmount: ${firstOrder.totalAmount}");
+            log("First order subtotal: ${firstOrder.subtotal}");
+            log("First order taxAmount: ${firstOrder.taxAmount}");
+            log("First order discountAmount: ${firstOrder.discountAmount}");
+            log("First order serviceCharge: ${firstOrder.serviceCharge}");
+            log("First order paymentMethod: ${firstOrder.paymentMethod}");
+            log("First order status: ${firstOrder.status}");
+            log("First order user: ${firstOrder.user?.name}");
+            log("First order table: ${firstOrder.table?.name}");
+            log("First order items count: ${firstOrder.items?.length}");
+            if (firstOrder.items != null && firstOrder.items!.isNotEmpty) {
+              final firstItem = firstOrder.items!.first;
+              log("First item productName: ${firstItem.productName}");
+              log("First item quantity: ${firstItem.quantity}");
+              log("First item totalPrice: ${firstItem.totalPrice}");
+            }
+            log("=========================");
+          }
+          return Right(orderResponse);
+        } else {
+          log("Endpoint ${i + 1} failed with status: ${response.statusCode}");
+          if (i == endpoints.length - 1) {
+            return Left(
+                "All endpoints failed. Last error: ${response.statusCode}");
+          }
+        }
       }
-      log("Response: ${response.statusCode}");
-      log("Response: ${response.body}");
-      if (response.statusCode == 200) {
-        return Right(OrderResponseModel.fromJson(response.body));
-      } else {
-        return const Left("Failed Load Data");
-      }
+
+      return Left("No working endpoint found");
     } catch (e) {
-      log("Error: $e");
-      return Left("Failed: $e");
+      log("Error fetching orders: $e");
+      return Left("Failed to fetch orders: $e");
     }
   }
 
@@ -164,6 +225,70 @@ class OrderRemoteDatasource {
     } catch (e) {
       log("Error: $e");
       return Left("Failed: $e");
+    }
+  }
+
+  Future<Either<String, ItemOrder>> getOrderDetail(String orderId) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/orders/$orderId');
+
+      final headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      log("Fetching order detail: $uri");
+      var response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 403) {
+        // Retry without store header if forbidden
+        headers.remove('X-Store-Id');
+        response = await http.get(uri, headers: headers);
+      }
+
+      log("Order Detail Response: ${response.statusCode}");
+      log("Order Detail Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final order = ItemOrder.fromMap(responseData['data']);
+          log("=== ORDER DETAIL DEBUG ===");
+          log("Order ID: ${order.id}");
+          log("Order Number: ${order.orderNumber}");
+          log("Total Amount: ${order.totalAmount}");
+          log("Subtotal: ${order.subtotal}");
+          log("Tax Amount: ${order.taxAmount}");
+          log("Discount Amount: ${order.discountAmount}");
+          log("Service Charge: ${order.serviceCharge}");
+          log("Payment Method: ${order.paymentMethod}");
+          log("Status: ${order.status}");
+          log("User: ${order.user?.name}");
+          log("Table: ${order.table?.name}");
+          log("Items: ${order.items?.length}");
+          if (order.items != null && order.items!.isNotEmpty) {
+            final firstItem = order.items!.first;
+            log("First item productName: ${firstItem.productName}");
+            log("First item quantity: ${firstItem.quantity}");
+            log("First item totalPrice: ${firstItem.totalPrice}");
+          }
+          log("=========================");
+          return Right(order);
+        } else {
+          return Left("Order not found or invalid response");
+        }
+      } else {
+        return Left("Failed to load order detail: ${response.statusCode}");
+      }
+    } catch (e) {
+      log("Error fetching order detail: $e");
+      return Left("Failed to fetch order detail: $e");
     }
   }
 }

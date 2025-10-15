@@ -3,14 +3,13 @@ import 'dart:developer';
 import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
-import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/utils/helper_pdf_service.dart';
 import 'package:flutter/material.dart';
 import 'package:xpress/core/utils/permession_handler.dart';
 import 'package:xpress/core/utils/transaction_sales_invoice.dart';
 import 'package:xpress/data/models/response/order_remote_datasource.dart';
 import 'package:horizontal_data_table/horizontal_data_table.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:intl/intl.dart';
 
 class TransactionReportWidget extends StatelessWidget {
   final String title;
@@ -100,7 +99,7 @@ class TransactionReportWidget extends StatelessWidget {
                       height: 52,
                       alignment: Alignment.centerLeft,
                       child: Center(
-                          child: Text(transactionReport[index].id.toString())),
+                          child: Text(transactionReport[index].id ?? '')),
                     );
                   },
                   rightSideItemBuilder: (context, index) {
@@ -113,7 +112,7 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                               child: Text(
-                            transactionReport[index].total!.currencyFormatRp,
+                            'Rp ${NumberFormat('#,###').format((double.tryParse(transactionReport[index].totalAmount ?? '0') ?? 0).toInt())}',
                           )),
                         ),
                         Container(
@@ -123,7 +122,7 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                               child: Text(
-                            transactionReport[index].subTotal!.currencyFormatRp,
+                            'Rp ${NumberFormat('#,###').format((double.tryParse(transactionReport[index].subtotal ?? '0') ?? 0).toInt())}',
                           )),
                         ),
                         Container(
@@ -133,7 +132,7 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                               child: Text(
-                            transactionReport[index].tax!.currencyFormatRp,
+                            'Rp ${NumberFormat('#,###').format((double.tryParse(transactionReport[index].taxAmount ?? '0') ?? 0).toInt())}',
                           )),
                         ),
                         Container(
@@ -143,10 +142,7 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                             child: Text(
-                              int.parse(transactionReport[index]
-                                      .discountAmount!
-                                      .replaceAll('.00', ''))
-                                  .currencyFormatRp,
+                              'Rp ${NumberFormat('#,###').format((double.tryParse(transactionReport[index].discountAmount ?? '0') ?? 0).toInt())}',
                             ),
                           ),
                         ),
@@ -157,9 +153,7 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                             child: Text(
-                              transactionReport[index]
-                                  .serviceCharge!
-                                  .currencyFormatRp,
+                              'Rp ${NumberFormat('#,###').format((double.tryParse(transactionReport[index].serviceCharge ?? '0') ?? 0).toInt())}',
                             ),
                           ),
                         ),
@@ -170,7 +164,8 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                             child: Text(
-                                transactionReport[index].totalItem.toString()),
+                                (transactionReport[index].totalItems ?? 0)
+                                    .toString()),
                           ),
                         ),
                         Container(
@@ -179,7 +174,8 @@ class TransactionReportWidget extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(5, 0, 0, 0),
                           alignment: Alignment.centerLeft,
                           child: Center(
-                            child: Text(transactionReport[index].namaKasir!),
+                            child:
+                                Text(transactionReport[index].user?.name ?? ''),
                           ),
                         ),
                         Container(
@@ -189,8 +185,9 @@ class TransactionReportWidget extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: Center(
                             child: Text(transactionReport[index]
-                                .transactionTime!
-                                .toFormattedDate()),
+                                    .createdAt
+                                    ?.toFormattedDate() ??
+                                ''),
                           ),
                         ),
                       ],

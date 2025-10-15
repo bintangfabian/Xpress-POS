@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
-import 'package:xpress/core/constants/borders.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/data/models/response/table_model.dart';
@@ -17,15 +16,10 @@ import 'package:xpress/data/models/response/discount_response_model.dart';
 import 'package:xpress/presentation/home/dialogs/qris_confirm_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/qris_success_dialog.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
-// removed old payment_qris_dialog usage
-// dialogs moved to separated files
-import 'package:xpress/presentation/home/pages/home_page.dart';
 import 'package:xpress/presentation/home/widgets/custom_button.dart';
-import 'package:xpress/presentation/home/widgets/home_title.dart';
 import 'package:xpress/presentation/home/widgets/order_menu.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 import '../../../core/components/components.dart';
-import 'package:xpress/presentation/home/widgets/custom_button.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
@@ -51,7 +45,6 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   final noteController = TextEditingController();
   final customerController = TextEditingController();
   final totalPayController = TextEditingController();
-  final Map<int, List<String>> _selectedVariants = {};
   bool isCash = true;
   int? _selectedTableNumber;
 
@@ -145,6 +138,170 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       }
     } catch (_) {}
     return [];
+  }
+
+  // Submit order to server
+  Future<bool> _submitOrder() async {
+    try {
+      print('========================================');
+      print('SUBMIT ORDER: Starting...');
+
+      final auth = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      print('SUBMIT ORDER: User ID = ${auth.user?.id}');
+      print('SUBMIT ORDER: Store UUID = $storeUuid');
+      print('SUBMIT ORDER: Table ID = ${widget.table?.id}');
+
+      final state = context.read<CheckoutBloc>().state;
+
+      final orderData = await state.maybeWhen(
+        loaded: (
+          products,
+          discountModel,
+          discount,
+          discountAmount,
+          tax,
+          serviceCharge,
+          totalQuantity,
+          totalPrice,
+          draftName,
+          orderType,
+        ) async {
+          // Calculate amounts
+          final subtotal = products.map((e) {
+            final basePrice = e.product.price?.toIntegerFromText ?? 0;
+            final variantPrice =
+                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
+                    0;
+            return (basePrice + variantPrice) * e.quantity;
+          }).fold(0, (a, b) => a + b);
+
+          final discAmt = _computeDiscountAmount(subtotal, discountModel);
+          final taxAmt = _computeTaxAmount(subtotal, tax);
+          final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
+
+          // Build items array
+          final items = products.map((p) {
+            final item = <String, dynamic>{
+              'product_id': p.product.productId ?? p.product.id,
+              'quantity': p.quantity,
+            };
+
+            // Add product_options if variants exist and have IDs
+            if (p.variants != null && p.variants!.isNotEmpty) {
+              final variantIds = p.variants!
+                  .where((v) => v.id != null && v.id!.isNotEmpty)
+                  .map((v) => v.id!)
+                  .toList();
+              if (variantIds.isNotEmpty) {
+                item['product_options'] = variantIds;
+              }
+            }
+
+            // Add notes if any (currently not implemented in UI, but placeholder)
+            // item['notes'] = 'Some notes';
+
+            return item;
+          }).toList();
+
+          print('SUBMIT ORDER: Items = ${items.length}');
+          for (var i = 0; i < items.length; i++) {
+            print('  Item $i: ${jsonEncode(items[i])}');
+          }
+
+          // Build request body
+          final body = <String, dynamic>{
+            'user_id': auth.user?.id,
+            'status': 'completed',
+            'payment_method': isCash ? 'cash' : 'qris',
+          };
+
+          // Add store_id if available
+          if (storeUuid != null && storeUuid.isNotEmpty) {
+            body['store_id'] = storeUuid;
+          }
+
+          // Add table_id if available
+          if (widget.table?.id != null && widget.table!.id!.isNotEmpty) {
+            body['table_id'] = widget.table!.id;
+          }
+
+          // Add member_id if customer is a member (TODO: implement member selection)
+          // if (memberUuid != null) body['member_id'] = memberUuid;
+
+          // Add financial details
+          if (discAmt > 0) body['discount_amount'] = discAmt.toDouble();
+          if (serviceAmt > 0) body['service_charge'] = serviceAmt.toDouble();
+          if (taxAmt > 0) body['tax'] = taxAmt.toDouble();
+
+          // Add notes if any
+          if (noteController.text.isNotEmpty) {
+            body['notes'] = noteController.text;
+          }
+
+          // Add items
+          body['items'] = items;
+
+          return body;
+        },
+        orElse: () => null,
+      );
+
+      if (orderData == null) {
+        print('SUBMIT ORDER: Failed - no order data');
+        return false;
+      }
+
+      print('SUBMIT ORDER: Request body = ${jsonEncode(orderData)}');
+
+      // Make API request
+      final uri =
+          Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
+      final headers = {
+        'Authorization': 'Bearer ${auth.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      print('SUBMIT ORDER: POST $uri');
+
+      var res = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(orderData),
+      );
+
+      print('SUBMIT ORDER: Response status = ${res.statusCode}');
+      print('SUBMIT ORDER: Response body = ${res.body}');
+
+      if (res.statusCode == 403) {
+        // Retry without store header if forbidden
+        headers.remove('X-Store-Id');
+        res = await http.post(
+          uri,
+          headers: headers,
+          body: jsonEncode(orderData),
+        );
+        print('SUBMIT ORDER: Retry response status = ${res.statusCode}');
+        print('SUBMIT ORDER: Retry response body = ${res.body}');
+      }
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        print('SUBMIT ORDER: Success!');
+        print('========================================');
+        return true;
+      }
+
+      print('SUBMIT ORDER: Failed with status ${res.statusCode}');
+      print('========================================');
+      return false;
+    } catch (e) {
+      print('SUBMIT ORDER: Exception = $e');
+      print('========================================');
+      return false;
+    }
   }
 
   int _calculateCartTotal() {
@@ -584,13 +741,19 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                                 context: context,
                                                 barrierDismissible: false,
                                                 builder: (_) =>
-                                                    CashSuccessDialog(
-                                                  total: total,
-                                                  change: change,
-                                                  orderType: widget.orderType,
-                                                  tableNumber:
-                                                      _parseTableNumber(widget
-                                                          .table?.tableNumber),
+                                                    BlocProvider.value(
+                                                  value: context
+                                                      .read<CheckoutBloc>(),
+                                                  child: CashSuccessDialog(
+                                                    total: total,
+                                                    change: change,
+                                                    orderType: widget.orderType,
+                                                    tableNumber:
+                                                        _parseTableNumber(widget
+                                                            .table
+                                                            ?.tableNumber),
+                                                    onSubmitOrder: _submitOrder,
+                                                  ),
                                                 ),
                                               );
                                             } else {
@@ -610,15 +773,22 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                                       context: context,
                                                       barrierDismissible: false,
                                                       builder: (_) =>
-                                                          QrisSuccessDialog(
-                                                        total: total,
-                                                        change: change,
-                                                        orderType:
-                                                            widget.orderType,
-                                                        tableNumber:
-                                                            _parseTableNumber(
-                                                                widget.table
-                                                                    ?.tableNumber),
+                                                          BlocProvider.value(
+                                                        value: context.read<
+                                                            CheckoutBloc>(),
+                                                        child:
+                                                            QrisSuccessDialog(
+                                                          total: total,
+                                                          change: change,
+                                                          orderType:
+                                                              widget.orderType,
+                                                          tableNumber:
+                                                              _parseTableNumber(
+                                                                  widget.table
+                                                                      ?.tableNumber),
+                                                          onSubmitOrder:
+                                                              _submitOrder,
+                                                        ),
                                                       ),
                                                     );
                                                   },
