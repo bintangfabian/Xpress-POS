@@ -29,12 +29,14 @@ class ConfirmPaymentPage extends StatefulWidget {
   final bool isTable;
   final TableModel? table;
   final String orderType; // dinein / takeaway
+  final String orderNumber; // order number
 
   const ConfirmPaymentPage({
     super.key,
     required this.isTable,
     this.table,
     required this.orderType,
+    required this.orderNumber,
   });
 
   @override
@@ -47,6 +49,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   final totalPayController = TextEditingController();
   bool isCash = true;
   int? _selectedTableNumber;
+  String? _selectedMemberId;
 
   // Helper method to parse table number from String to int
   int? _parseTableNumber(String? tableNumber) {
@@ -74,7 +77,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     super.dispose();
   }
 
-  Future<List<String>> _fetchMembers() async {
+  Future<List<Map<String, dynamic>>> _fetchMembers() async {
     try {
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
@@ -97,7 +100,13 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         List items = [];
         if (map is Map && map['data'] is List) items = map['data'];
         return items
-            .map((e) => (e['name'] ?? e['member_number'] ?? '-').toString())
+            .map((e) => {
+                  'id': e['id']?.toString(),
+                  'name': e['name']?.toString() ?? '',
+                  'member_number': e['member_number']?.toString() ?? '',
+                  'phone': e['phone']?.toString() ?? '',
+                  'email': e['email']?.toString() ?? '',
+                })
             .toList();
       }
     } catch (_) {}
@@ -181,6 +190,15 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           final taxAmt = _computeTaxAmount(subtotal, tax);
           final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
 
+          // Debug print untuk melihat nilai diskon
+          print('=== DEBUG DISCOUNT ===');
+          print('Subtotal: $subtotal');
+          print('Discount Model: $discountModel');
+          print('Discount Amount: $discAmt');
+          print('Tax Amount: $taxAmt');
+          print('Service Amount: $serviceAmt');
+          print('====================');
+
           // Build items array
           final items = products.map((p) {
             final item = <String, dynamic>{
@@ -223,12 +241,45 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           }
 
           // Add table_id if available
-          if (widget.table?.id != null && widget.table!.id!.isNotEmpty) {
-            body['table_id'] = widget.table!.id;
+          // Priority: selected table number > widget table id
+          String? tableId;
+          if (_selectedTableNumber != null) {
+            // Find table by number from the table list
+            final tableBloc = context.read<GetTableBloc>();
+            final tableState = tableBloc.state;
+            if (tableState.maybeWhen(
+              success: (tables) {
+                TableModel? selectedTable;
+                try {
+                  selectedTable = tables.firstWhere(
+                    (t) =>
+                        int.tryParse(t.tableNumber ?? '0') ==
+                        _selectedTableNumber,
+                  );
+                } catch (e) {
+                  selectedTable = null;
+                }
+                if (selectedTable != null) {
+                  tableId = selectedTable.id;
+                }
+                return true;
+              },
+              orElse: () => false,
+            )) {
+              // tableId already set above
+            }
+          } else if (widget.table?.id != null && widget.table!.id!.isNotEmpty) {
+            tableId = widget.table!.id;
           }
 
-          // Add member_id if customer is a member (TODO: implement member selection)
-          // if (memberUuid != null) body['member_id'] = memberUuid;
+          if (tableId != null && tableId!.isNotEmpty) {
+            body['table_id'] = tableId;
+          }
+
+          // Add member_id if customer is a member
+          if (_selectedMemberId != null) {
+            body['member_id'] = _selectedMemberId;
+          }
 
           // Add financial details
           if (discAmt > 0) body['discount_amount'] = discAmt.toDouble();
@@ -375,13 +426,39 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
   int _computeDiscountAmount(int subtotal, Discount? model) {
     if (model == null) return 0;
-    final val = int.tryParse(model.value ?? '0') ?? 0;
-    if ((model.type ?? '').toLowerCase() == 'percent') {
-      final amt = (subtotal * (val / 100)).floor();
-      return amt.clamp(0, subtotal);
+
+    // Parse value as double since it can be "50.00" or "3000.00"
+    final val = double.tryParse(model.value ?? '0') ?? 0.0;
+    final type = (model.type ?? '').toLowerCase();
+
+    print('=== DEBUG DISCOUNT CALCULATION ===');
+    print('Model: $model');
+    print('Value: ${model.value}');
+    print('Parsed Value: $val');
+    print('Type: $type');
+    print('Subtotal: $subtotal');
+
+    int discountAmount = 0;
+
+    if (type == 'percentage') {
+      // Percentage discount: 50.00 means 50%
+      discountAmount = (subtotal * (val / 100)).floor();
+      print(
+          'Percentage calculation: $subtotal * ($val / 100) = $discountAmount');
+    } else if (type == 'fixed') {
+      // Fixed amount discount: 3000.00 means 3000 rupiah
+      discountAmount = val.toInt();
+      print('Fixed amount: $discountAmount');
+    } else {
+      print('Unknown discount type: $type');
     }
-    // fixed amount
-    return val.clamp(0, subtotal);
+
+    // Ensure discount doesn't exceed subtotal
+    discountAmount = discountAmount.clamp(0, subtotal);
+    print('Final discount amount: $discountAmount');
+    print('================================');
+
+    return discountAmount;
   }
 
   int _computeTaxAmount(int subtotal, int taxPercent) {
@@ -749,9 +826,12 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                                     change: change,
                                                     orderType: widget.orderType,
                                                     tableNumber:
-                                                        _parseTableNumber(widget
-                                                            .table
-                                                            ?.tableNumber),
+                                                        _selectedTableNumber ??
+                                                            _parseTableNumber(
+                                                                widget.table
+                                                                    ?.tableNumber),
+                                                    orderNumber:
+                                                        widget.orderNumber,
                                                     onSubmitOrder: _submitOrder,
                                                   ),
                                                 ),
@@ -783,9 +863,13 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                                           orderType:
                                                               widget.orderType,
                                                           tableNumber:
-                                                              _parseTableNumber(
-                                                                  widget.table
-                                                                      ?.tableNumber),
+                                                              _selectedTableNumber ??
+                                                                  _parseTableNumber(
+                                                                      widget
+                                                                          .table
+                                                                          ?.tableNumber),
+                                                          orderNumber: widget
+                                                              .orderNumber,
                                                           onSubmitOrder:
                                                               _submitOrder,
                                                         ),
@@ -858,8 +942,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Center(
-                                    child: const Text(
-                                  "#0001",
+                                    child: Text(
+                                  widget.orderNumber,
                                   style: TextStyle(fontWeight: FontWeight.w600),
                                 )),
                               ),
@@ -1175,16 +1259,36 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   label: "Membership",
                   onPressed: () async {
                     // fetch members from API
-                    final list = await _fetchMembers();
+                    final members = await _fetchMembers();
+                    final memberNames = members
+                        .map((m) => m['name'] ?? '')
+                        .cast<String>()
+                        .toList();
                     final res = await showDialog<String>(
                       context: context,
                       builder: (_) => MemberDialog(
-                        members: list,
+                        members: memberNames,
                         initial: customerController.text,
                       ),
                     );
                     if (res != null && res.isNotEmpty) {
-                      customerController.text = res;
+                      // Find the selected member using a safer approach
+                      Map<String, dynamic>? selectedMember;
+                      try {
+                        selectedMember = members.firstWhere(
+                          (m) => m['name'] == res,
+                        );
+                      } catch (e) {
+                        // If not found, selectedMember will remain null
+                        selectedMember = null;
+                      }
+
+                      if (selectedMember != null && selectedMember.isNotEmpty) {
+                        setState(() {
+                          _selectedMemberId = selectedMember!['id'];
+                          customerController.text = res;
+                        });
+                      }
                     }
                   },
                 ),
@@ -1198,27 +1302,13 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   onPressed: () async {
                     final bloc = context.read<GetTableBloc>();
                     bloc.add(const GetTableEvent.getTables());
-                    int tableCount = bloc.state.maybeWhen(
-                      success: (tables) => tables.length,
-                      orElse: () => 0,
-                    );
-                    if (tableCount == 0) {
-                      final state = await bloc.stream.firstWhere(
-                        (s) => s.maybeWhen(
-                            success: (_) => true, orElse: () => false),
-                      );
-                      tableCount = state.maybeWhen(
-                        success: (tables) => tables.length,
-                        orElse: () => 0,
-                      );
-                    }
+
                     final selected = await showDialog<int>(
                       context: context,
                       builder: (_) => TableSelectDialog(
                         initialTable: _selectedTableNumber ??
                             _parseTableNumber(widget.table?.tableNumber) ??
                             0,
-                        tableCount: tableCount,
                       ),
                     );
                     if (selected != null) {
@@ -1301,16 +1391,55 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           BlocBuilder<CheckoutBloc, CheckoutState>(
             builder: (context, state) {
               return state.maybeWhen(
-                orElse: () => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _priceRow("Subtotal", "Rp0"),
-                    _priceRow("Diskon", "-Rp0"),
-                    _priceRow("Layanan", "Rp0"),
-                    _priceRow("Pajak", "Rp0"),
-                    _totalPriceRow("Total", "Rp0"),
-                  ],
-                ),
+                orElse: () {
+                  // Calculate totals even in orElse state
+                  final state = context.read<CheckoutBloc>().state;
+                  return state.maybeWhen(
+                    loaded: (products,
+                        discountModel,
+                        discount,
+                        discountAmount,
+                        tax,
+                        serviceCharge,
+                        totalQuantity,
+                        totalPrice,
+                        draftName,
+                        orderType) {
+                      final subtotal = products
+                          .map((e) =>
+                              (e.product.price?.toIntegerFromText ?? 0) *
+                              e.quantity)
+                          .fold(0, (a, b) => a + b);
+                      final discAmt =
+                          _computeDiscountAmount(subtotal, discountModel);
+                      final taxAmt = _computeTaxAmount(subtotal, tax);
+                      final serviceAmt =
+                          _computeServiceAmount(subtotal, serviceCharge);
+                      final total = subtotal - discAmt + taxAmt + serviceAmt;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _priceRow("Subtotal", subtotal.currencyFormatRp),
+                          _priceRow("Diskon", "-${discAmt.currencyFormatRp}"),
+                          _priceRow("Layanan", serviceAmt.currencyFormatRp),
+                          _priceRow("Pajak", taxAmt.currencyFormatRp),
+                          _totalPriceRow("Total", total.currencyFormatRp),
+                        ],
+                      );
+                    },
+                    orElse: () => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _priceRow("Subtotal", "Rp0"),
+                        _priceRow("Diskon", "-Rp0"),
+                        _priceRow("Layanan", "Rp0"),
+                        _priceRow("Pajak", "Rp0"),
+                        _totalPriceRow("Total", "Rp0"),
+                      ],
+                    ),
+                  );
+                },
                 loaded: (products,
                     discountModel,
                     discount,

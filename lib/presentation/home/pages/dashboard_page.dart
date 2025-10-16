@@ -37,6 +37,7 @@ class _DashboardPageState extends State<DashboardPage> {
   TableModel? _selectedTable; // ✅ simpan table yg dipilih
   String? _selectedOrderId; // ✅ simpan order id yang dipilih
   String _orderType = 'dinein';
+  String _orderNumber = '#0001'; // ✅ simpan order number
 
   @override
   void initState() {
@@ -65,9 +66,10 @@ class _DashboardPageState extends State<DashboardPage> {
       HomePage(
         isTable: _selectedTable != null,
         table: _selectedTable,
-        onGoToPayment: (orderType) {
+        onGoToPayment: (orderType, orderNumber) {
           setState(() {
             _orderType = orderType;
+            _orderNumber = orderNumber;
             _contentIndex = 5; // tampilkan halaman konfirmasi
             _selectedIndex = 0; // navbar tetap aktif di Home
           });
@@ -90,6 +92,7 @@ class _DashboardPageState extends State<DashboardPage> {
         isTable: _selectedTable != null,
         table: _selectedTable,
         orderType: _orderType,
+        orderNumber: _orderNumber,
       ),
       // Index 6 = TransactionDetailPage
       TransactionDetailPage(

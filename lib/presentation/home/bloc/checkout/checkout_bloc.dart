@@ -1,9 +1,9 @@
 import 'dart:developer';
 
 import 'package:bloc/bloc.dart';
+import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart';
-import 'package:xpress/presentation/home/models/order_item.dart';
 import 'package:xpress/presentation/table/models/draft_order_item.dart';
 import 'package:xpress/presentation/table/models/draft_order_model.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -91,17 +91,37 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
 
     on<_AddDiscount>((event, emit) {
       var currentState = state as _Loaded;
+
+      // Calculate subtotal
+      final subtotal = currentState.items
+          .map((e) => (e.product.price?.toIntegerFromText ?? 0) * e.quantity)
+          .fold(0, (a, b) => a + b);
+
+      // Calculate discount amount
+      int discountAmount = 0;
+      if (event.discount != null) {
+        final val = double.tryParse(event.discount.value ?? '0') ?? 0.0;
+        final type = (event.discount.type ?? '').toLowerCase();
+
+        if (type == 'percentage') {
+          discountAmount = (subtotal * (val / 100)).floor();
+        } else if (type == 'fixed') {
+          discountAmount = val.toInt();
+        }
+        discountAmount = discountAmount.clamp(0, subtotal);
+      }
+
       emit(_Loaded(
         currentState.items,
         event.discount,
         currentState.discount,
-        currentState.discountAmount,
+        discountAmount,
         currentState.tax,
         currentState.serviceCharge,
         currentState.totalQuantity,
         currentState.totalPrice,
         currentState.draftName,
-        currentState.orderType, // ✅ tambah
+        currentState.orderType,
       ));
     });
 

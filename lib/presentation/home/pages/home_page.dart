@@ -27,7 +27,7 @@ import 'package:xpress/presentation/home/models/product_variant.dart';
 class HomePage extends StatefulWidget {
   final bool isTable;
   final TableModel? table;
-  final void Function(String orderType)? onGoToPayment;
+  final void Function(String orderType, String orderNumber)? onGoToPayment;
 
   const HomePage({
     super.key,
@@ -623,7 +623,8 @@ class _HomePageState extends State<HomePage> {
                                                       builder: (_) =>
                                                           OpenBillDialog(
                                                         totalPrice: total,
-                                                        orderNumber: '#0001',
+                                                        orderNumber:
+                                                            _orderNumber,
                                                         tableNumber: tableNum,
                                                         orderType: orderType,
                                                       ),
@@ -672,8 +673,9 @@ class _HomePageState extends State<HomePage> {
                                                     );
                                                   }
                                                 : () {
-                                                    widget.onGoToPayment
-                                                        ?.call(orderType);
+                                                    widget.onGoToPayment?.call(
+                                                        orderType,
+                                                        _orderNumber);
                                                   },
                                           );
                                         },

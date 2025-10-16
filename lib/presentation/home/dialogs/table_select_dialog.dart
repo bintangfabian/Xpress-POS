@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 
 class TableSelectDialog extends StatefulWidget {
   final int initialTable;
-  final int tableCount;
-  const TableSelectDialog(
-      {super.key, this.initialTable = 0, this.tableCount = 24});
+  const TableSelectDialog({super.key, this.initialTable = 0});
 
   @override
   State<TableSelectDialog> createState() => _TableSelectDialogState();
@@ -46,83 +46,141 @@ class _TableSelectDialogState extends State<TableSelectDialog> {
       ),
       content: SizedBox(
         width: 484,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 360,
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const ScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 32,
-                  mainAxisSpacing: 32,
-                  childAspectRatio: 91 / 50,
-                ),
-                itemCount: widget.tableCount,
-                itemBuilder: (_, i) {
-                  final num = i + 1;
-                  final isSelected = selected == num;
-                  return InkWell(
-                    onTap: () => setState(() => selected = num),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.success
-                            : AppColors.successLight,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.success
-                              : AppColors.success,
-                          width: 2,
-                        ),
+        child: BlocBuilder<GetTableBloc, GetTableState>(
+          builder: (context, state) {
+            return state.maybeWhen(
+              success: (tables) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 360,
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const ScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 32,
+                        mainAxisSpacing: 32,
+                        childAspectRatio: 91 / 50,
                       ),
-                      child: Center(
-                        child: Text(
-                          'Meja $num',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isSelected
-                                ? AppColors.successLight
-                                : AppColors.success,
-                            fontWeight: FontWeight.bold,
+                      itemCount: tables.length,
+                      itemBuilder: (_, i) {
+                        final table = tables[i];
+                        final tableNumber =
+                            int.tryParse(table.tableNumber ?? '0') ?? 0;
+                        final isSelected = selected == tableNumber;
+                        final isAvailable =
+                            table.status.toLowerCase() == 'available';
+                        final isOccupied =
+                            table.status.toLowerCase() == 'occupied';
+                        final isReserved =
+                            table.status.toLowerCase() == 'reserved';
+
+                        Color statusColor;
+                        Color textColor;
+
+                        if (isSelected) {
+                          statusColor = AppColors.success;
+                          textColor = AppColors.white;
+                        } else if (isAvailable) {
+                          statusColor = AppColors.successLight;
+                          textColor = AppColors.success;
+                        } else if (isOccupied) {
+                          statusColor = AppColors.dangerLight;
+                          textColor = AppColors.danger;
+                        } else if (isReserved) {
+                          statusColor = AppColors.warningLight;
+                          textColor = AppColors.warning;
+                        } else {
+                          statusColor = AppColors.greyLight;
+                          textColor = AppColors.grey;
+                        }
+
+                        return InkWell(
+                          onTap: isAvailable
+                              ? () => setState(() => selected = tableNumber)
+                              : null,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: textColor,
+                                width: 2,
+                              ),
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Meja $tableNumber',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: textColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (!isAvailable) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isOccupied
+                                          ? 'Terpakai'
+                                          : isReserved
+                                              ? 'Reservasi'
+                                              : 'Tidak Tersedia',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: textColor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SpaceHeight(16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Button.outlined(
+                          label: 'Kembali',
+                          color: AppColors.greyLight,
+                          borderColor: AppColors.grey,
+                          textColor: AppColors.grey,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          onPressed: () => Navigator.pop(context),
                         ),
                       ),
-                    ),
-                  );
-                },
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Button.filled(
+                          color: AppColors.success,
+                          label: 'Apply',
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          onPressed: () => Navigator.pop(context, selected),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            const SpaceHeight(16),
-            Row(
-              children: [
-                Expanded(
-                  child: Button.outlined(
-                    label: 'Kembali',
-                    color: AppColors.greyLight,
-                    borderColor: AppColors.grey,
-                    textColor: AppColors.grey,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Button.filled(
-                    color: AppColors.success,
-                    label: 'Apply',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    onPressed: () => Navigator.pop(context, selected),
-                  ),
-                ),
-              ],
-            )
-          ],
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              orElse: () => const Center(
+                child: Text('Gagal memuat data meja'),
+              ),
+            );
+          },
         ),
       ),
     );

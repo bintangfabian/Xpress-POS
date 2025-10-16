@@ -35,9 +35,34 @@ class OrderRemoteDatasource {
         if (items.isEmpty) return '#0001';
         final last = items.first;
         final on = (last['order_number'] ?? '').toString();
-        final numPart = RegExp(r'(\d+)$').firstMatch(on)?.group(1) ?? '0';
+        print('=== DEBUG ORDER NUMBER ===');
+        print('Raw order_number: $on');
+        print('Type: ${on.runtimeType}');
+        // Try different patterns to extract number
+        String numPart = '0';
+
+        // Pattern 1: Extract last 4 digits (e.g., "202510150005" -> "0005")
+        final last4Digits = RegExp(r'(\d{4})$').firstMatch(on)?.group(1);
+        if (last4Digits != null) {
+          numPart = last4Digits;
+        } else {
+          // Pattern 2: Extract all digits at the end
+          final allDigits = RegExp(r'(\d+)$').firstMatch(on)?.group(1);
+          if (allDigits != null) {
+            // If more than 4 digits, take last 4
+            if (allDigits.length > 4) {
+              numPart = allDigits.substring(allDigits.length - 4);
+            } else {
+              numPart = allDigits;
+            }
+          }
+        }
+        print('Extracted number part: $numPart');
         final next = (int.tryParse(numPart) ?? 0) + 1;
-        return '#${next.toString().padLeft(4, '0')}';
+        final result = '#${next.toString().padLeft(4, '0')}';
+        print('Final result: $result');
+        print('========================');
+        return result;
       }
     } catch (_) {}
     return '#0001';

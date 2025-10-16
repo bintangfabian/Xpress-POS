@@ -303,7 +303,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               const SizedBox(height: 8),
               _rowSpaceBetween('Konsumen', _order?.user?.name ?? 'N/A'),
               const SizedBox(height: 8),
-              _rowSpaceBetween('Meja', _order?.table?.name ?? 'N/A'),
+              _rowSpaceBetween('Meja', _order?.table?.name ?? ''),
               const SizedBox(height: 8),
               _rowSpaceBetween('Status Pembayaran', _order?.status ?? 'N/A'),
               const SizedBox(height: 16),

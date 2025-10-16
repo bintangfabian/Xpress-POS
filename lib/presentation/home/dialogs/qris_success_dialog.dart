@@ -15,6 +15,7 @@ class QrisSuccessDialog extends StatelessWidget {
   final int change;
   final String orderType;
   final int? tableNumber;
+  final String? orderNumber;
   final Future<bool> Function()? onSubmitOrder;
 
   const QrisSuccessDialog({
@@ -23,6 +24,7 @@ class QrisSuccessDialog extends StatelessWidget {
     required this.change,
     required this.orderType,
     this.tableNumber,
+    this.orderNumber,
     this.onSubmitOrder,
   });
 
@@ -84,7 +86,7 @@ class QrisSuccessDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Order #0001  -  '),
+                Text('Order ${orderNumber ?? '#0001'}  -  '),
                 Text(orderType),
                 if (tableNumber != null) ...[
                   const Text('  -  '),
