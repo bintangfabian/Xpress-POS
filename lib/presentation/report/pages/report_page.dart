@@ -7,6 +7,7 @@ import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_remote_datasource.dart';
 import 'package:intl/intl.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class ReportPage extends StatefulWidget {
   final Function(String orderId)? onOpenDetail;
@@ -19,8 +20,8 @@ class ReportPage extends StatefulWidget {
 class _ReportPageState extends State<ReportPage> {
   int selectedMenu = 0;
   String title = 'Summary Sales Report';
-  DateTime fromDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime toDate = DateTime.now();
+  DateTime fromDate = TimezoneHelper.now().subtract(const Duration(days: 30));
+  DateTime toDate = TimezoneHelper.now();
   bool isOnline = true;
   bool hasOfflineData = false; // sementara: offline => tidak ada data
   List<ItemOrder> orders = [];
@@ -112,7 +113,7 @@ class _ReportPageState extends State<ReportPage> {
   String _formatDateForDisplay(String dateKey) {
     try {
       final date = DateTime.parse(dateKey);
-      final now = DateTime.now();
+      final now = TimezoneHelper.now();
       final today = DateTime(now.year, now.month, now.day);
       final yesterday = today.subtract(const Duration(days: 1));
       final dateOnly = DateTime(date.year, date.month, date.day);

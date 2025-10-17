@@ -1,11 +1,12 @@
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
 import 'package:xpress/data/models/response/table_model.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
 import 'package:xpress/presentation/table/models/draft_order_item.dart';
 import 'package:xpress/presentation/table/models/draft_order_model.dart';
-import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../presentation/home/models/product_quantity.dart';
@@ -249,7 +250,7 @@ class ProductLocalDatasource {
     for (var product in products) {
       await db.insert(tableProduct, product.toLocalMap(),
           conflictAlgorithm: ConflictAlgorithm.replace);
-      print(
+      debugPrint(
           'inserted success id: ${product.productId} | name: ${product.name} | price: ${product.price}');
     }
   }
@@ -315,7 +316,7 @@ class ProductLocalDatasource {
         status: 'available',
         orderId: 0,
         paymentAmount: 0,
-        startTime: DateTime.now().toIso8601String(),
+        startTime: TimezoneHelper.now().toIso8601String(),
       );
       await db.insert(
         tableManagement,

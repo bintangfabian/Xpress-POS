@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/models/response/table_model.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class TableRemoteDatasource {
   Future<Either<String, List<TableModel>>> getTables() async {
@@ -111,7 +112,8 @@ class TableRemoteDatasource {
       capacity: asInt(m['capacity']) ?? 4,
       isActive: asInt(m['is_active']) ?? 1,
       storeId: asString(m['store_id'], ''),
-      startTime: asString(m['start_time'], DateTime.now().toIso8601String()),
+      startTime:
+          asString(m['start_time'], TimezoneHelper.now().toIso8601String()),
       status: asString(m['status'], 'available'),
       orderId: asInt(m['order_id']) ?? 0,
       paymentAmount: asInt(m['payment_amount']) ?? 0,

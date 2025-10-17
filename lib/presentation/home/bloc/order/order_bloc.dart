@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:xpress/core/extensions/string_ext.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/datasources/product_local_datasource.dart';
@@ -48,7 +49,7 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
         totalItem: totalItem,
         idKasir: userData.user?.id ?? 1,
         namaKasir: userData.user?.name ?? 'Kasir A',
-        transactionTime: DateTime.now().toIso8601String(),
+        transactionTime: TimezoneHelper.now().toIso8601String(),
         customerName: event.customerName,
         tableNumber: event.tableNumber,
         status: event.status,

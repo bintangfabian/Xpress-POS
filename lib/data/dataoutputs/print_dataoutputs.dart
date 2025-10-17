@@ -7,6 +7,7 @@ import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
 import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class PrintDataoutputs {
   PrintDataoutputs._init();
@@ -46,7 +47,7 @@ class PrintDataoutputs {
     bytes += generator.text('Jalan Nanasa No. 1',
         styles: const PosStyles(bold: true, align: PosAlign.center));
     bytes += generator.text(
-        'Date : ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+        'Date : ${DateFormat('dd/MM/yyyy HH:mm').format(TimezoneHelper.now())}',
         styles: const PosStyles(bold: false, align: PosAlign.center));
 
     bytes += generator.feed(1);
@@ -275,7 +276,7 @@ class PrintDataoutputs {
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: DateFormat('dd MMM yy HH:mm').format(DateTime.now()),
+        text: DateFormat('dd MMM yy HH:mm').format(TimezoneHelper.now()),
         width: 6,
         styles: const PosStyles(align: PosAlign.left),
       ),
@@ -461,7 +462,7 @@ class PrintDataoutputs {
     //     styles: const PosStyles(bold: false, align: PosAlign.center));
     bytes += generator.feed(1);
     bytes += generator.text(
-        'Terbayar: ${DateFormat('dd-MM-yyyy HH:mm').format(DateTime.now())}',
+        'Terbayar: ${DateFormat('dd-MM-yyyy HH:mm').format(TimezoneHelper.now())}',
         styles: const PosStyles(bold: false, align: PosAlign.center));
     bytes += generator.text('dicetak oleh: Susan',
         styles: const PosStyles(bold: false, align: PosAlign.center));
@@ -530,12 +531,12 @@ class PrintDataoutputs {
 
     bytes += generator.row([
       PosColumn(
-        text: DateFormat('dd MMM yyyy').format(DateTime.now()),
+        text: DateFormat('dd MMM yyyy').format(TimezoneHelper.now()),
         width: 6,
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: DateFormat('HH:mm').format(DateTime.now()),
+        text: DateFormat('HH:mm').format(TimezoneHelper.now()),
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),
@@ -547,7 +548,7 @@ class PrintDataoutputs {
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: 'JF-${DateFormat('yyyyMMddhhmm').format(DateTime.now())}',
+        text: 'JF-${DateFormat('yyyyMMddhhmm').format(TimezoneHelper.now())}',
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),
@@ -804,7 +805,7 @@ class PrintDataoutputs {
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: DateFormat('dd-MM-yyyy HH:mm').format(DateTime.now()),
+        text: DateFormat('dd-MM-yyyy HH:mm').format(TimezoneHelper.now()),
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),
@@ -820,7 +821,7 @@ class PrintDataoutputs {
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: 'JF-${DateFormat('yyyyMMddhhmm').format(DateTime.now())}',
+        text: 'JF-${DateFormat('yyyyMMddhhmm').format(TimezoneHelper.now())}',
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),

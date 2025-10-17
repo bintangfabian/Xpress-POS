@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/data/datasources/order_history_local_datasource.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class CashSuccessDialog extends StatelessWidget {
   final int total;
@@ -28,12 +29,14 @@ class CashSuccessDialog extends StatelessWidget {
     this.onSubmitOrder,
   });
 
-  String _formatDate(DateTime dt) => DateFormat('d MMMM yyyy').format(dt);
-  String _formatTime(DateTime dt) => DateFormat('HH:mm:ss').format(dt);
+  String _formatDate(DateTime dt) =>
+      DateFormat('d MMMM yyyy').format(TimezoneHelper.toWib(dt));
+  String _formatTime(DateTime dt) =>
+      DateFormat('HH:mm:ss').format(TimezoneHelper.toWib(dt));
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = TimezoneHelper.now();
     return AlertDialog(
       backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

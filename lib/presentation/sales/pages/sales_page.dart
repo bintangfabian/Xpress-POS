@@ -4,6 +4,7 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/presentation/sales/blocs/day_sales/day_sales_bloc.dart';
 import 'package:xpress/presentation/sales/pages/sales_recap_page.dart';
 import 'package:xpress/presentation/sales/pages/top_selling_page.dart';
@@ -22,13 +23,15 @@ class _SalesPageState extends State<SalesPage> {
   int currentIndex = 0;
   @override
   void initState() {
-    context.read<DaySalesBloc>().add(DaySalesEvent.getDaySales(DateTime.now()));
+    context
+        .read<DaySalesBloc>()
+        .add(DaySalesEvent.getDaySales(TimezoneHelper.now()));
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateText = DateTime.now().toFormattedDate();
+    final dateText = TimezoneHelper.now().toFormattedDate();
     return Row(
       children: [
         // Left menu

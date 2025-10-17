@@ -6,6 +6,7 @@ import 'package:xpress/data/models/response/summary_response_model.dart';
 import 'package:flutter/services.dart';
 
 import 'package:xpress/core/utils/helper_pdf_service.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:pdf/widgets.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -38,7 +39,7 @@ class RevenueInvoice {
 
     return HelperPdfService.saveDocument(
       name:
-          'Resto Code With Bahri | Summary Sales Report | ${DateTime.now().millisecondsSinceEpoch}.pdf',
+          'Resto Code With Bahri | Summary Sales Report | ${TimezoneHelper.now().millisecondsSinceEpoch}.pdf',
       pdf: pdf,
     );
   }
@@ -63,7 +64,7 @@ class RevenueInvoice {
               "Data: $searchDateFormatted",
             ),
             Text(
-              'Created At: ${DateTime.now().toFormattedDate3()}',
+              'Created At: ${TimezoneHelper.now().toFormattedDate3()}',
             ),
           ],
         ),

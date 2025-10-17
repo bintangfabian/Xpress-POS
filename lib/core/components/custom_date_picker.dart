@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
@@ -77,11 +76,13 @@ class _CustomDatePickerState extends State<CustomDatePicker> {
                         prefix: widget.prefix,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6.0),
-                          borderSide: const BorderSide(color: AppColors.primaryLight),
+                          borderSide:
+                              const BorderSide(color: AppColors.primaryLight),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6.0),
-                          borderSide: const BorderSide(color: AppColors.primaryLight),
+                          borderSide:
+                              const BorderSide(color: AppColors.primaryLight),
                         ),
                       ),
                     ),

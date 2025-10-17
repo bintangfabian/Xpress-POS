@@ -9,7 +9,8 @@ class AuthRemoteDatasource {
   Future<Either<String, AuthResponseModel>> login(
       String email, String password) async {
     try {
-      final url = Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/auth/login');
+      final url = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/auth/login');
       final response = await http.post(
         url,
         headers: {
@@ -28,13 +29,15 @@ class AuthRemoteDatasource {
           return Right(parsed);
         } catch (_) {
           // Parsing failed – try to extract message for easier debugging
-          return const Left('Login berhasil tetapi format respons tidak sesuai');
+          return const Left(
+              'Login berhasil tetapi format respons tidak sesuai');
         }
       } else {
         // Try extract error message from JSON
         try {
           final map = jsonDecode(response.body) as Map<String, dynamic>;
-          final msg = (map['message'] ?? map['error'] ?? 'Failed to login').toString();
+          final msg =
+              (map['message'] ?? map['error'] ?? 'Failed to login').toString();
           return Left(msg);
         } catch (_) {
           return Left('Failed to login (${response.statusCode})');
@@ -48,7 +51,8 @@ class AuthRemoteDatasource {
   //logout
   Future<Either<String, bool>> logout() async {
     final authData = await AuthLocalDataSource().getAuthData();
-    final url = Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/auth/logout');
+    final url = Uri.parse(
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/auth/logout');
     final response = await http.post(
       url,
       headers: {
@@ -61,6 +65,31 @@ class AuthRemoteDatasource {
       return const Right(true);
     } else {
       return const Left('Failed to logout');
+    }
+  }
+
+  Future<Either<String, User>> fetchProfile(String token) async {
+    try {
+      final url =
+          Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/auth/me');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> root = jsonDecode(response.body);
+        final userNode =
+            (root['data'] ?? root['user'] ?? root) as Map<String, dynamic>;
+        return Right(User.fromMap(userNode));
+      }
+
+      return Left('Gagal memverifikasi sesi (${response.statusCode})');
+    } catch (e) {
+      return Left('Tidak dapat memverifikasi sesi: $e');
     }
   }
 }

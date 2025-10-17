@@ -5,6 +5,7 @@ import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class QrisConfirmDialog extends StatelessWidget {
   final int total;
@@ -22,12 +23,14 @@ class QrisConfirmDialog extends StatelessWidget {
     required this.onAccepted,
   });
 
-  String _formatDate(DateTime dt) => DateFormat('d MMMM yyyy').format(dt);
-  String _formatTime(DateTime dt) => DateFormat('HH:mm:ss').format(dt);
+  String _formatDate(DateTime dt) =>
+      DateFormat('d MMMM yyyy').format(TimezoneHelper.toWib(dt));
+  String _formatTime(DateTime dt) =>
+      DateFormat('HH:mm:ss').format(TimezoneHelper.toWib(dt));
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = TimezoneHelper.now();
     return AlertDialog(
       backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

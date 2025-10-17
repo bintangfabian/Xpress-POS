@@ -8,6 +8,7 @@ import 'package:xpress/presentation/table/models/draft_order_item.dart';
 import 'package:xpress/presentation/table/models/draft_order_model.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:intl/intl.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 import '../../../../data/models/response/product_response_model.dart';
 import '../../models/product_quantity.dart';
@@ -226,7 +227,7 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
         tableNumber: event.tableNumber,
         draftName: event.draftName,
         transactionTime:
-            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(TimezoneHelper.now()),
       );
       log("draftOrder12: ${draftOrder.toMapForLocal()}");
       final orderDraftId =

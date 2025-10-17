@@ -1,4 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'package:xpress/core/utils/timezone_helper.dart';
+
 class TableModel {
   String? id; // Changed to String to support UUID
   final String? tableNumber; // Changed to String to support T001 format
@@ -37,7 +39,7 @@ class TableModel {
           ? map['is_active']
           : int.tryParse(map['is_active']?.toString() ?? '1'),
       storeId: map['store_id']?.toString(),
-      startTime: map['start_time'] ?? DateTime.now().toIso8601String(),
+      startTime: map['start_time'] ?? TimezoneHelper.now().toIso8601String(),
       status: map['status'] ?? 'available',
       orderId: map['order_id'] is int
           ? map['order_id']

@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:intl/intl.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
@@ -153,7 +154,7 @@ class _SuccessPaymentDialogState extends State<SuccessPaymentDialog> {
             const Text('WAKTU PEMBAYARAN'),
             const SpaceHeight(5.0),
             Text(
-              DateFormat('dd MMMM yyyy, HH:mm').format(DateTime.now()),
+              DateFormat('dd MMMM yyyy, HH:mm').format(TimezoneHelper.now()),
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
               ),

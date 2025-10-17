@@ -5,6 +5,7 @@ import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/data/models/response/order_remote_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:intl/intl.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class TransactionDetailPage extends StatefulWidget {
   final ItemOrder? order;
@@ -295,7 +296,15 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               _rowSpaceBetween(
                   'Waktu dan Tanggal',
                   _order?.createdAt != null
-                      ? '${DateFormat('HH:mm:ss').format(_order!.createdAt!)} - ${DateFormat('d MMMM yyyy').format(_order!.createdAt!)}'
+                      ? () {
+                          final wibTime =
+                              TimezoneHelper.toWib(_order!.createdAt!);
+                          final timeStr =
+                              DateFormat('HH:mm:ss').format(wibTime);
+                          final dateStr =
+                              DateFormat('d MMMM yyyy').format(wibTime);
+                          return '$timeStr - $dateStr';
+                        }()
                       : 'N/A'),
               const SizedBox(height: 8),
               _rowSpaceBetween(
