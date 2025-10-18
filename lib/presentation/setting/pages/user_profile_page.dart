@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/auth_remote_datasource.dart';
 import 'package:xpress/data/models/response/auth_response_model.dart';
 
 class UserProfilePage extends StatefulWidget {
@@ -13,7 +14,7 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   User? _user;
-  String? _storeId;
+  String? _storeName;
 
   @override
   void initState() {
@@ -29,15 +30,63 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (!mounted) return;
       setState(() {
         _user = auth.user;
-        _storeId = storeUuid ?? auth.user?.storeId;
+        _storeName =
+            auth.user?.store?.name ?? auth.user?.storeId ?? storeUuid;
       });
+      final identifier =
+          auth.user?.store?.id ?? auth.user?.storeId ?? storeUuid;
+      if (identifier != null && identifier.isNotEmpty) {
+        await ds.saveStoreUuid(identifier);
+      }
+      await _refreshFromRemoteIfNeeded(ds, storeUuid);
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _user = null;
-        _storeId = null;
+        _storeName = null;
       });
     }
+  }
+
+  Future<void> _refreshFromRemoteIfNeeded(
+    AuthLocalDataSource ds,
+    String? cachedStoreUuid,
+  ) async {
+    final needsRemote = _user == null ||
+        _user?.store?.name == null ||
+        (_user?.roles == null || _user!.roles!.isEmpty);
+    if (!needsRemote) return;
+
+    final token = await ds.getToken();
+    if (token == null || token.isEmpty) return;
+
+    final result = await AuthRemoteDatasource().fetchProfile(token);
+    if (!mounted) return;
+    await result.fold(
+      (_) async {},
+      (user) async {
+        await ds.updateCachedUser(user);
+        final identifier = user.store?.id ?? user.storeId;
+        if (identifier != null && identifier.isNotEmpty) {
+          await ds.saveStoreUuid(identifier);
+        }
+        final latestStoreUuid = await ds.getStoreUuid();
+        if (!mounted) return;
+        setState(() {
+          _user = user;
+          _storeName =
+              user.store?.name ?? user.storeId ?? latestStoreUuid ?? cachedStoreUuid;
+        });
+      },
+    );
+  }
+
+  String get _roleDisplay {
+    final roles = _user?.roles;
+    if (roles != null && roles.isNotEmpty) {
+      return roles.join(', ');
+    }
+    return _user?.role ?? '-';
   }
 
   @override
@@ -80,7 +129,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       Expanded(
                         child: _InfoCard(
                           label: 'Nama Toko',
-                          value: _storeId ?? '-',
+                          value: _storeName ?? '-',
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -107,7 +156,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       Expanded(
                         child: _InfoCard(
                           label: 'ROLE',
-                          value: _user?.role ?? '-',
+                          value: _roleDisplay,
                         ),
                       ),
                     ],

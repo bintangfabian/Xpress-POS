@@ -1,3 +1,5 @@
+import 'package:xpress/core/utils/timezone_helper.dart';
+
 const List<String> _dayNames = [
   'Senin',
   'Selasa',
@@ -25,41 +27,40 @@ const List<String> _monthNames = [
 
 extension DateTimeExt on DateTime {
   String toFormattedTime() {
-    final int hour12 = hour % 12;
-    final String monthName = _monthNames[month - 1];
+    final wib = TimezoneHelper.toWib(this);
+    final int hour12 = wib.hour % 12;
+    final String monthName = _monthNames[wib.month - 1];
 
-    return '$day $monthName, ${hour12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+    return '${wib.day} $monthName, ${hour12.toString().padLeft(2, '0')}:${wib.minute.toString().padLeft(2, '0')}';
   }
 
   String toFormattedDate() {
-    String dayName = _dayNames[weekday - 1];
-    String day = this.day.toString();
-    String month = _monthNames[this.month - 1];
-    String year = this.year.toString();
+    final wib = TimezoneHelper.toWib(this);
+    String dayName = _dayNames[wib.weekday - 1];
+    String day = wib.day.toString();
+    String month = _monthNames[wib.month - 1];
+    String year = wib.year.toString();
 
     return '$dayName, $day $month $year';
   }
 
   String toFormattedDate2() {
-    String day = this.day.toString();
-    String month = _monthNames[this.month - 1];
-    String year = this.year.toString();
+    final wib = TimezoneHelper.toWib(this);
+    String day = wib.day.toString();
+    String month = _monthNames[wib.month - 1];
+    String year = wib.year.toString();
 
     return '$day $month $year';
   }
 
   String toFormattedDate3() {
-    String day = this.day.toString();
-    String month = _monthNames[this.month - 1];
-    String year = this.year.toString();
-    String hour = this
-        .hour
-        .toString()
-        .padLeft(2, '0'); // Menambahkan nol di depan jika jam hanya satu digit
-    String minute = this.minute.toString().padLeft(
-        2, '0'); // Menambahkan nol di depan jika menit hanya satu digit
-    String second = this.second.toString().padLeft(
-        2, '0'); // Menambahkan nol di depan jika detik hanya satu digit
+    final wib = TimezoneHelper.toWib(this);
+    String day = wib.day.toString();
+    String month = _monthNames[wib.month - 1];
+    String year = wib.year.toString();
+    String hour = wib.hour.toString().padLeft(2, '0');
+    String minute = wib.minute.toString().padLeft(2, '0');
+    String second = wib.second.toString().padLeft(2, '0');
 
     return '$day $month $year, $hour:$minute:$second';
   }

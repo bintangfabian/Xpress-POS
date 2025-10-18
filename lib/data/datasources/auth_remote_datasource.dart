@@ -81,10 +81,37 @@ class AuthRemoteDatasource {
       );
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> root = jsonDecode(response.body);
-        final userNode =
-            (root['data'] ?? root['user'] ?? root) as Map<String, dynamic>;
-        return Right(User.fromMap(userNode));
+        final Map<String, dynamic> root =
+            jsonDecode(response.body) as Map<String, dynamic>;
+        final data = root['data'];
+
+        Map<String, dynamic>? userMap;
+        if (data is Map) {
+          final userNode = data['user'] ?? data;
+          if (userNode is Map) {
+            userMap = Map<String, dynamic>.from(
+              userNode.map((key, value) => MapEntry(key.toString(), value)),
+            );
+          }
+        } else if (root['user'] is Map) {
+          userMap = Map<String, dynamic>.from(
+            (root['user'] as Map).map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          );
+        } else {
+          userMap = Map<String, dynamic>.from(
+            root.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          );
+        }
+
+        if (userMap == null) {
+          return const Left('Data pengguna tidak ditemukan');
+        }
+
+        return Right(User.fromMap(userMap));
       }
 
       return Left('Gagal memverifikasi sesi (${response.statusCode})');

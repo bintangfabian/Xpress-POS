@@ -90,7 +90,7 @@ class _ReportPageState extends State<ReportPage> {
 
     for (var order in orders) {
       if (order.createdAt != null) {
-        final date = order.createdAt!;
+        final date = TimezoneHelper.toWib(order.createdAt!);
         final dateKey = DateFormat('yyyy-MM-dd').format(date);
 
         if (!groupedOrders.containsKey(dateKey)) {
@@ -112,7 +112,7 @@ class _ReportPageState extends State<ReportPage> {
 
   String _formatDateForDisplay(String dateKey) {
     try {
-      final date = DateTime.parse(dateKey);
+      final date = TimezoneHelper.toWib(DateTime.parse(dateKey));
       final now = TimezoneHelper.now();
       final today = DateTime(now.year, now.month, now.day);
       final yesterday = today.subtract(const Duration(days: 1));
@@ -363,7 +363,7 @@ class _ReportPageState extends State<ReportPage> {
     // Format waktu dari createdAt
     String timeStr = '';
     if (order.createdAt != null) {
-      final dateTime = order.createdAt!;
+      final dateTime = TimezoneHelper.toWib(order.createdAt!);
       timeStr = DateFormat('HH.mm').format(dateTime);
     }
 
