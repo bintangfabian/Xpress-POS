@@ -36,6 +36,7 @@ class DiscountRemoteDatasource {
     String name,
     String description,
     int value,
+    String type,
   ) async {
     try {
       final url = Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/discounts');
@@ -49,7 +50,7 @@ class DiscountRemoteDatasource {
         'name': name,
         'description': description,
         'value': value.toString(),
-        'type': 'percentage',
+        'type': type,
       });
       if (response.statusCode == 403) {
         response = await http.post(url, headers: {
@@ -59,7 +60,7 @@ class DiscountRemoteDatasource {
           'name': name,
           'description': description,
           'value': value.toString(),
-          'type': 'percentage',
+          'type': type,
         });
       }
 
@@ -70,6 +71,42 @@ class DiscountRemoteDatasource {
       }
     } catch (e) {
       return Left('Failed to add discount: $e');
+    }
+  }
+
+  Future<Either<String, bool>> deleteDiscount(int id) async {
+    try {
+      final url = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/discounts/$id');
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeId = await AuthLocalDataSource().getStoreId();
+
+      var response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${authData.token}',
+          'Accept': 'application/json',
+          'X-Store-Id': storeId.toString(),
+        },
+      );
+
+      if (response.statusCode == 403) {
+        response = await http.delete(
+          url,
+          headers: {
+            'Authorization': 'Bearer ${authData.token}',
+            'Accept': 'application/json',
+          },
+        );
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return const Right(true);
+      }
+
+      return Left('Failed to delete discount (${response.statusCode})');
+    } catch (e) {
+      return Left('Failed to delete discount: $e');
     }
   }
 }

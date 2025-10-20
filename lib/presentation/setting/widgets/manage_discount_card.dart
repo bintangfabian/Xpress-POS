@@ -113,6 +113,10 @@ class ManageDiscountCard extends StatelessWidget {
   String _formatValue(String? raw) {
     if (raw == null || raw.isEmpty) return '-';
     final sanitized = raw.replaceAll(RegExp(r'(\.0+)$'), '');
+    final type = (data.type ?? '').toLowerCase();
+    if (type == 'fixed') {
+      return 'Rp $sanitized';
+    }
     return '$sanitized%';
   }
 }

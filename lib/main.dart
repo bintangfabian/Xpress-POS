@@ -35,6 +35,7 @@ import 'package:xpress/presentation/sales/blocs/bloc/last_order_table_bloc.dart'
 import 'package:xpress/presentation/sales/blocs/day_sales/day_sales_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/add_discount/add_discount_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/add_product/add_product_bloc.dart';
+import 'package:xpress/presentation/setting/bloc/delete_discount/delete_discount_cubit.dart';
 import 'package:xpress/presentation/setting/bloc/discount/discount_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/get_categories/get_categories_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/get_products/get_products_bloc.dart';
@@ -119,6 +120,9 @@ class MyApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (context) => AddDiscountBloc(DiscountRemoteDatasource()),
+          ),
+          BlocProvider(
+            create: (context) => DeleteDiscountCubit(DiscountRemoteDatasource()),
           ),
           BlocProvider(
             create: (context) => TransactionReportBloc(OrderRemoteDatasource()),

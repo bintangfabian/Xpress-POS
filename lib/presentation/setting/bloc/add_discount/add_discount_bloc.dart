@@ -18,6 +18,7 @@ class AddDiscountBloc extends Bloc<AddDiscountEvent, AddDiscountState> {
         event.name,
         event.description,
         event.value,
+        event.type,
       );
 
       result.fold(

@@ -20,6 +20,7 @@ class _FormTableDialogState extends State<FormTableDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -61,6 +62,7 @@ class _FormTableDialogState extends State<FormTableDialog> {
               Row(
                 children: [
                   Expanded(
+                    flex: 2,
                     child: Text(
                       "Jumlah Meja",
                       style: TextStyle(
@@ -73,6 +75,7 @@ class _FormTableDialogState extends State<FormTableDialog> {
 
                   // 🔹 Input Field
                   Expanded(
+                    flex: 4,
                     child: TextField(
                       controller: generateController, // 🔹 tambahkan controller
                       decoration: InputDecoration(

@@ -3,6 +3,7 @@ import 'package:xpress/core/components/components.dart';
 
 import '../dialogs/form_tax_dialog.dart';
 import '../models/tax_model.dart';
+import '../widgets/loading_list_placeholder.dart';
 import '../widgets/manage_tax_card.dart';
 
 class TaxPage extends StatefulWidget {
@@ -19,6 +20,16 @@ class _TaxPageState extends State<TaxPage> {
   ];
 
   late Future<List<TaxModel>> _futurePajak;
+  final ScrollController _listController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _futurePajak = Future<List<TaxModel>>.delayed(
+      const Duration(milliseconds: 200),
+      () => items.where((e) => e.type.isPajak).toList(),
+    );
+  }
 
   void onEditTap(TaxModel item) {
     showDialog(
@@ -35,65 +46,84 @@ class _TaxPageState extends State<TaxPage> {
   }
 
   @override
+  void dispose() {
+    _listController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    _futurePajak = Future<List<TaxModel>>.delayed(
-      const Duration(milliseconds: 200),
-      () => items.where((e) => e.type.isPajak).toList(),
-    );
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ContentTitle('Kelola Pajak'),
-          const SizedBox(height: 24),
-          Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: 220,
-              child: Button.filled(
-                label: 'Tambah Pajak Baru',
-                height: 44,
-                fontSize: 14,
-                onPressed: onAddDataTap,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          FutureBuilder<List<TaxModel>>(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ContentTitle('Kelola Pajak'),
+        const SizedBox(height: 24),
+        Expanded(
+          child: FutureBuilder<List<TaxModel>>(
             future: _futurePajak,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SizedBox(
-                  height: 300,
-                  child: Center(child: CircularProgressIndicator()),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _TaxTableHeader(title: 'Nama Pajak'),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: LoadingListPlaceholder(
+                        controller: _listController,
+                        itemHeight: 72,
+                      ),
+                    ),
+                  ],
+                );
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    snapshot.error?.toString() ?? 'Gagal memuat data pajak.',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 );
               }
               final pajak = snapshot.data ?? [];
-              if (pajak.isEmpty) {
-                return const _EmptyTableState(
-                  message: 'Belum ada pajak terdaftar.',
-                );
-              }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _TaxTableHeader(title: 'Nama Pajak'),
                   const SizedBox(height: 16),
-                  ...pajak.map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ManageTaxCard(
-                        data: item,
-                        onEditTap: () => onEditTap(item),
-                      ),
-                    ),
+                  Expanded(
+                    child: pajak.isEmpty
+                        ? _TaxEmptyState(
+                            controller: _listController,
+                            message: 'Belum ada pajak terdaftar.',
+                          )
+                        : Scrollbar(
+                            controller: _listController,
+                            thumbVisibility: true,
+                            child: ListView.separated(
+                              controller: _listController,
+                              physics: const BouncingScrollPhysics(
+                                  parent: AlwaysScrollableScrollPhysics()),
+                              padding: EdgeInsets.zero,
+                              itemCount: pajak.length,
+                              separatorBuilder: (context, _) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final item = pajak[index];
+                                return ManageTaxCard(
+                                  data: item,
+                                  onEditTap: () => onEditTap(item),
+                                );
+                              },
+                            ),
+                          ),
                   ),
                 ],
               );
             },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -130,28 +160,43 @@ class _TaxTableHeader extends StatelessWidget {
   }
 }
 
-class _EmptyTableState extends StatelessWidget {
+class _TaxEmptyState extends StatelessWidget {
+  final ScrollController controller;
   final String message;
-  const _EmptyTableState({required this.message});
+  const _TaxEmptyState({
+    required this.controller,
+    required this.message,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
-      ),
-      child: Center(
-        child: Text(
-          message,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+    return Scrollbar(
+      controller: controller,
+      child: ListView(
+        controller: controller,
+        physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics()),
+        padding: EdgeInsets.zero,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withOpacity(0.08)),
+            ),
+            child: Center(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

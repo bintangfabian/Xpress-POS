@@ -19,20 +19,23 @@ mixin _$AddDiscountEvent {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() started,
-    required TResult Function(String name, String description, int value)
+    required TResult Function(
+            String name, String description, int value, String type)
         addDiscount,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? started,
-    TResult? Function(String name, String description, int value)? addDiscount,
+    TResult? Function(String name, String description, int value, String type)?
+        addDiscount,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? started,
-    TResult Function(String name, String description, int value)? addDiscount,
+    TResult Function(String name, String description, int value, String type)?
+        addDiscount,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -114,7 +117,8 @@ class _$StartedImpl implements _Started {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() started,
-    required TResult Function(String name, String description, int value)
+    required TResult Function(
+            String name, String description, int value, String type)
         addDiscount,
   }) {
     return started();
@@ -124,7 +128,8 @@ class _$StartedImpl implements _Started {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? started,
-    TResult? Function(String name, String description, int value)? addDiscount,
+    TResult? Function(String name, String description, int value, String type)?
+        addDiscount,
   }) {
     return started?.call();
   }
@@ -133,7 +138,8 @@ class _$StartedImpl implements _Started {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? started,
-    TResult Function(String name, String description, int value)? addDiscount,
+    TResult Function(String name, String description, int value, String type)?
+        addDiscount,
     required TResult orElse(),
   }) {
     if (started != null) {
@@ -184,7 +190,7 @@ abstract class _$$AddDiscountImplCopyWith<$Res> {
           _$AddDiscountImpl value, $Res Function(_$AddDiscountImpl) then) =
       __$$AddDiscountImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({String name, String description, int value});
+  $Res call({String name, String description, int value, String type});
 }
 
 /// @nodoc
@@ -201,6 +207,7 @@ class __$$AddDiscountImplCopyWithImpl<$Res>
     Object? name = null,
     Object? description = null,
     Object? value = null,
+    Object? type = null,
   }) {
     return _then(_$AddDiscountImpl(
       name: null == name
@@ -215,6 +222,10 @@ class __$$AddDiscountImplCopyWithImpl<$Res>
           ? _value.value
           : value // ignore: cast_nullable_to_non_nullable
               as int,
+      type: null == type
+          ? _value.type
+          : type // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -223,7 +234,10 @@ class __$$AddDiscountImplCopyWithImpl<$Res>
 
 class _$AddDiscountImpl implements _AddDiscount {
   const _$AddDiscountImpl(
-      {required this.name, required this.description, required this.value});
+      {required this.name,
+      required this.description,
+      required this.value,
+      required this.type});
 
   @override
   final String name;
@@ -231,10 +245,12 @@ class _$AddDiscountImpl implements _AddDiscount {
   final String description;
   @override
   final int value;
+  @override
+  final String type;
 
   @override
   String toString() {
-    return 'AddDiscountEvent.addDiscount(name: $name, description: $description, value: $value)';
+    return 'AddDiscountEvent.addDiscount(name: $name, description: $description, value: $value, type: $type)';
   }
 
   @override
@@ -245,11 +261,12 @@ class _$AddDiscountImpl implements _AddDiscount {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.description, description) ||
                 other.description == description) &&
-            (identical(other.value, value) || other.value == value));
+            (identical(other.value, value) || other.value == value) &&
+            (identical(other.type, type) || other.type == type));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, name, description, value);
+  int get hashCode => Object.hash(runtimeType, name, description, value, type);
 
   @JsonKey(ignore: true)
   @override
@@ -261,30 +278,33 @@ class _$AddDiscountImpl implements _AddDiscount {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() started,
-    required TResult Function(String name, String description, int value)
+    required TResult Function(
+            String name, String description, int value, String type)
         addDiscount,
   }) {
-    return addDiscount(name, description, value);
+    return addDiscount(name, description, value, type);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? started,
-    TResult? Function(String name, String description, int value)? addDiscount,
+    TResult? Function(String name, String description, int value, String type)?
+        addDiscount,
   }) {
-    return addDiscount?.call(name, description, value);
+    return addDiscount?.call(name, description, value, type);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? started,
-    TResult Function(String name, String description, int value)? addDiscount,
+    TResult Function(String name, String description, int value, String type)?
+        addDiscount,
     required TResult orElse(),
   }) {
     if (addDiscount != null) {
-      return addDiscount(name, description, value);
+      return addDiscount(name, description, value, type);
     }
     return orElse();
   }
@@ -325,11 +345,13 @@ abstract class _AddDiscount implements AddDiscountEvent {
   const factory _AddDiscount(
       {required final String name,
       required final String description,
-      required final int value}) = _$AddDiscountImpl;
+      required final int value,
+      required final String type}) = _$AddDiscountImpl;
 
   String get name;
   String get description;
   int get value;
+  String get type;
   @JsonKey(ignore: true)
   _$$AddDiscountImplCopyWith<_$AddDiscountImpl> get copyWith =>
       throw _privateConstructorUsedError;
