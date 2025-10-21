@@ -22,20 +22,21 @@ class MemberResponseModel {
 }
 
 class Member {
-  final int? id;
+  final String? id;
   final String? name;
   final String? email;
   final String? phone;
+  final String? dateOfBirth;
 
-  Member({this.id, this.name, this.email, this.phone});
+  Member({this.id, this.name, this.email, this.phone, this.dateOfBirth});
 
   factory Member.fromMap(Map<String, dynamic> json) {
     return Member(
-      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}'),
+      id: json['id']?.toString(),
       name: json['name']?.toString(),
       email: json['email']?.toString(),
       phone: json['phone']?.toString() ?? json['telp']?.toString(),
+      dateOfBirth: json['date_of_birth']?.toString(),
     );
   }
 }
-

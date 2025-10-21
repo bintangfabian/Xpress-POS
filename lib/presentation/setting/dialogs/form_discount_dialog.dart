@@ -41,6 +41,7 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       title: Padding(
         padding: const EdgeInsets.only(left: 8.0),
         child: Row(

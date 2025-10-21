@@ -122,7 +122,8 @@ class MyApp extends StatelessWidget {
             create: (context) => AddDiscountBloc(DiscountRemoteDatasource()),
           ),
           BlocProvider(
-            create: (context) => DeleteDiscountCubit(DiscountRemoteDatasource()),
+            create: (context) =>
+                DeleteDiscountCubit(DiscountRemoteDatasource()),
           ),
           BlocProvider(
             create: (context) => TransactionReportBloc(OrderRemoteDatasource()),

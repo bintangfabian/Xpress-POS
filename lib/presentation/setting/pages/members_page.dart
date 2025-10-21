@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
+import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/data/datasources/member_remote_datasource.dart';
 import 'package:xpress/data/models/response/member_response_model.dart';
+import 'package:xpress/presentation/setting/dialogs/member_form_dialog.dart';
 import 'package:xpress/presentation/setting/widgets/manage_member_card.dart';
 import 'package:xpress/presentation/setting/widgets/loading_list_placeholder.dart';
 
@@ -85,9 +87,7 @@ class _MembersPageState extends State<MembersPage> {
                 icon: Assets.icons.addPerson.svg(height: 20, width: 20),
                 label: 'Tambah Member',
                 fontSize: 16,
-                onPressed: () {
-                  
-                },
+                onPressed: _openCreateMemberDialog,
               ),
             ),
           ],
@@ -121,40 +121,41 @@ class _MembersPageState extends State<MembersPage> {
                 );
               }
               final members = _filteredMembers;
+              if (members.isEmpty) {
+                return _MembersEmptyState(
+                  controller: _listController,
+                  message: _searchController.text.isEmpty
+                      ? 'Belum ada member terdaftar.'
+                      : 'Member tidak ditemukan untuk kata kunci tersebut.',
+                );
+              }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _MembersHeader(),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: members.isEmpty
-                        ? _MembersEmptyState(
-                            controller: _listController,
-                            message: _searchController.text.isEmpty
-                                ? 'Belum ada member terdaftar.'
-                                : 'Member tidak ditemukan untuk kata kunci tersebut.',
-                          )
-                        : Scrollbar(
-                            controller: _listController,
-                            thumbVisibility: true,
-                            child: ListView.separated(
-                              controller: _listController,
-                              physics: const BouncingScrollPhysics(
-                                  parent: AlwaysScrollableScrollPhysics()),
-                              padding: EdgeInsets.zero,
-                              itemCount: members.length,
-                              separatorBuilder: (context, _) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final item = members[index];
-                                return ManageMemberCard(
-                                  data: item,
-                                  onEditTap: () {},
-                                  onDeleteTap: () {},
-                                );
-                              },
-                            ),
-                          ),
+                    child: Scrollbar(
+                      controller: _listController,
+                      thumbVisibility: true,
+                      child: ListView.separated(
+                        controller: _listController,
+                        physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics()),
+                        padding: EdgeInsets.zero,
+                        itemCount: members.length,
+                        separatorBuilder: (context, _) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = members[index];
+                          return ManageMemberCard(
+                            data: item,
+                            onEditTap: () {},
+                            onDeleteTap: () => _confirmDelete(item),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ],
               );
@@ -163,6 +164,126 @@ class _MembersPageState extends State<MembersPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _openCreateMemberDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const MemberFormDialog(),
+    );
+    if (result == true) {
+      _refreshMembers();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Member berhasil ditambahkan')),
+      );
+    }
+  }
+
+  Future<void> _refreshMembers() async {
+    setState(() {
+      _future = _load();
+    });
+  }
+
+  Future<void> _confirmDelete(Member member) async {
+    final id = member.id;
+    if (id == null || id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ID member tidak valid.')),
+      );
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 12, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Hapus Member',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.black,
+                ),
+              ),
+              IconButton(
+                splashRadius: 18,
+                icon: Assets.icons.cancel
+                    .svg(height: 20, width: 20, color: AppColors.grey),
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+              ),
+            ],
+          ),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus ${member.name ?? 'member'}?',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppColors.black,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: Button.outlined(
+                    label: 'Batal',
+                    color: AppColors.white,
+                    borderColor: AppColors.grey,
+                    textColor: AppColors.grey,
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Button.filled(
+                    label: 'Hapus',
+                    color: AppColors.danger,
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            duration: Duration(milliseconds: 800),
+            content: Text('Menghapus member...'),
+          ),
+        );
+
+      final result = await MemberRemoteDatasource().deleteMember(id);
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      result.fold(
+        (message) => messenger.showSnackBar(SnackBar(content: Text(message))),
+        (_) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Member berhasil dihapus')),
+          );
+          _refreshMembers();
+        },
+      );
+    }
   }
 }
 
@@ -190,6 +311,7 @@ class _MembersHeader extends StatelessWidget {
           Expanded(flex: 2, child: Text('Nama', style: _style)),
           Expanded(flex: 2, child: Text('Email', style: _style)),
           Expanded(flex: 2, child: Text('Telepon', style: _style)),
+          Expanded(flex: 2, child: Text('Tanggal Lahir', style: _style)),
           SizedBox(width: 80, child: Text('Aksi', style: _style)),
         ],
       ),
@@ -207,36 +329,46 @@ class _MembersEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scrollbar(
-      controller: controller,
-      child: ListView(
-        controller: controller,
-        physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics()),
-        padding: EdgeInsets.zero,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.black.withOpacity(0.08),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _MembersHeader(),
+        const SizedBox(height: 16),
+        Expanded(
+          child: Scrollbar(
+            controller: controller,
+            child: ListView(
+              controller: controller,
+              physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics()),
+              padding: EdgeInsets.zero,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.black.withOpacity(0.08),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

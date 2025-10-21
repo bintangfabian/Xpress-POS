@@ -39,7 +39,7 @@ class ManageMemberCard extends StatelessWidget {
               text: data.name ?? '-',
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             flex: 2,
             child: Text(
@@ -51,7 +51,7 @@ class ManageMemberCard extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             flex: 2,
             child: Text(
@@ -63,7 +63,19 @@ class ManageMemberCard extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              _formatDate(data.dateOfBirth),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.black,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           SizedBox(
             width: 80,
             child: Row(
@@ -88,6 +100,32 @@ class ManageMemberCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(String? date) {
+    if (date == null || date.isEmpty) return '-';
+    try {
+      final parsed = DateTime.parse(date);
+      final monthNames = const [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
+      ];
+      final month = monthNames[parsed.month - 1];
+      final day = parsed.day.toString().padLeft(2, '0');
+      return '$day $month ${parsed.year}';
+    } catch (_) {
+      return date;
+    }
   }
 }
 
