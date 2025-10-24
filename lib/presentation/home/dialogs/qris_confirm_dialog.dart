@@ -97,36 +97,38 @@ class QrisConfirmDialog extends StatelessWidget {
                 Text(_formatTime(now)),
               ],
             ),
-            const SpaceHeight(32),
-            Row(
-              children: [
-                Expanded(
-                  child: Button.outlined(
-                    label: 'Batal',
-                    textColor: AppColors.grey,
-                    color: AppColors.greyLight,
-                    borderColor: AppColors.grey,
-                    fontWeight: FontWeight.w600,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Button.filled(
-                    label: 'Diterima',
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onAccepted();
-                    },
-                  ),
-                ),
-              ],
-            )
+            // const SpaceHeight(32),
           ],
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Batal',
+                textColor: AppColors.grey,
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                fontWeight: FontWeight.w600,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Button.filled(
+                label: 'Diterima',
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+                onPressed: () {
+                  Navigator.pop(context);
+                  onAccepted();
+                },
+              ),
+            ),
+          ],
+        )
+      ],
     );
   }
 }

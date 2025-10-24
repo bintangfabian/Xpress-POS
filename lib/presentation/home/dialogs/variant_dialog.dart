@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
+import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/core/utils/image_utils.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
@@ -150,276 +152,270 @@ class _VariantDialogState extends State<VariantDialog> {
     return AlertDialog(
       backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('Tambah Opsi Varians',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          IconButton(
-            icon: const Icon(Icons.close, color: AppColors.primary),
-            onPressed: () => Navigator.pop(context),
-          )
-        ],
+      title: Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Tambah Opsi Varian',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+            IconButton(
+              icon: Assets.icons.cancel
+                  .svg(color: AppColors.grey, height: 32, width: 32),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
       ),
       content: SizedBox(
-        width: 678,
-        height: 506,
+        width: context.deviceWidth / 1.75,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left: Product card
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      height: 312,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border:
-                            Border.all(color: Colors.grey.shade200, width: 1),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+              // Left: Product card
+              Expanded(
+                flex: 2,
+                child: Container(
+                  height: 312,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade200, width: 1),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // === Gambar Produk + Label Stok
-                          Expanded(
-                            child: Stack(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(
-                                      12.0), // 🚀 padding gambar
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: _buildProductImage(),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // === Gambar Produk + Label Stok
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(
+                                  12.0), // 🚀 padding gambar
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: _buildProductImage(),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 18,
+                              right: 18,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getStockColor(),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "Stok: ${_getDisplayStock()}",
+                                  style: TextStyle(
+                                    color: _getStockTextColor(),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                Positioned(
-                                  bottom: 18,
-                                  right: 18,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: _getStockColor(),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      "Stok: ${_getDisplayStock()}",
-                                      style: TextStyle(
-                                        color: _getStockTextColor(),
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // === Nama Produk
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            child: Text(
-                              widget.product.name ?? "-",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-
-                          // === Harga Produk
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            child: Text(
-                              (widget.product.price ?? '0')
-                                  .toIntegerFromText
-                                  .currencyFormatRp,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: AppColors.grey,
                               ),
                             ),
-                          ),
-
-                          const SizedBox(height: 8),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Right: Options
-                  Expanded(
-                    flex: 4,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Pilihan :',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        // Scrollable list for variants
-                        if (_loading)
-                          const Center(child: CircularProgressIndicator())
-                        else
-                          Flexible(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxHeight: 370, // adjust as needed
-                              ),
-                              child: Scrollbar(
-                                thickness: 0,
-                                thumbVisibility: true,
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: _options.isNotEmpty
-                                      ? _options.length
-                                      : widget.options.length,
-                                  itemBuilder: (context, idx) {
-                                    final item = _options.isNotEmpty
-                                        ? _options[idx]
-                                        : _VariantItem(widget.options[idx], 0);
-                                    final label = item.label;
-                                    final price = item.priceAdjustment;
-                                    final isSelected =
-                                        selected.containsKey(label);
 
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 8.0),
-                                      child: Row(
-                                        children: [
-                                          // Tombol select di kiri
-                                          InkWell(
-                                            onTap: () {
-                                              setState(() {
-                                                if (isSelected) {
-                                                  selected.remove(label);
-                                                } else {
-                                                  selected[label] =
-                                                      item; // Store full item with id
-                                                }
-                                              });
-                                            },
-                                            child: Container(
-                                              width: 48,
-                                              height: 48,
-                                              decoration: BoxDecoration(
-                                                color: AppColors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                border: isSelected
-                                                    ? Border.all(
-                                                        color:
-                                                            AppColors.primary,
-                                                        width: 2)
-                                                    : Border.all(
-                                                        color: AppColors
-                                                            .greyLightActive,
-                                                        width: 2),
-                                              ),
-                                              alignment: Alignment.center,
-                                              child: isSelected
-                                                  ? Container(
-                                                      width: 24,
-                                                      height: 24,
-                                                      decoration: BoxDecoration(
-                                                        color:
-                                                            AppColors.primary,
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(4),
-                                                      ),
-                                                    )
-                                                  : null,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          // Nama varian
-                                          Expanded(
-                                            child: Text(
-                                              label,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                          // Harga varian di kanan
-                                          Text(
-                                            "+ ${price.currencyFormatRp}",
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.grey,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
+                      // === Nama Produk
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        child: Text(
+                          widget.product.name ?? "-",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
-                      ],
-                    ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // === Harga Produk
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        child: Text(
+                          (widget.product.price ?? '0')
+                              .toIntegerFromText
+                              .currencyFormatRp,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.grey,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+                    ],
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Button.outlined(
-                      label: 'Kembali',
-                      color: AppColors.greyLight,
-                      borderColor: AppColors.grey,
-                      textColor: AppColors.grey,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Button.filled(
-                      color: AppColors.success,
-                      label: 'Selesai',
-                      onPressed: () {
-                        final variants = selected.entries
-                            .map((e) => ProductVariant(
-                                  id: e.value.id, // Include UUID
-                                  name: e.key,
-                                  priceAdjustment: e.value.priceAdjustment,
-                                ))
-                            .toList();
-                        Navigator.pop(context, variants);
-                      },
-                    ),
-                  ),
-                ],
-              )
+              const SizedBox(width: 16),
+              // Right: Options
+              Expanded(
+                flex: 4,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Pilihan :',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    // Scrollable list for variants
+                    if (_loading)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      Flexible(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxHeight: 370, // adjust as needed
+                          ),
+                          child: Scrollbar(
+                            thickness: 0,
+                            thumbVisibility: true,
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _options.isNotEmpty
+                                  ? _options.length
+                                  : widget.options.length,
+                              itemBuilder: (context, idx) {
+                                final item = _options.isNotEmpty
+                                    ? _options[idx]
+                                    : _VariantItem(widget.options[idx], 0);
+                                final label = item.label;
+                                final price = item.priceAdjustment;
+                                final isSelected = selected.containsKey(label);
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Row(
+                                    children: [
+                                      // Tombol select di kiri
+                                      InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            if (isSelected) {
+                                              selected.remove(label);
+                                            } else {
+                                              selected[label] =
+                                                  item; // Store full item with id
+                                            }
+                                          });
+                                        },
+                                        child: Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: isSelected
+                                                ? Border.all(
+                                                    color: AppColors.primary,
+                                                    width: 2)
+                                                : Border.all(
+                                                    color: AppColors
+                                                        .greyLightActive,
+                                                    width: 2),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: isSelected
+                                              ? Container(
+                                                  width: 24,
+                                                  height: 24,
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            4),
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Nama varian
+                                      Expanded(
+                                        child: Text(
+                                          label,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                      // Harga varian di kanan
+                                      Text(
+                                        "+ ${price.currencyFormatRp}",
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Kembali',
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                textColor: AppColors.grey,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Button.filled(
+                color: AppColors.success,
+                label: 'Selesai',
+                onPressed: () {
+                  final variants = selected.entries
+                      .map((e) => ProductVariant(
+                            id: e.value.id, // Include UUID
+                            name: e.key,
+                            priceAdjustment: e.value.priceAdjustment,
+                          ))
+                      .toList();
+                  Navigator.pop(context, variants);
+                },
+              ),
+            ),
+          ],
+        )
+      ],
     );
   }
 

@@ -3,7 +3,7 @@ import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/presentation/setting/pages/discount_page.dart';
 import 'package:xpress/presentation/setting/pages/manage_printer_page.dart';
 import 'package:xpress/presentation/setting/pages/sync_data_page.dart';
-import 'package:xpress/presentation/setting/pages/tax_page.dart';
+import 'package:xpress/presentation/setting/pages/store_settings_page.dart';
 import 'package:xpress/presentation/setting/pages/user_profile_page.dart';
 import 'package:xpress/presentation/setting/pages/members_page.dart';
 import 'package:xpress/presentation/setting/pages/services_page.dart';
@@ -86,51 +86,52 @@ class _SettingsPageState extends State<SettingsPage> {
                       MenuTile(
                         icon: Assets.icons.user,
                         title: 'Profil Pengguna',
-                        subtitle: 'Lihat informasi akun',
+                        subtitle: 'Lihat Informasi Akun',
                         active: currentIndex == 0,
                         onTap: () => indexValue(0),
+                      ),
+                      MenuTile(
+                        icon: Assets.icons.settings,
+                        title: 'Pengaturan Toko',
+                        subtitle: 'Lihat Pengaturan Toko',
+                        active: currentIndex == 1,
+                        onTap: () => indexValue(1),
                       ),
                       MenuTile(
                         icon: Assets.icons.addPerson,
                         title: 'Kelola Member',
                         subtitle: 'Kelola Member Pelanggan',
-                        active: currentIndex == 1,
-                        onTap: () => indexValue(1),
+                        active: currentIndex == 2,
+                        onTap: () => indexValue(2),
                       ),
                       MenuTile(
                         icon: Assets.icons.percentange,
                         title: 'Kelola Diskon',
                         subtitle: 'Kelola Diskon Pelanggan',
-                        active: currentIndex == 2,
-                        onTap: () => indexValue(2),
-                      ),
-                      MenuTile(
-                        icon: Assets.icons.task,
-                        title: 'Kelola Pajak',
-                        subtitle: 'Kelola Pajak Pelanggan',
                         active: currentIndex == 3,
                         onTap: () => indexValue(3),
                       ),
-                      MenuTile(
-                        icon: Assets.icons.paste,
-                        title: 'Kelola Layanan',
-                        subtitle: 'Kelola Layanan Pelanggan',
-                        active: currentIndex == 4,
-                        onTap: () => indexValue(4),
-                      ),
+
+                      // MenuTile(
+                      //   icon: Assets.icons.paste,
+                      //   title: 'Kelola Layanan',
+                      //   subtitle: 'Kelola Layanan Pelanggan',
+                      //   active: currentIndex == 4,
+                      //   onTap: () => indexValue(4),
+                      // ),
                       MenuTile(
                         icon: Assets.icons.printer,
                         title: 'Kelola Printer',
                         subtitle: 'Tambah dan Hapus Printer',
-                        active: currentIndex == 5,
-                        onTap: () => indexValue(5),
+                        active: currentIndex == 4,
+                        onTap: () => indexValue(4),
                       ),
                       MenuTile(
                         icon: Assets.icons.sync,
                         title: 'Sinkronisasi Data',
                         subtitle: 'Sinkronisasi Data dengan Server',
-                        active: currentIndex == 6,
-                        onTap: () => indexValue(6),
+                        active: currentIndex == 5,
+                        onTap: () => indexValue(5),
                       ),
                       MenuTile(
                         icon: Assets.icons.logout,
@@ -171,10 +172,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       index: currentIndex,
                       children: [
                         const UserProfilePage(), // 0 Profil Pengguna
+                        StoreSettingPage(), // 3 Kelola Pajak
                         const MembersPage(), // 1 Kelola Member
                         DiscountPage(), // 2 Kelola Diskon
-                        TaxPage(), // 3 Kelola Pajak
-                        const ServicesPage(), // 4 Kelola Layanan
+                        // const ServicesPage(), // 4 Kelola Layanan
                         const ManagePrinterPage(), // 5 Kelola Printer
                         const SyncDataPage(), // 6 Sinkronisasi Data
                       ],

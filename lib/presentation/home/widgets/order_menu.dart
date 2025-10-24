@@ -60,82 +60,83 @@ class OrderMenu extends StatelessWidget {
           ),
 
           // Quantity (- qty +)
-          Expanded(
-            flex: 4,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // minus
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerLight,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.danger, width: 1),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.remove,
-                        size: 20, color: AppColors.danger),
-                    onPressed: () {
-                      context
-                          .read<CheckoutBloc>()
-                          .setPendingVariants(data.variants);
-                      context
-                          .read<CheckoutBloc>()
-                          .add(CheckoutEvent.removeItem(data.product));
-                    },
-                  ),
-                ),
-                // qty badge
-                Container(
-                  width: 48,
-                  height: 48,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.greyLight,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.grey, width: 1),
-                  ),
-                  child: Center(
-                    child: Text(
-                      data.quantity.toString(),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 16),
+          SizedBox(
+            width: 150,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.danger, width: 1),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.remove,
+                          size: 20, color: AppColors.danger),
+                      onPressed: () {
+                        context
+                            .read<CheckoutBloc>()
+                            .setPendingVariants(data.variants);
+                        context
+                            .read<CheckoutBloc>()
+                            .add(CheckoutEvent.removeItem(data.product));
+                      },
                     ),
                   ),
-                ),
-                // plus
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.successLight,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.success, width: 1),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.greyLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.grey, width: 1),
+                    ),
+                    child: Center(
+                      child: Text(
+                        data.quantity.toString(),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                    ),
                   ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.add,
-                        size: 20, color: AppColors.success),
-                    onPressed: () {
-                      context
-                          .read<CheckoutBloc>()
-                          .setPendingVariants(data.variants);
-                      context
-                          .read<CheckoutBloc>()
-                          .add(CheckoutEvent.addItem(data.product));
-                    },
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.successLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.success, width: 1),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.add,
+                          size: 20, color: AppColors.success),
+                      onPressed: () {
+                        context
+                            .read<CheckoutBloc>()
+                            .setPendingVariants(data.variants);
+                        context
+                            .read<CheckoutBloc>()
+                            .add(CheckoutEvent.addItem(data.product));
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
           // Subtotal
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Align(
               alignment: Alignment.centerRight,
               child: Text(

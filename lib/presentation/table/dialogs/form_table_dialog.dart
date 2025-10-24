@@ -21,44 +21,31 @@ class _FormTableDialogState extends State<FormTableDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Kelola Meja',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+            IconButton(
+              icon: Assets.icons.cancel
+                  .svg(color: AppColors.grey, height: 32, width: 32),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
       ),
-      contentPadding: const EdgeInsets.all(16),
       content: SizedBox(
-        height: 240,
         width: 480,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 🔹 Header Title + Close Button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Kelola Meja',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Assets.icons.cancel.svg(
-                      color: AppColors.grey,
-                      height: 24,
-                      width: 24,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
               Row(
                 children: [
                   Expanded(
@@ -92,113 +79,112 @@ class _FormTableDialogState extends State<FormTableDialog> {
                 ],
               ),
               // 🔹 Label
-
-              const SizedBox(height: 24),
-
-              // 🔹 Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: Button.outlined(
-                      label: "Batal",
-                      textColor: AppColors.grey,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.greyLight,
-                      borderColor: AppColors.grey,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: BlocConsumer<GenerateTableBloc, GenerateTableState>(
-                      listener: (context, state) {
-                        state.maybeWhen(
-                          success: (message) {
-                            if (message.startsWith('ERROR: ')) {
-                              final msg = message.substring(7);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(msg),
-                                  backgroundColor: AppColors.danger,
-                                ),
-                              );
-                              return;
-                            }
-                            // refresh table setelah generate
-                            context
-                                .read<GetTableBloc>()
-                                .add(const GetTableEvent.getTables());
-                            context.pop();
-                          },
-                          orElse: () {},
-                        );
-                      },
-                      builder: (context, state) {
-                        return state.maybeWhen(
-                          loading: () => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                          orElse: () {
-                            return Button.filled(
-                              color: AppColors.success,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              onPressed: () {
-                                // ✅ Validasi input
-                                if (generateController.text.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "Jumlah meja tidak boleh kosong",
-                                        style: TextStyle(
-                                            color: AppColors.black,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      backgroundColor: AppColors.warningLight,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                final value = int.tryParse(
-                                    generateController.text.trim());
-                                if (value == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "Masukkan Angka Yang Valid",
-                                        style: TextStyle(
-                                            color: AppColors.black,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      backgroundColor: AppColors.warningLight,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                // 🔹 Dispatch event ke Bloc
-                                context.read<GenerateTableBloc>().add(
-                                      GenerateTableEvent.generate(value),
-                                    );
-                              },
-                              label: 'Simpan',
-                              height: 50,
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+              // const SizedBox(height: 24),
             ],
           ),
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: "Batal",
+                textColor: AppColors.grey,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: BlocConsumer<GenerateTableBloc, GenerateTableState>(
+                listener: (context, state) {
+                  state.maybeWhen(
+                    success: (message) {
+                      if (message.startsWith('ERROR: ')) {
+                        final msg = message.substring(7);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(msg),
+                            backgroundColor: AppColors.danger,
+                          ),
+                        );
+                        return;
+                      }
+                      // refresh table setelah generate
+                      context
+                          .read<GetTableBloc>()
+                          .add(const GetTableEvent.getTables());
+                      context.pop();
+                    },
+                    orElse: () {},
+                  );
+                },
+                builder: (context, state) {
+                  return state.maybeWhen(
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    orElse: () {
+                      return Button.filled(
+                        color: AppColors.success,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        onPressed: () {
+                          // ✅ Validasi input
+                          if (generateController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Jumlah meja tidak boleh kosong",
+                                  style: TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                backgroundColor: AppColors.warningLight,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final value =
+                              int.tryParse(generateController.text.trim());
+                          if (value == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Masukkan Angka Yang Valid",
+                                  style: TextStyle(
+                                      color: AppColors.black,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                backgroundColor: AppColors.warningLight,
+                              ),
+                            );
+                            return;
+                          }
+
+                          // 🔹 Dispatch event ke Bloc
+                          context.read<GenerateTableBloc>().add(
+                                GenerateTableEvent.generate(value),
+                              );
+                        },
+                        label: 'Simpan',
+                        height: 50,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

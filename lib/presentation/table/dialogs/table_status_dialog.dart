@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
+import 'package:xpress/core/extensions/build_context_ext.dart';
 
 class TableStatusDialog extends StatefulWidget {
   final String currentStatus; // available, reserved, occupied
@@ -173,41 +174,37 @@ class _TableStatusDialogState extends State<TableStatusDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return AlertDialog(
       backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Container(
-        width: 740,
-        padding: const EdgeInsets.all(24),
+      title: Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Status Meja',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            IconButton(
+              icon: Assets.icons.cancel
+                  .svg(color: AppColors.grey, height: 32, width: 32),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
+      ),
+      content: SizedBox(
+        width: context.deviceWidth / 1.75,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header dengan judul dan tombol close
-            Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Status Meja',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Assets.icons.cancel
-                        .svg(color: AppColors.grey, height: 32, width: 32),
-                    onPressed: () => Navigator.pop(context),
-                  )
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
             // Pesan
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -221,7 +218,7 @@ class _TableStatusDialogState extends State<TableStatusDialog> {
               ),
             ),
             const SizedBox(height: 24),
-
+        
             // Opsi status
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -229,46 +226,46 @@ class _TableStatusDialogState extends State<TableStatusDialog> {
                 children: _buildStatusOptions(),
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Tombol aksi
-            Row(
-              children: [
-                Expanded(
-                  child: Button.outlined(
-                    onPressed: () => Navigator.pop(context),
-                    label: 'Batal',
-                    height: 50,
-                    color: AppColors.greyLight,
-                    borderColor: AppColors.grey,
-                    textColor: AppColors.grey,
-                    borderRadius: 8.0,
-                    fontSize: 16.0,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Button.filled(
-                    onPressed: () {
-                      if (selectedStatus != null) {
-                        // Panggil callback dengan status yang dipilih
-                        // Callback akan handle Navigator.pop dengan return value
-                        widget.onStatusChanged(selectedStatus!);
-                      }
-                    },
-                    label: 'Simpan',
-                    height: 50,
-                    color: AppColors.success,
-                    textColor: AppColors.white,
-                    borderRadius: 8.0,
-                    fontSize: 16.0,
-                  ),
-                ),
-              ],
-            ),
+            // const SizedBox(height: 32),
           ],
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                onPressed: () => Navigator.pop(context),
+                label: 'Batal',
+                height: 50,
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                textColor: AppColors.grey,
+                borderRadius: 8.0,
+                fontSize: 16.0,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Button.filled(
+                onPressed: () {
+                  if (selectedStatus != null) {
+                    // Panggil callback dengan status yang dipilih
+                    // Callback akan handle Navigator.pop dengan return value
+                    widget.onStatusChanged(selectedStatus!);
+                  }
+                },
+                label: 'Simpan',
+                height: 50,
+                color: AppColors.success,
+                textColor: AppColors.white,
+                borderRadius: 8.0,
+                fontSize: 16.0,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

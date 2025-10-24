@@ -111,36 +111,38 @@ class _ServiceDialogState extends State<ServiceDialog> {
                 separatorBuilder: (_, __) => const SpaceHeight(12),
                 itemCount: widget.services.length,
               ),
-              const SpaceHeight(16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Button.outlined(
-                      label: 'Kembali',
-                      color: AppColors.greyLight,
-                      borderColor: AppColors.grey,
-                      textColor: AppColors.grey,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Button.filled(
-                      color: AppColors.success,
-                      label: 'Apply',
-                      onPressed: () => Navigator.pop(
-                          context,
-                          selectedIndex != null
-                              ? widget.services[selectedIndex!]['value'] as int
-                              : null),
-                    ),
-                  ),
-                ],
-              )
+              // const SpaceHeight(16),
             ],
           ),
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Kembali',
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                textColor: AppColors.grey,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Button.filled(
+                color: AppColors.success,
+                label: 'Apply',
+                onPressed: () => Navigator.pop(
+                    context,
+                    selectedIndex != null
+                        ? widget.services[selectedIndex!]['value'] as int
+                        : null),
+              ),
+            ),
+          ],
+        )
+      ],
     );
   }
 }

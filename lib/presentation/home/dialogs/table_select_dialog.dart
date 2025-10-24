@@ -145,32 +145,7 @@ class _TableSelectDialogState extends State<TableSelectDialog> {
                       },
                     ),
                   ),
-                  const SpaceHeight(16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Button.outlined(
-                          label: 'Kembali',
-                          color: AppColors.greyLight,
-                          borderColor: AppColors.grey,
-                          textColor: AppColors.grey,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Button.filled(
-                          color: AppColors.success,
-                          label: 'Apply',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          onPressed: () => Navigator.pop(context, selected),
-                        ),
-                      ),
-                    ],
-                  ),
+                  // const SpaceHeight(16),
                 ],
               ),
               loading: () => const Center(
@@ -183,6 +158,33 @@ class _TableSelectDialogState extends State<TableSelectDialog> {
           },
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Kembali',
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                textColor: AppColors.grey,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Button.filled(
+                color: AppColors.success,
+                label: 'Apply',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                onPressed: () => Navigator.pop(context, selected),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

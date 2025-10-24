@@ -262,18 +262,21 @@ class _HomePageState extends State<HomePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Header Pesanan
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                   vertical: 12, horizontal: 16),
+                              child: const Text(
+                                "Pesanan",
+                                style: TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            // Header Pesanan
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 16.0, bottom: 12),
                               child: Row(
                                 children: [
-                                  const Text(
-                                    "Pesanan",
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w600),
-                                  ),
                                   const SizedBox(width: 12),
                                   Container(
                                     height: 37,
@@ -461,8 +464,8 @@ class _HomePageState extends State<HomePage> {
                                                             fontWeight:
                                                                 FontWeight
                                                                     .w600))),
-                                                Expanded(
-                                                    flex: 3,
+                                                SizedBox(
+                                                    width: 150,
                                                     child: Text("Quantity",
                                                         textAlign:
                                                             TextAlign.center,
@@ -471,7 +474,7 @@ class _HomePageState extends State<HomePage> {
                                                                 FontWeight
                                                                     .w600))),
                                                 Expanded(
-                                                    flex: 2,
+                                                    flex: 3,
                                                     child: Text("Subtotal",
                                                         textAlign:
                                                             TextAlign.end,

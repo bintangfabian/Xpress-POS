@@ -5,14 +5,19 @@ import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/auth_remote_datasource.dart';
 import 'package:xpress/data/models/response/auth_response_model.dart';
 
-class UserProfilePage extends StatefulWidget {
-  const UserProfilePage({super.key});
+import '../dialogs/form_tax_dialog.dart';
+import '../models/tax_model.dart';
+import '../widgets/loading_list_placeholder.dart';
+import '../widgets/manage_tax_card.dart';
+
+class StoreSettingPage extends StatefulWidget {
+  const StoreSettingPage({super.key});
 
   @override
-  State<UserProfilePage> createState() => _UserProfilePageState();
+  State<StoreSettingPage> createState() => _StoreSettingPageState();
 }
 
-class _UserProfilePageState extends State<UserProfilePage> {
+class _StoreSettingPageState extends State<StoreSettingPage> {
   User? _user;
   String? _storeName;
 
@@ -97,12 +102,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
         final availableWidth = constraints.maxWidth;
         const horizontalPadding = 24.0 * 2;
         final rawContentWidth = availableWidth - horizontalPadding;
-        final contentWidth =
-            rawContentWidth > 0 ? rawContentWidth : availableWidth;
+        final contentWidth = rawContentWidth > 0 ? rawContentWidth : availableWidth;
         final bool useTwoColumn = contentWidth >= 520;
         double cardWidth([bool full = false]) {
-          final width =
-              full || !useTwoColumn ? contentWidth : (contentWidth - 16) / 2;
+          final width = full || !useTwoColumn
+              ? contentWidth
+              : (contentWidth - 16) / 2;
           return width > 0 ? width : availableWidth - 24;
         }
 
@@ -111,21 +116,20 @@ class _UserProfilePageState extends State<UserProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ContentTitle('Profil Pengguna'),
+              const ContentTitle('Pengaturan Toko'),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: AppColors.white,
-                  border:
-                      Border.all(width: 1, color: AppColors.greyLightActive),
+                  border: Border.all(width: 1, color: AppColors.greyLightActive),
                   borderRadius: const BorderRadius.all(Radius.circular(12)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Informasi Profil',
+                      'Informasi Pengaturan Toko',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,

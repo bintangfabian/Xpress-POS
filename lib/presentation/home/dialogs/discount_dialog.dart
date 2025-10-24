@@ -107,37 +107,39 @@ class _DiscountDialogState extends State<DiscountDialog> {
                   separatorBuilder: (_, __) => const SpaceHeight(12),
                   itemCount: items.length,
                 ),
-              const SpaceHeight(16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Button.outlined(
-                      label: 'Kembali',
-                      color: AppColors.greyLight,
-                      borderColor: AppColors.grey,
-                      textColor: AppColors.grey,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Button.filled(
-                      color: AppColors.success,
-                      label: 'Apply',
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      onPressed: () => Navigator.pop(context,
-                          selectedIndex != null ? items[selectedIndex!] : null),
-                    ),
-                  ),
-                ],
-              )
+              // const SpaceHeight(16),
             ],
           ),
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Kembali',
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                textColor: AppColors.grey,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Button.filled(
+                color: AppColors.success,
+                label: 'Apply',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                onPressed: () => Navigator.pop(context,
+                    selectedIndex != null ? items[selectedIndex!] : null),
+              ),
+            ),
+          ],
+        )
+      ],
     );
   }
 }

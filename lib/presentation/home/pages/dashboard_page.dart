@@ -168,47 +168,53 @@ class _DashboardPageState extends State<DashboardPage> {
                     const SizedBox(height: 12),
 
                     // ✅ Nav Items
-                    NavItem(
-                      iconPath: Assets.icons.home.path,
-                      isActive: _selectedIndex == 0,
-                      onTap: () => setState(() {
-                        _selectedIndex = 0;
-                        _contentIndex = 0;
-                      }),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        children: [
+                          NavItem(
+                            iconPath: Assets.icons.home.path,
+                            isActive: _selectedIndex == 0,
+                            onTap: () => setState(() {
+                              _selectedIndex = 0;
+                              _contentIndex = 0;
+                            }),
+                          ),
+                          NavItem(
+                            iconPath: Assets.icons.table.path,
+                            isActive: _selectedIndex == 1,
+                            onTap: () => setState(() {
+                              _selectedIndex = 1;
+                              _contentIndex = 1;
+                            }),
+                          ),
+                          NavItem(
+                            iconPath: Assets.icons.order.path,
+                            isActive: _selectedIndex == 2,
+                            onTap: () => setState(() {
+                              _selectedIndex = 2;
+                              _contentIndex = 2;
+                            }),
+                          ),
+                          NavItem(
+                            iconPath: Assets.icons.settings.path,
+                            isActive: _selectedIndex == 3,
+                            onTap: () => setState(() {
+                              _selectedIndex = 3;
+                              _contentIndex = 3;
+                            }),
+                          ),
+                          NavItem(
+                            iconPath: Assets.icons.graph.path,
+                            isActive: _selectedIndex == 4,
+                            onTap: () => setState(() {
+                              _selectedIndex = 4;
+                              _contentIndex = 4;
+                            }),
+                          ),
+                        ],
+                      ),
                     ),
-                    NavItem(
-                      iconPath: Assets.icons.table.path,
-                      isActive: _selectedIndex == 1,
-                      onTap: () => setState(() {
-                        _selectedIndex = 1;
-                        _contentIndex = 1;
-                      }),
-                    ),
-                    NavItem(
-                      iconPath: Assets.icons.order.path,
-                      isActive: _selectedIndex == 2,
-                      onTap: () => setState(() {
-                        _selectedIndex = 2;
-                        _contentIndex = 2;
-                      }),
-                    ),
-                    NavItem(
-                      iconPath: Assets.icons.settings.path,
-                      isActive: _selectedIndex == 3,
-                      onTap: () => setState(() {
-                        _selectedIndex = 3;
-                        _contentIndex = 3;
-                      }),
-                    ),
-                    NavItem(
-                      iconPath: Assets.icons.graph.path,
-                      isActive: _selectedIndex == 4,
-                      onTap: () => setState(() {
-                        _selectedIndex = 4;
-                        _contentIndex = 4;
-                      }),
-                    ),
-                    const Spacer(),
 
                     // ✅ Waktu
                     StreamBuilder<DateTime>(

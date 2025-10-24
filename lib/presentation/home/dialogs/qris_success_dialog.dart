@@ -108,86 +108,85 @@ class QrisSuccessDialog extends StatelessWidget {
                 Text(_formatTime(now)),
               ],
             ),
-            const SpaceHeight(32),
-            Row(
-              children: [
-                Expanded(
-                  child: Button.outlined(
-                    label: 'Selesai',
-                    textColor: AppColors.grey,
-                    color: AppColors.greyLight,
-                    borderColor: AppColors.grey,
-                    fontWeight: FontWeight.w600,
-                    onPressed: () async {
-                      // Submit order to server
-                      if (onSubmitOrder != null) {
-                        final success = await onSubmitOrder!();
-                        if (!success) {
-                          // Show error if submission failed
-                          // ignore: use_build_context_synchronously
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Gagal menyimpan order ke server'),
-                              backgroundColor: AppColors.danger,
-                            ),
-                          );
-                          // Continue anyway to save locally
-                        }
-                      }
-
-                      // Save to local history
-                      final now2 = TimezoneHelper.now();
-                      final id = await OrderHistoryLocalDatasource.instance
-                          .getCurrentOrderId();
-                      await OrderHistoryLocalDatasource.instance.addHistory({
-                        'orderId': id,
-                        'total': total,
-                        'change': change,
-                        'method': 'Qris',
-                        'time': now2.toIso8601String(),
-                        'orderType': orderType,
-                        'tableNumber': tableNumber,
-                      });
-                      await OrderHistoryLocalDatasource.instance
-                          .incrementOrderId();
-
-                      // reset checkout
-                      // ignore: use_build_context_synchronously
-                      context
-                          .read<CheckoutBloc>()
-                          .add(const CheckoutEvent.clearOrder());
-
-                      // navigate to Home
-                      // ignore: use_build_context_synchronously
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                const DashboardPage(initialIndex: 0)),
-                        (route) => false,
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Button.filled(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                    label: 'Cetak Struk',
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Cetak struk (coming soon)')),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            )
+            // const SpaceHeight(32),
           ],
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Selesai',
+                textColor: AppColors.grey,
+                color: AppColors.greyLight,
+                borderColor: AppColors.grey,
+                fontWeight: FontWeight.w600,
+                onPressed: () async {
+                  // Submit order to server
+                  if (onSubmitOrder != null) {
+                    final success = await onSubmitOrder!();
+                    if (!success) {
+                      // Show error if submission failed
+                      // ignore: use_build_context_synchronously
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Gagal menyimpan order ke server'),
+                          backgroundColor: AppColors.danger,
+                        ),
+                      );
+                      // Continue anyway to save locally
+                    }
+                  }
+
+                  // Save to local history
+                  final now2 = TimezoneHelper.now();
+                  final id = await OrderHistoryLocalDatasource.instance
+                      .getCurrentOrderId();
+                  await OrderHistoryLocalDatasource.instance.addHistory({
+                    'orderId': id,
+                    'total': total,
+                    'change': change,
+                    'method': 'Qris',
+                    'time': now2.toIso8601String(),
+                    'orderType': orderType,
+                    'tableNumber': tableNumber,
+                  });
+                  await OrderHistoryLocalDatasource.instance.incrementOrderId();
+
+                  // reset checkout
+                  // ignore: use_build_context_synchronously
+                  context
+                      .read<CheckoutBloc>()
+                      .add(const CheckoutEvent.clearOrder());
+
+                  // navigate to Home
+                  // ignore: use_build_context_synchronously
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                        builder: (_) => const DashboardPage(initialIndex: 0)),
+                    (route) => false,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Button.filled(
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+                label: 'Cetak Struk',
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cetak struk (coming soon)')),
+                  );
+                },
+              ),
+            ),
+          ],
+        )
+      ],
     );
   }
 }
