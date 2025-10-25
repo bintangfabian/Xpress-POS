@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
-import 'package:xpress/data/models/response/order_remote_datasource.dart';
+import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:intl/intl.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';

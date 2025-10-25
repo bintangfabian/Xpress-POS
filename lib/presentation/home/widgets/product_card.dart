@@ -46,7 +46,7 @@ class ProductCard extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
+                blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -62,6 +62,7 @@ class ProductCard extends StatelessWidget {
                       padding: const EdgeInsets.all(12.0), // 🚀 padding gambar
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(4),
+                        //TODO: image has to set
                         child: _buildProductImage(),
                       ),
                     ),
@@ -89,7 +90,7 @@ class ProductCard extends StatelessWidget {
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ],
@@ -122,7 +123,7 @@ class ProductCard extends StatelessWidget {
                                       ? AppColors.danger
                                       : AppColors.success),
                               fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -145,6 +146,8 @@ class ProductCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+
+              const SizedBox(height: 12,),
 
               // === Harga Produk
               Padding(

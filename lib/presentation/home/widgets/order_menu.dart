@@ -36,22 +36,23 @@ class OrderMenu extends StatelessWidget {
               children: [
                 Text(
                   data.product.name ?? "-",
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   "@${basePrice.currencyFormatRp}",
-                  style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                  style: const TextStyle(fontSize: 14, color: AppColors.grey),
                 ),
                 if (data.variants != null && data.variants!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   ...data.variants!.map((v) => Padding(
                         padding: const EdgeInsets.only(left: 8, top: 2),
                         child: Text(
-                          '${v.name} (+${v.priceAdjustment.currencyFormatRp})',
+                          v.name,
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.black),
+                              fontSize: 14, color: AppColors.black, fontWeight: FontWeight.normal),
                         ),
                       )),
                 ],
@@ -69,8 +70,8 @@ class OrderMenu extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: AppColors.dangerLight,
                       borderRadius: BorderRadius.circular(6),
@@ -91,8 +92,8 @@ class OrderMenu extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 38,
+                    height: 38,
                     margin: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: AppColors.greyLight,
@@ -108,8 +109,8 @@ class OrderMenu extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: AppColors.successLight,
                       borderRadius: BorderRadius.circular(6),
@@ -142,6 +143,7 @@ class OrderMenu extends StatelessWidget {
               child: Text(
                 subtotal.currencyFormatRp,
                 style: const TextStyle(
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),

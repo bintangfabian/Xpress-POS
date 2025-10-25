@@ -31,33 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    // setRole();
   }
-
-  // void setRole() {
-  //   final ds = AuthLocalDataSource();
-  //   ds.isAuthDataExists().then((exists) async {
-  //     if (!mounted) return;
-  //     if (!exists) {
-  //       setState(() {
-  //         role = null; // default to no role when not logged in
-  //       });
-  //       return;
-  //     }
-  //     try {
-  //       final value = await ds.getAuthData();
-  //       if (!mounted) return;
-  //       setState(() {
-  //         role = value.user?.role;
-  //       });
-  //     } catch (_) {
-  //       if (!mounted) return;
-  //       setState(() {
-  //         role = null;
-  //       });
-  //     }
-  //   });
-  // }
 
   @override
   Widget build(BuildContext context) {

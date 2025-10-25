@@ -72,6 +72,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
                   child: Text(
                     widget.tabTitles[index],
                     style: TextStyle(
+                      fontSize: 16,
                       color: _selectedIndex == index
                           ? AppColors.primary
                           : AppColors.black,

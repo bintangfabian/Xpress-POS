@@ -14,7 +14,7 @@ class LegendItem extends StatelessWidget {
     required this.label,
     this.width = 75,
     this.height = 40,
-    this.fontSize = 20,
+    this.fontSize = 16,
   });
 
   @override

@@ -486,14 +486,15 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                 children: [
                   // Detail pesanan
                   Expanded(
-                    flex: 3,
+                    flex: 4,
                     child: Container(
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.all(Radius.circular(8)),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16.0, horizontal: 16.0),
                         child: _buildOrderDetail(),
                       ),
                     ),
@@ -501,7 +502,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   const SizedBox(width: 6),
                   // Detail transaksi
                   Expanded(
-                    flex: 2,
+                    flex: 3,
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
@@ -914,121 +915,118 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             }
             return Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: EdgeInsetsGeometry.only(bottom: 8),
-                            child: const Text(
-                              'Detail Pesanan',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                              ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsetsGeometry.only(bottom: 8),
+                          child: const Text(
+                            'Detail Pesanan',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          Row(
-                            children: [
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              height: 37,
+                              width: 72,
+                              decoration: BoxDecoration(
+                                color: AppColors.greyLight,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Center(
+                                  child: Text(
+                                widget.orderNumber,
+                                style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w600),
+                              )),
+                            ),
+                            const SizedBox(width: 12),
+                            IntrinsicWidth(
+                              child: Container(
+                                height: 37,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _orderTypeLabel,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if ((_selectedTableNumber ??
+                                    _parseTableNumber(
+                                        widget.table?.tableNumber)) !=
+                                null) ...[
+                              const SizedBox(width: 12),
                               Container(
                                 height: 37,
                                 width: 72,
                                 decoration: BoxDecoration(
-                                  color: AppColors.greyLight,
+                                  color: AppColors.successLight,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Center(
-                                    child: Text(
-                                  widget.orderNumber,
-                                  style: TextStyle(fontWeight: FontWeight.w600),
-                                )),
-                              ),
-                              const SizedBox(width: 12),
-                              IntrinsicWidth(
-                                child: Container(
-                                  height: 37,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryLight,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      _orderTypeLabel,
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  child: Text(
+                                    widget.table?.name ??
+                                        "Meja ${_selectedTableNumber ?? _parseTableNumber(widget.table?.tableNumber) ?? ''}",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
                               ),
-                              if ((_selectedTableNumber ??
-                                      _parseTableNumber(
-                                          widget.table?.tableNumber)) !=
-                                  null) ...[
-                                const SizedBox(width: 12),
-                                Container(
-                                  height: 37,
-                                  width: 72,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.successLight,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      widget.table?.name ??
-                                          "Meja ${_selectedTableNumber ?? _parseTableNumber(widget.table?.tableNumber) ?? ''}",
-                                      style: const TextStyle(
-                                        color: AppColors.success,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ],
-                          ),
-                        ],
-                      ),
-                      Spacer(),
-                      CustomButton(
-                        width: 175,
-                        height: 52,
-                        svgIcon: Assets.icons.bill,
-                        label: "Ubah Pesanan",
-                        onPressed: () {
-                          final checkoutBloc = context.read<
-                              CheckoutBloc>(); // ✅ simpan dulu sebelum navigate
+                          ],
+                        ),
+                      ],
+                    ),
+                    Spacer(),
+                    CustomButton(
+                      width: 175,
+                      height: 52,
+                      svgIcon: Assets.icons.bill,
+                      label: "Ubah Pesanan",
+                      onPressed: () {
+                        final checkoutBloc = context.read<
+                            CheckoutBloc>(); // ✅ simpan dulu sebelum navigate
 
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BlocProvider.value(
-                                value:
-                                    checkoutBloc, // ✅ aman, ga pakai context lama
-                                child:
-                                    DashboardPage(), // atau HomePage sesuai flow kamu
-                              ),
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider.value(
+                              value:
+                                  checkoutBloc, // ✅ aman, ga pakai context lama
+                              child:
+                                  DashboardPage(), // atau HomePage sesuai flow kamu
                             ),
-                          );
-                        },
-                      )
-                    ],
-                  ),
+                          ),
+                        );
+                      },
+                    )
+                  ],
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SpaceHeight(20),
                 // 🔹 Header kolom
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0, vertical: 12.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     children: const [
                       Expanded(
@@ -1036,6 +1034,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                         child: Text(
                           "Menu",
                           style: TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1045,6 +1044,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                         child: Text(
                           "Quantity",
                           style: TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                           textAlign: TextAlign.center,
@@ -1055,6 +1055,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                         child: Text(
                           "Subtotal",
                           style: TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                           textAlign: TextAlign.end,
@@ -1086,7 +1087,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                           if (products.isEmpty) return _emptyOrder();
 
                           return ListView.builder(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             itemCount: products.length + 1,
                             itemBuilder: (context, i) {
                               if (i < products.length) {
@@ -1095,56 +1096,51 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                 );
                               } else {
                                 // After the last product, show the "Detail Pesanan" section
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 0.0, vertical: 8.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Detail Pesanan',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Detail Pesanan',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      const SizedBox(height: 12),
-                                      SizedBox(
-                                        height: 130,
-                                        width: double.infinity,
-                                        child: TextFormField(
-                                          controller: noteController,
-                                          maxLines: 5,
-                                          decoration: InputDecoration(
-                                            alignLabelWithHint: true,
-                                            hintText:
-                                                "Tambahkan Catatan Pesanan Jika Perlu",
-                                            hintStyle: const TextStyle(
-                                              color: AppColors.grey,
-                                              fontSize: 16,
-                                            ),
-                                            contentPadding:
-                                                const EdgeInsets.all(12),
-                                            enabledBorder: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              borderSide: const BorderSide(
-                                                  color: AppColors.grey,
-                                                  width: 1),
-                                            ),
-                                            focusedBorder: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              borderSide: const BorderSide(
-                                                  color: AppColors.primary,
-                                                  width: 1.5),
-                                            ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      height: 130,
+                                      width: double.infinity,
+                                      child: TextFormField(
+                                        controller: noteController,
+                                        maxLines: 5,
+                                        decoration: InputDecoration(
+                                          alignLabelWithHint: true,
+                                          hintText:
+                                              "Tambahkan Catatan Pesanan Jika Perlu",
+                                          hintStyle: const TextStyle(
+                                            color: AppColors.grey,
+                                            fontSize: 16,
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.all(12),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            borderSide: const BorderSide(
+                                                color: AppColors.grey,
+                                                width: 1),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            borderSide: const BorderSide(
+                                                color: AppColors.primary,
+                                                width: 1.5),
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 );
                               }
                             },
@@ -1160,67 +1156,6 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         );
       },
     );
-  }
-
-  Widget _totalOrderPrice() {
-    return BlocBuilder<CheckoutBloc, CheckoutState>(builder: (context, state) {
-      return state.maybeWhen(
-          orElse: () => _emptyOrder(),
-          loaded: (
-            products,
-            discountModel,
-            __,
-            ___,
-            tax,
-            serviceCharge,
-            ______,
-            _______,
-            ________,
-            _________,
-          ) {
-            if (products.isEmpty) {
-              return _emptyOrder();
-            }
-            final subtotal = products
-                .map((e) =>
-                    (e.product.price?.toIntegerFromText ?? 0) * e.quantity)
-                .fold(0, (a, b) => a + b);
-            final discAmt = _computeDiscountAmount(subtotal, discountModel);
-            final taxAmt = _computeTaxAmount(subtotal, tax);
-            final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
-            final total = subtotal - discAmt + taxAmt + serviceAmt;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6.0),
-              child: Container(
-                padding: EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.all(Radius.circular(4))),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Total",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                        fontSize: 20,
-                      ),
-                    ),
-                    Text(
-                      total.currencyFormatRp,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          });
-    });
   }
 
   // 🔹 Detail Transaksi
@@ -1240,7 +1175,10 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           TextFormField(
             controller: customerController,
             decoration: InputDecoration(
-              prefixIcon: Icon(Icons.person, color: AppColors.primary),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Assets.icons.user.svg(height: 24, width: 24, color: AppColors.grey),
+              ),
               hintText: "Nama Customer",
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1385,7 +1323,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             ],
           ),
 
-          const SpaceHeight(24),
+          const SpaceHeight(16),
 
           // 🔹 Breakdown harga (dinamis)
           BlocBuilder<CheckoutBloc, CheckoutState>(

@@ -128,7 +128,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       'Informasi Profil',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.bold,
                         color: AppColors.black,
                       ),
                     ),

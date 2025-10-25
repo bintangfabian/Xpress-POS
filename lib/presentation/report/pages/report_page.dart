@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/presentation/report/pages/transaction_detail_page.dart';
 import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
-import 'package:xpress/data/models/response/order_remote_datasource.dart';
+import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:intl/intl.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 
@@ -506,7 +506,7 @@ class _ReportPageState extends State<ReportPage> {
               order.paymentMethod?.toUpperCase() ?? "TUNAI",
               style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),

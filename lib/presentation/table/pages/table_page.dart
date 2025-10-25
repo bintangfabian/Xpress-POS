@@ -76,8 +76,8 @@ class _TablePageState extends State<TablePage> {
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             childAspectRatio: 168 / 112,
                             crossAxisCount: 6,
-                            mainAxisSpacing: 24,
-                            crossAxisSpacing: 24,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
                           ),
                           itemCount: tables.length,
                           shrinkWrap: true,

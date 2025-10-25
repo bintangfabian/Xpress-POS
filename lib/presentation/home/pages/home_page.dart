@@ -160,7 +160,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     // ✅ Kiri: Daftar Menu
                     Expanded(
-                      flex: 3,
+                      flex: 4,
                       child: Container(
                         padding:
                             const EdgeInsets.only(left: 16, top: 12, right: 16),
@@ -252,7 +252,7 @@ class _HomePageState extends State<HomePage> {
 
                     // ✅ Kanan: Pesanan
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
@@ -262,21 +262,20 @@ class _HomePageState extends State<HomePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              child: const Text(
-                                "Pesanan",
-                                style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.w600),
-                              ),
+                            SizedBox(
+                              height: 16,
                             ),
-                            // Header Pesanan
                             Padding(
-                              padding: const EdgeInsets.only(
-                                  right: 16.0, bottom: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               child: Row(
                                 children: [
+                                  const Text(
+                                    "Pesanan",
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600),
+                                  ),
                                   const SizedBox(width: 12),
                                   Container(
                                     height: 37,
@@ -291,31 +290,7 @@ class _HomePageState extends State<HomePage> {
                                               fontWeight: FontWeight.w600)),
                                     ),
                                   ),
-                                  if (widget.isTable &&
-                                      widget.table != null) ...[
-                                    const SizedBox(width: 12),
-                                    Container(
-                                      height: 37,
-                                      width: 72,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.successLight,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          widget.table!.name ??
-                                              "Meja ${widget.table!.tableNumber ?? ''}",
-                                          style: const TextStyle(
-                                            color: AppColors.success,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                   const Spacer(),
-
-                                  // 🔹 Open Bill di header hanya kalau kosong
                                   BlocBuilder<CheckoutBloc, CheckoutState>(
                                     builder: (context, state) {
                                       return state.maybeWhen(
@@ -348,7 +323,42 @@ class _HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-
+                            const SpaceHeight(12),
+                            // Header Pesanan
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Row(
+                                children: [
+                                  if (widget.isTable &&
+                                      widget.table != null) ...[
+                                    Expanded(
+                                      child: Container(
+                                        height: 37,
+                                        width: 72,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.successLight,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            widget.table!.name ??
+                                                "Meja ${widget.table!.tableNumber ?? ''}",
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.success,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SpaceHeight(12),
                             // 🔹 Pilihan Dine In / Take Away
                             Padding(
                               padding:
@@ -377,6 +387,8 @@ class _HomePageState extends State<HomePage> {
                                         child: selectedType == "dinein"
                                             ? Button.filled(
                                                 label: "Dine In",
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
                                                 onPressed: () {
                                                   context
                                                       .read<CheckoutBloc>()
@@ -387,6 +399,8 @@ class _HomePageState extends State<HomePage> {
                                               )
                                             : Button.outlined(
                                                 label: "Dine In",
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
                                                 onPressed: () {
                                                   context
                                                       .read<CheckoutBloc>()
@@ -401,6 +415,8 @@ class _HomePageState extends State<HomePage> {
                                         child: selectedType == "takeaway"
                                             ? Button.filled(
                                                 label: "Take Away",
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
                                                 onPressed: () {
                                                   context
                                                       .read<CheckoutBloc>()
@@ -411,6 +427,8 @@ class _HomePageState extends State<HomePage> {
                                               )
                                             : Button.outlined(
                                                 label: "Take Away",
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
                                                 onPressed: () {
                                                   context
                                                       .read<CheckoutBloc>()
@@ -426,7 +444,7 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
 
-                            const SpaceHeight(32),
+                            const SpaceHeight(20),
 
                             // Area pesanan
                             Expanded(
@@ -461,6 +479,7 @@ class _HomePageState extends State<HomePage> {
                                                     flex: 4,
                                                     child: Text("Menu",
                                                         style: TextStyle(
+                                                            fontSize: 16,
                                                             fontWeight:
                                                                 FontWeight
                                                                     .w600))),
@@ -470,6 +489,7 @@ class _HomePageState extends State<HomePage> {
                                                         textAlign:
                                                             TextAlign.center,
                                                         style: TextStyle(
+                                                            fontSize: 16,
                                                             fontWeight:
                                                                 FontWeight
                                                                     .w600))),
@@ -479,6 +499,7 @@ class _HomePageState extends State<HomePage> {
                                                         textAlign:
                                                             TextAlign.end,
                                                         style: TextStyle(
+                                                            fontSize: 16,
                                                             fontWeight:
                                                                 FontWeight
                                                                     .w600))),
@@ -489,7 +510,10 @@ class _HomePageState extends State<HomePage> {
                                           // List pesanan
                                           Expanded(
                                             child: ListView.builder(
-                                              padding: const EdgeInsets.all(16),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 8),
                                               itemCount: products.length,
                                               itemBuilder: (_, i) {
                                                 return OrderMenu(
@@ -501,9 +525,10 @@ class _HomePageState extends State<HomePage> {
 
                                           // Total
                                           Padding(
-                                            padding: const EdgeInsets.all(16.0),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 8),
                                             child: Container(
-                                              padding: const EdgeInsets.all(6),
+                                              padding: const EdgeInsets.all(8),
                                               decoration: BoxDecoration(
                                                 color: AppColors.primaryLight,
                                                 borderRadius:
@@ -584,8 +609,8 @@ class _HomePageState extends State<HomePage> {
                                       return const SizedBox();
 
                                     return Padding(
-                                      padding: const EdgeInsets.only(
-                                          left: 16, right: 16, bottom: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 8),
                                       child: Row(
                                         children: [
                                           // Tombol Clear
@@ -744,8 +769,19 @@ class _HomePageState extends State<HomePage> {
                                                                   context)
                                                               .showSnackBar(
                                                             const SnackBar(
-                                                                content: Text(
-                                                                    "Pilih Dine In atau Take Away dulu")),
+                                                              backgroundColor:
+                                                                  AppColors
+                                                                      .warning,
+                                                              content: Text(
+                                                                "Pilih Dine In atau Take Away dulu",
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        16,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600),
+                                                              ),
+                                                            ),
                                                           );
                                                         }
                                                       : () {
@@ -862,15 +898,16 @@ class _HomePageState extends State<HomePage> {
                   );
                 }
 
+                //TODO: if empty product must have desain
                 if (filtered.isEmpty)
                   return const Center(child: Text("No Items"));
 
                 return GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.0,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.8,
                   ),
                   itemCount: filtered.length,
                   itemBuilder: (_, i) => ProductCard(
