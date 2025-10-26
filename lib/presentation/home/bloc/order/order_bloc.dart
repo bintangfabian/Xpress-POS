@@ -55,6 +55,7 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
         status: event.status,
         paymentStatus: event.paymentStatus,
         isSync: 0,
+        operationMode: normalizeOperationMode(event.orderType),
         orderItems: event.items,
       );
       log("Start 2");

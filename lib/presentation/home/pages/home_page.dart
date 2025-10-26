@@ -262,12 +262,9 @@ class _HomePageState extends State<HomePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              height: 16,
-                            ),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
                               child: Row(
                                 children: [
                                   const Text(
@@ -290,7 +287,31 @@ class _HomePageState extends State<HomePage> {
                                               fontWeight: FontWeight.w600)),
                                     ),
                                   ),
+                                  if (widget.isTable &&
+                                      widget.table != null) ...[
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      height: 37,
+                                      width: 72,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.successLight,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          widget.table!.name ??
+                                              "Meja ${widget.table!.tableNumber ?? ''}",
+                                          style: const TextStyle(
+                                            color: AppColors.success,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   const Spacer(),
+
+                                  // 🔹 Open Bill di header hanya kalau kosong
                                   BlocBuilder<CheckoutBloc, CheckoutState>(
                                     builder: (context, state) {
                                       return state.maybeWhen(
@@ -323,42 +344,7 @@ class _HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-                            const SpaceHeight(12),
-                            // Header Pesanan
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: Row(
-                                children: [
-                                  if (widget.isTable &&
-                                      widget.table != null) ...[
-                                    Expanded(
-                                      child: Container(
-                                        height: 37,
-                                        width: 72,
-                                        decoration: BoxDecoration(
-                                          color: AppColors.successLight,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            widget.table!.name ??
-                                                "Meja ${widget.table!.tableNumber ?? ''}",
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: AppColors.success,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SpaceHeight(12),
+                            
                             // 🔹 Pilihan Dine In / Take Away
                             Padding(
                               padding:

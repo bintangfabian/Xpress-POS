@@ -8,6 +8,7 @@ import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:intl/intl.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/presentation/home/models/order_model.dart';
 
 class ReportPage extends StatefulWidget {
   final Function(String orderId)? onOpenDetail;
@@ -446,83 +447,94 @@ class _ReportPageState extends State<ReportPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Padding(
-              padding: EdgeInsetsGeometry.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  paymentIcon,
-                  const SizedBox(
-                    width: 8,
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Rp ${NumberFormat('#,###').format((double.tryParse(order.totalAmount ?? '0') ?? 0).toInt())}",
-                        style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      Row(
-                        children: [
-                          Text(
-                            timeStr,
-                            style: TextStyle(
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: EdgeInsetsGeometry.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    paymentIcon,
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Rp ${NumberFormat('#,###').format((double.tryParse(order.totalAmount ?? '0') ?? 0).toInt())}",
+                          style: TextStyle(
                               color: Colors.black,
-                              fontSize: 14,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        Row(
+                          children: [
+                            Text(
+                              timeStr,
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                          const SizedBox(
-                            width: 24,
-                          ),
-                          Text(
-                            order.table?.tableNumber != null &&
-                                    order.table!.tableNumber!.isNotEmpty
-                                ? "Meja ${order.table!.tableNumber}"
-                                : "",
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
+                            const SizedBox(
+                              width: 24,
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                            Text(
+                              order.table?.tableNumber != null &&
+                                      order.table!.tableNumber!.isNotEmpty
+                                  ? "Meja ${order.table!.tableNumber}"
+                                  : "",
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-            Text(
-              // order.orderType ??
-              "OrderType",
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 14,
-              ),
-            ),
-            Text(
-              order.paymentMethod?.toUpperCase() ?? "TUNAI",
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Container(
-              width: 106,
-              height: 37,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: statusBgColor,
-                  borderRadius: BorderRadius.all(Radius.circular(6))),
+            Expanded(
+              flex: 2,
               child: Text(
-                statusText,
+                operationModeLabel(order.operationMode),
                 style: TextStyle(
-                    color: statusColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold),
+                  color: Colors.black,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                order.paymentMethod?.toUpperCase() ?? "TUNAI",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Container(
+                width: 106,
+                height: 37,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.all(Radius.circular(6))),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],

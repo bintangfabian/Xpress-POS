@@ -29,7 +29,7 @@ class ManageMemberCard extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            flex: 2,
+            flex: 3,
             child: _CellContent(
               icon: Assets.icons.user.svg(
                 height: 24,
@@ -39,21 +39,21 @@ class ManageMemberCard extends StatelessWidget {
               text: data.name ?? '-',
             ),
           ),
-          const SizedBox(width: 12),
+          // const SizedBox(width: 12),
+          // Expanded(
+          //   flex: 2,
+          //   child: Text(
+          //     data.email ?? '-',
+          //     style: const TextStyle(
+          //       fontSize: 14,
+          //       fontWeight: FontWeight.w600,
+          //       color: AppColors.black,
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(width: 12),
           Expanded(
-            flex: 2,
-            child: Text(
-              data.email ?? '-',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.black,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(
               data.phone ?? '-',
               style: const TextStyle(
@@ -63,24 +63,31 @@ class ManageMemberCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          // const SizedBox(width: 12),
+          // Expanded(
+          //   flex: 2,
+          //   child: Text(
+          //     _formatDate(data.dateOfBirth),
+          //     style: const TextStyle(
+          //       fontSize: 14,
+          //       fontWeight: FontWeight.w600,
+          //       color: AppColors.black,
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: Text(
-              _formatDate(data.dateOfBirth),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.black,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 80,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                _ActionButton(
+                  color: AppColors.primaryLightActive,
+                  icon: Assets.icons.eye
+                      .svg(height: 16, width: 16, color: AppColors.black),
+                  onTap: onEditTap,
+                ),
+                const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.primary,
                   icon: Assets.icons.editUnderline

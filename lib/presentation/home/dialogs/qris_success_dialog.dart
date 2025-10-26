@@ -10,6 +10,7 @@ import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/data/datasources/order_history_local_datasource.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/presentation/home/models/order_model.dart';
 
 class QrisSuccessDialog extends StatelessWidget {
   final int total;
@@ -33,6 +34,10 @@ class QrisSuccessDialog extends StatelessWidget {
       DateFormat('d MMMM yyyy').format(TimezoneHelper.toWib(dt));
   String _formatTime(DateTime dt) =>
       DateFormat('HH:mm:ss').format(TimezoneHelper.toWib(dt));
+  String get _orderTypeLabel {
+    final label = operationModeLabel(orderType);
+    return label == '-' ? orderType : label;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +95,7 @@ class QrisSuccessDialog extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text('Order ${orderNumber ?? '#0001'}  -  '),
-                Text(orderType),
+                Text(_orderTypeLabel),
                 if (tableNumber != null) ...[
                   const Text('  -  '),
                   Text('Meja $tableNumber')
@@ -149,7 +154,7 @@ class QrisSuccessDialog extends StatelessWidget {
                     'change': change,
                     'method': 'Qris',
                     'time': now2.toIso8601String(),
-                    'orderType': orderType,
+                    'orderType': normalizeOperationMode(orderType),
                     'tableNumber': tableNumber,
                   });
                   await OrderHistoryLocalDatasource.instance.incrementOrderId();

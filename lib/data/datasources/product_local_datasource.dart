@@ -45,6 +45,11 @@ class ProductLocalDatasource {
         ALTER TABLE $tableProduct ADD COLUMN trackInventory INTEGER DEFAULT 0
       ''');
     }
+    if (oldVersion < 3) {
+      await db.execute('''
+        ALTER TABLE $tableOrder ADD COLUMN operation_mode TEXT DEFAULT 'dine_in'
+      ''');
+    }
   }
 
   Future<void> _createDb(Database db, int version) async {
@@ -87,7 +92,8 @@ class ProductLocalDatasource {
         customer_name TEXT,
         status TEXT,
         payment_status TEXT,
-        is_sync INTEGER DEFAULT 0
+        is_sync INTEGER DEFAULT 0,
+        operation_mode TEXT DEFAULT 'dine_in'
       )
     ''');
 
@@ -144,7 +150,7 @@ class ProductLocalDatasource {
     final path = dbPath + filePath;
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDb,
       onUpgrade: _onUpgrade,
     );

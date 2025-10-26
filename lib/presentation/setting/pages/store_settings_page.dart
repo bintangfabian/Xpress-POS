@@ -102,12 +102,12 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
         final availableWidth = constraints.maxWidth;
         const horizontalPadding = 24.0 * 2;
         final rawContentWidth = availableWidth - horizontalPadding;
-        final contentWidth = rawContentWidth > 0 ? rawContentWidth : availableWidth;
+        final contentWidth =
+            rawContentWidth > 0 ? rawContentWidth : availableWidth;
         final bool useTwoColumn = contentWidth >= 520;
         double cardWidth([bool full = false]) {
-          final width = full || !useTwoColumn
-              ? contentWidth
-              : (contentWidth - 16) / 2;
+          final width =
+              full || !useTwoColumn ? contentWidth : (contentWidth - 16) / 2;
           return width > 0 ? width : availableWidth - 24;
         }
 
@@ -122,7 +122,8 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: AppColors.white,
-                  border: Border.all(width: 1, color: AppColors.greyLightActive),
+                  border:
+                      Border.all(width: 1, color: AppColors.greyLightActive),
                   borderRadius: const BorderRadius.all(Radius.circular(12)),
                 ),
                 child: Column(
@@ -132,45 +133,65 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
                       'Informasi Pengaturan Toko',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.bold,
                         color: AppColors.black,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
+                    Row(
                       children: [
-                        SizedBox(
-                          width: cardWidth(),
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: InfoCard(
                             label: 'Nama Toko',
                             value: _storeName ?? '-',
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(),
+                        const SizedBox(
+                          width: 16,
+                        ),
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: const InfoCard(
                             label: 'Nama Cabang',
                             value: '-',
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: InfoCard(
                             label: 'Username',
                             value: _user?.name ?? '-',
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(),
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: InfoCard(
                             label: 'ROLE',
                             value: _roleDisplay,
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(true),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 6,
+                          // width: cardWidth(true),
                           child: InfoCard(
                             label: 'Email',
                             value: _user?.email ?? '-',

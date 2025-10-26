@@ -6,6 +6,7 @@ import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/presentation/home/models/order_model.dart';
 
 class QrisConfirmDialog extends StatelessWidget {
   final int total;
@@ -81,7 +82,10 @@ class QrisConfirmDialog extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('Order #0001  •  '),
-                Text(orderType),
+                Text(() {
+                  final label = operationModeLabel(orderType);
+                  return label == '-' ? orderType : label;
+                }()),
                 if (tableNumber != null) ...[
                   const Text('  •  '),
                   Text('Meja $tableNumber')

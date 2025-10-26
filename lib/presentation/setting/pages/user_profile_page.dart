@@ -133,40 +133,60 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
+                    Row(
                       children: [
-                        SizedBox(
-                          width: cardWidth(),
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: InfoCard(
                             label: 'Nama Toko',
                             value: _storeName ?? '-',
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(),
+                        const SizedBox(
+                          width: 16,
+                        ),
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: const InfoCard(
                             label: 'Nama Cabang',
                             value: '-',
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: InfoCard(
                             label: 'Username',
                             value: _user?.name ?? '-',
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(),
+                        Expanded(
+                          flex: 3,
+                          // width: cardWidth(),
                           child: InfoCard(
                             label: 'ROLE',
                             value: _roleDisplay,
                           ),
                         ),
-                        SizedBox(
-                          width: cardWidth(true),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 6,
+                          // width: cardWidth(true),
                           child: InfoCard(
                             label: 'Email',
                             value: _user?.email ?? '-',

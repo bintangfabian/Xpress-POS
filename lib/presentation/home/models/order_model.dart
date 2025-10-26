@@ -36,6 +36,7 @@ class OrderModel {
   final String status;
   final String paymentStatus;
   final int isSync;
+  final String operationMode;
   final List<ProductQuantity> orderItems;
   OrderModel({
     this.id,
@@ -56,6 +57,7 @@ class OrderModel {
     required this.status,
     required this.paymentStatus,
     required this.isSync,
+    required this.operationMode,
     required this.orderItems,
   });
 
@@ -90,6 +92,7 @@ class OrderModel {
       'status': status,
       'payment_status': paymentStatus,
       'transaction_time': transactionTime,
+      'operation_mode': normalizeOperationMode(operationMode),
       'order_items': orderItems.map((e) => e.toServerMap(id)).toList(),
     };
   }
@@ -114,6 +117,7 @@ class OrderModel {
       'status': status,
       'payment_status': paymentStatus,
       'is_sync': isSync,
+      'operation_mode': normalizeOperationMode(operationMode),
     };
   }
 
@@ -139,6 +143,8 @@ class OrderModel {
       status: map['status'] ?? '',
       paymentStatus: map['payment_status'] ?? '',
       orderItems: [],
+      operationMode: normalizeOperationMode(
+          map['operation_mode'] ?? map['order_type'] ?? map['operationMode']),
     );
   }
 
@@ -166,6 +172,7 @@ class OrderModel {
     String? status,
     String? paymentStatus,
     int? isSync,
+    String? operationMode,
     List<ProductQuantity>? orderItems,
   }) {
     return OrderModel(
@@ -187,12 +194,41 @@ class OrderModel {
       status: status ?? this.status,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       isSync: isSync ?? this.isSync,
+      operationMode: operationMode ?? this.operationMode,
       orderItems: orderItems ?? this.orderItems,
     );
   }
 
   @override
   String toString() {
-    return 'OrderModel(id: $id, paymentAmount: $paymentAmount, subTotal: $subTotal, tax: $tax, discount: $discount, discountAmount: $discountAmount, serviceCharge: $serviceCharge, total: $total, paymentMethod: $paymentMethod, totalItem: $totalItem, idKasir: $idKasir, namaKasir: $namaKasir, transactionTime: $transactionTime, customerName: $customerName, tableNumber: $tableNumber, status: $status, paymentStatus: $paymentStatus, isSync: $isSync, orderItems: $orderItems)';
+    return 'OrderModel(id: $id, paymentAmount: $paymentAmount, subTotal: $subTotal, tax: $tax, discount: $discount, discountAmount: $discountAmount, serviceCharge: $serviceCharge, total: $total, paymentMethod: $paymentMethod, totalItem: $totalItem, idKasir: $idKasir, namaKasir: $namaKasir, transactionTime: $transactionTime, customerName: $customerName, tableNumber: $tableNumber, status: $status, paymentStatus: $paymentStatus, isSync: $isSync, operationMode: $operationMode, orderItems: $orderItems)';
+  }
+}
+
+String normalizeOperationMode(dynamic mode) {
+  final value = (mode ?? '').toString().trim().toLowerCase();
+  final sanitized = value.replaceAll(RegExp(r'[\s_-]'), '');
+  switch (sanitized) {
+    case 'dinein':
+      return 'dine_in';
+    case 'takeaway':
+    case 'takeout':
+      return 'takeaway';
+    default:
+      return 'dine_in';
+  }
+}
+
+String operationModeLabel(String? mode) {
+  final value = (mode ?? '').toString().trim().toLowerCase();
+  final sanitized = value.replaceAll(RegExp(r'[\s_-]'), '');
+  switch (sanitized) {
+    case 'dinein':
+      return 'Dine In';
+    case 'takeaway':
+    case 'takeout':
+      return 'Take Away';
+    default:
+      return '-';
   }
 }

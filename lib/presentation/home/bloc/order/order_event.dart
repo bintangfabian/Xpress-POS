@@ -16,5 +16,6 @@ class OrderEvent with _$OrderEvent {
     String paymentStatus,
     String paymentMethod,
     int totalPriceFinal,
+    String orderType,
   ) = _Order;
 }

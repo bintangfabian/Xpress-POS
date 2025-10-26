@@ -308,11 +308,11 @@ class _MembersHeader extends StatelessWidget {
       ),
       child: Row(
         children: const [
-          Expanded(flex: 2, child: Text('Nama', style: _style)),
-          Expanded(flex: 2, child: Text('Email', style: _style)),
-          Expanded(flex: 2, child: Text('Telepon', style: _style)),
-          Expanded(flex: 2, child: Text('Tanggal Lahir', style: _style)),
-          SizedBox(width: 80, child: Text('Aksi', style: _style)),
+          Expanded(flex: 3, child: Text('Nama', style: _style)),
+          // Expanded(flex: 2, child: Text('Email', style: _style)),
+          Expanded(flex: 3, child: Text('Telepon', style: _style)),
+          // Expanded(flex: 2, child: Text('Tanggal Lahir', style: _style)),
+          Expanded(flex: 1, child: Text('Aksi', style: _style)),
         ],
       ),
     );

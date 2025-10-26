@@ -69,6 +69,7 @@ class ItemOrder {
   bool? canBeModified;
   bool? isCompleted;
   bool? isPaid;
+  String? operationMode;
 
   ItemOrder({
     this.id,
@@ -94,6 +95,7 @@ class ItemOrder {
     this.canBeModified,
     this.isCompleted,
     this.isPaid,
+    this.operationMode,
   });
 
   factory ItemOrder.fromJson(String str) => ItemOrder.fromMap(json.decode(str));
@@ -155,6 +157,7 @@ class ItemOrder {
       canBeModified: json["can_be_modified"],
       isCompleted: json["is_completed"],
       isPaid: json["is_paid"],
+      operationMode: _extractOperationMode(json),
     );
   }
 
@@ -188,7 +191,30 @@ class ItemOrder {
         "can_be_modified": canBeModified,
         "is_completed": isCompleted,
         "is_paid": isPaid,
+        "operation_mode": operationMode,
       };
+}
+
+String? _extractOperationMode(Map<String, dynamic> json) {
+  dynamic value;
+  final candidates = [
+    json['operation_mode'],
+    json['operationMode'],
+    json['order_type'],
+    json['orderType'],
+    if (json['metadata'] is Map<String, dynamic>)
+      (json['metadata'] as Map<String, dynamic>)['operation_mode'],
+    if (json['metadata'] is Map<String, dynamic>)
+      (json['metadata'] as Map<String, dynamic>)['order_type'],
+  ];
+  for (final candidate in candidates) {
+    if (candidate == null) continue;
+    final text = candidate.toString().trim();
+    if (text.isEmpty) continue;
+    value = text;
+    break;
+  }
+  return value;
 }
 
 class User {

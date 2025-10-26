@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/presentation/home/models/order_model.dart';
 
 class OpenBillDialog extends StatelessWidget {
   final int totalPrice;
@@ -100,7 +101,10 @@ class OpenBillDialog extends StatelessWidget {
                           // border:
                           //     Border.all(color: AppColors.primary, width: 1),
                         ),
-                        child: Text(orderType!,
+                        child: Text(() {
+                          final label = operationModeLabel(orderType);
+                          return label == '-' ? orderType! : label;
+                        }(),
                             style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600)),

@@ -24,6 +24,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/presentation/home/models/order_model.dart';
 
 class ConfirmPaymentPage extends StatefulWidget {
   final bool isTable;
@@ -199,6 +200,11 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           print('Service Amount: $serviceAmt');
           print('====================');
 
+          final rawOrderType = orderType ?? widget.orderType;
+          final operationMode = normalizeOperationMode(rawOrderType);
+          print('Order Type (raw): $rawOrderType');
+          print('Operation Mode (normalized): $operationMode');
+
           // Build items array
           final items = products.map((p) {
             final item = <String, dynamic>{
@@ -233,6 +239,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             'user_id': auth.user?.id,
             'status': 'completed',
             'payment_method': isCash ? 'cash' : 'qris',
+            'operation_mode': operationMode,
           };
 
           // Add store_id if available
@@ -414,14 +421,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   }
 
   String get _orderTypeLabel {
-    switch (widget.orderType.toLowerCase()) {
-      case 'dinein':
-        return 'Dine In';
-      case 'takeaway':
-        return 'Take Away';
-      default:
-        return widget.orderType;
-    }
+    final label = operationModeLabel(widget.orderType);
+    return label == '-' ? widget.orderType : label;
   }
 
   int _computeDiscountAmount(int subtotal, Discount? model) {
@@ -1177,7 +1178,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             decoration: InputDecoration(
               prefixIcon: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Assets.icons.user.svg(height: 24, width: 24, color: AppColors.grey),
+                child: Assets.icons.user
+                    .svg(height: 24, width: 24, color: AppColors.grey),
               ),
               hintText: "Nama Customer",
               border:
