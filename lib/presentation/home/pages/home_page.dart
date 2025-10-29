@@ -344,7 +344,7 @@ class _HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-                            
+
                             // 🔹 Pilihan Dine In / Take Away
                             Padding(
                               padding:
@@ -885,8 +885,7 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 //TODO: if empty product must have desain
-                if (filtered.isEmpty)
-                  return const Center(child: Text("No Items"));
+                if (filtered.isEmpty) return _emptyProduct();
 
                 return GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -929,6 +928,13 @@ class _HomePageState extends State<HomePage> {
       icon: Assets.icons.bill,
       message: "Silakan Pilih Tipe Order",
       subtitle: "Tambahkan Pesanan",
+    );
+  }
+
+  Widget _emptyProduct() {
+    return EmptyState(
+      icon: Assets.icons.stock,
+      message: "Tidak Ada Produk",
     );
   }
 }

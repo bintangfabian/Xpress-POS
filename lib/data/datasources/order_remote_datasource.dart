@@ -99,11 +99,234 @@ class OrderRemoteDatasource {
       }
       log("Response: ${response.statusCode}");
       log("Response: ${response.body}");
-      return response.statusCode == 200 || response.statusCode == 201;
+      final isOrderSuccess =
+          response.statusCode == 200 || response.statusCode == 201;
+
+      if (!isOrderSuccess) {
+        log("Order creation failed with status: ${response.statusCode}");
+        return false;
+      }
+
+      log("Order created successfully, extracting order_id...");
+      final orderId = _extractOrderId(response.body);
+
+      if (orderId == null || orderId.isEmpty) {
+        log("ERROR: Unable to resolve order_id from response");
+        log("Response body: ${response.body}");
+        log("Attempting to parse response as JSON...");
+
+        try {
+          final decoded = jsonDecode(response.body);
+          log("Decoded response: $decoded");
+          log("Response keys: ${decoded is Map ? decoded.keys.toList() : 'not a map'}");
+        } catch (e) {
+          log("Error parsing response: $e");
+        }
+
+        // Jangan return false, karena order sudah terbuat
+        // Kita log error tapi tetap return true karena order creation berhasil
+        log("WARNING: Order created but payment could not be created due to missing order_id");
+        return true;
+      }
+
+      log("Order ID extracted: $orderId");
+      log("Creating payment...");
+
+      final paymentCreated = await _createPayment(
+        token: authData.token ?? '',
+        storeId: storeId,
+        orderModel: orderModel,
+        orderId: orderId,
+      );
+
+      if (!paymentCreated) {
+        log("WARNING: Order created but payment creation failed for order_id: $orderId");
+        // Return true karena order sudah terbuat, meskipun payment gagal
+        return true;
+      }
+
+      log("Payment created successfully for order_id: $orderId");
+      return true;
     } catch (e) {
       log("Error saveOrder: $e");
       return false;
     }
+  }
+
+  // Create payment after order is created
+  Future<bool> createPayment({
+    required String orderId,
+    required String paymentMethod,
+    required int amount,
+    required int receivedAmount,
+    String? notes,
+  }) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeId = await AuthLocalDataSource().getStoreId();
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/payments');
+
+      final defaultNotes =
+          'Pembayaran ${paymentMethod.isEmpty ? 'POS' : paymentMethod}';
+      final paymentPayload = {
+        'order_id': orderId,
+        'payment_method': paymentMethod,
+        'amount': amount,
+        'received_amount': receivedAmount,
+        'notes': notes ?? defaultNotes,
+      };
+      final payload = jsonEncode(paymentPayload);
+      log('Creating payment with payload: $paymentPayload');
+
+      var headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Store-Id': storeId.toString(),
+      };
+
+      var response = await http.post(uri, body: payload, headers: headers);
+      if (response.statusCode == 403) {
+        headers.remove('X-Store-Id');
+        response = await http.post(uri, body: payload, headers: headers);
+      }
+
+      log('Create payment response: ${response.statusCode}');
+      log('Create payment body: ${response.body}');
+
+      return response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204;
+    } catch (e) {
+      log('Error createPayment: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _createPayment({
+    required String token,
+    required int storeId,
+    required OrderModel orderModel,
+    required String orderId,
+  }) async {
+    // Note: token and storeId are now retrieved internally in createPayment
+    return createPayment(
+      orderId: orderId,
+      paymentMethod: orderModel.paymentMethod,
+      amount: orderModel.total,
+      receivedAmount: orderModel.paymentAmount == 0
+          ? orderModel.total
+          : orderModel.paymentAmount,
+      notes:
+          'Pembayaran ${orderModel.paymentMethod.isEmpty ? 'POS' : orderModel.paymentMethod}',
+    );
+  }
+
+  // Public method to extract order_id from API response
+  String? extractOrderId(String rawBody) {
+    try {
+      log('Extracting order_id from response...');
+      log('Raw response body: $rawBody');
+      final dynamic decoded = jsonDecode(rawBody);
+      log('Decoded response type: ${decoded.runtimeType}');
+      log('Decoded response: $decoded');
+
+      final orderId = _resolveOrderId(decoded);
+      log('Extracted order_id: $orderId');
+      return orderId;
+    } catch (e) {
+      log('Error decoding order response: $e');
+      return null;
+    }
+  }
+
+  String? _extractOrderId(String rawBody) {
+    return extractOrderId(rawBody);
+  }
+
+  String? _resolveOrderId(dynamic data) {
+    if (data == null) {
+      log('_resolveOrderId: data is null');
+      return null;
+    }
+
+    log('_resolveOrderId: data type = ${data.runtimeType}');
+
+    if (data is Map<String, dynamic>) {
+      log('_resolveOrderId: data keys = ${data.keys.toList()}');
+
+      final normalized = <String, dynamic>{
+        for (final entry in data.entries)
+          entry.key.toString().toLowerCase(): entry.value
+      };
+
+      log('_resolveOrderId: normalized keys = ${normalized.keys.toList()}');
+
+      final looksLikeOrder = normalized.containsKey('order_number') ||
+          normalized.containsKey('ordernumber') ||
+          (normalized.containsKey('total') &&
+              (normalized.containsKey('status') ||
+                  normalized.containsKey('payment_status') ||
+                  normalized.containsKey('paymentstatus')));
+
+      log('_resolveOrderId: looksLikeOrder = $looksLikeOrder');
+
+      for (final key in const ['order_id', 'orderid', 'uuid', 'id']) {
+        if (!normalized.containsKey(key)) continue;
+        final value = normalized[key];
+        log('_resolveOrderId: found key "$key" with value = $value (type: ${value.runtimeType})');
+
+        if (value == null) continue;
+        if (value is! num && value is! String) continue;
+        final stringValue = value.toString();
+        if (stringValue.isEmpty) continue;
+        if (key == 'id' && !looksLikeOrder) {
+          log('_resolveOrderId: skipping "id" key because does not look like order');
+          continue;
+        }
+        log('_resolveOrderId: returning order_id = $stringValue');
+        return stringValue;
+      }
+
+      for (final key in const ['order', 'data', 'result', 'payload']) {
+        if (normalized.containsKey(key)) {
+          log('_resolveOrderId: recursively checking key "$key"');
+          final nested = _resolveOrderId(normalized[key]);
+          if (nested != null && nested.isNotEmpty) {
+            log('_resolveOrderId: found order_id in nested "$key" = $nested');
+            return nested;
+          }
+        }
+      }
+
+      // Check nested objects directly
+      for (final entry in data.entries) {
+        if (entry.value is Map || entry.value is List) {
+          log('_resolveOrderId: recursively checking entry "${entry.key}"');
+          final nested = _resolveOrderId(entry.value);
+          if (nested != null && nested.isNotEmpty) {
+            log('_resolveOrderId: found order_id in entry "${entry.key}" = $nested');
+            return nested;
+          }
+        }
+      }
+    }
+
+    if (data is List) {
+      log('_resolveOrderId: data is a list with ${data.length} items');
+      if (data.isNotEmpty) {
+        log('_resolveOrderId: checking first item');
+        final nested = _resolveOrderId(data.first);
+        if (nested != null && nested.isNotEmpty) {
+          log('_resolveOrderId: found order_id in list item = $nested');
+          return nested;
+        }
+      }
+    }
+
+    log('_resolveOrderId: could not find order_id');
+    return null;
   }
 
   Future<Either<String, OrderResponseModel>> getOrderByRangeDate(

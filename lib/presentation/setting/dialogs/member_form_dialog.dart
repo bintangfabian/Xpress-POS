@@ -19,6 +19,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
   final _dobController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
@@ -30,6 +31,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
     _dobController.dispose();
     super.dispose();
   }
@@ -72,6 +74,9 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
       email: _emailController.text.trim(),
       phone: _phoneController.text.trim(),
       dateOfBirth: _dobController.text.trim(),
+      address: _addressController.text.trim().isNotEmpty
+          ? _addressController.text.trim()
+          : null,
     );
 
     if (!mounted) return;
@@ -169,6 +174,18 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                   ),
                   const SpaceHeight(24),
                   _FieldRow(
+                    label: 'Alamat',
+                    child: TextFormField(
+                      controller: _addressController,
+                      decoration:
+                          _inputDecoration('Masukkan alamat'),
+                      keyboardType: TextInputType.multiline,
+                      maxLines: 3,
+                      minLines: 1,
+                    ),
+                  ),
+                  const SpaceHeight(24),
+                  _FieldRow(
                     label: 'Tanggal Lahir',
                     child: TextFormField(
                       controller: _dobController,
@@ -183,7 +200,6 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                       onTap: _pickDate,
                     ),
                   ),
-                  const SpaceHeight(24),
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
@@ -195,52 +211,54 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                         ),
                       ),
                     ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Button.outlined(
-                          label: 'Batal',
-                          color: AppColors.white,
-                          borderColor: AppColors.grey,
-                          textColor: AppColors.grey,
-                          onPressed: () => Navigator.of(context).pop(false),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _isSubmitting
-                            ? Container(
-                                height: 50,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: AppColors.success,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.white,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Button.filled(
-                                label: 'Simpan',
-                                color: AppColors.success,
-                                onPressed: _submit,
-                              ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
           ),
         ),
       ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: Button.outlined(
+                label: 'Batal',
+                color: AppColors.white,
+                borderColor: AppColors.grey,
+                textColor: AppColors.grey,
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _isSubmitting
+                  ? Container(
+                      height: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Button.filled(
+                      label: 'Simpan',
+                      color: AppColors.success,
+                      onPressed: _submit,
+                    ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

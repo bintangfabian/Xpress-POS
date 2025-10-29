@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/data/models/response/member_response_model.dart';
+import 'package:xpress/presentation/setting/dialogs/member_detail_dialog.dart';
+import 'package:xpress/presentation/setting/dialogs/member_edit_dialog.dart';
 
 class ManageMemberCard extends StatelessWidget {
   final Member data;
   final VoidCallback? onEditTap;
   final VoidCallback? onDeleteTap;
-  const ManageMemberCard(
-      {super.key, required this.data, this.onEditTap, this.onDeleteTap});
+  final VoidCallback? onRefresh;
+  const ManageMemberCard({
+    super.key,
+    required this.data,
+    this.onEditTap,
+    this.onDeleteTap,
+    this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -85,14 +93,14 @@ class ManageMemberCard extends StatelessWidget {
                   color: AppColors.primaryLightActive,
                   icon: Assets.icons.eye
                       .svg(height: 16, width: 16, color: AppColors.black),
-                  onTap: onEditTap,
+                  onTap: () => _showMemberDetail(context),
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.primary,
                   icon: Assets.icons.editUnderline
                       .svg(height: 16, width: 16, color: AppColors.white),
-                  onTap: onEditTap,
+                  onTap: () => _showEditMember(context),
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
@@ -109,29 +117,24 @@ class ManageMemberCard extends StatelessWidget {
     );
   }
 
-  String _formatDate(String? date) {
-    if (date == null || date.isEmpty) return '-';
-    try {
-      final parsed = DateTime.parse(date);
-      final monthNames = const [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'Mei',
-        'Jun',
-        'Jul',
-        'Agu',
-        'Sep',
-        'Okt',
-        'Nov',
-        'Des',
-      ];
-      final month = monthNames[parsed.month - 1];
-      final day = parsed.day.toString().padLeft(2, '0');
-      return '$day $month ${parsed.year}';
-    } catch (_) {
-      return date;
+  void _showMemberDetail(BuildContext context) {
+    if (data.id == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => MemberDetailDialog(memberId: data.id!),
+    );
+  }
+
+  Future<void> _showEditMember(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => MemberEditDialog(member: data),
+    );
+
+    if (result == true && onRefresh != null) {
+      onRefresh!();
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/data/datasources/member_remote_datasource.dart';
 import 'package:xpress/data/models/response/member_response_model.dart';
 import 'package:xpress/presentation/setting/dialogs/member_form_dialog.dart';
@@ -152,6 +153,7 @@ class _MembersPageState extends State<MembersPage> {
                             data: item,
                             onEditTap: () {},
                             onDeleteTap: () => _confirmDelete(item),
+                            onRefresh: _refreshMembers,
                           );
                         },
                       ),
@@ -201,38 +203,39 @@ class _MembersPageState extends State<MembersPage> {
       barrierDismissible: false,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          titlePadding: const EdgeInsets.fromLTRB(24, 24, 12, 0),
-          contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Hapus Member',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+          backgroundColor: AppColors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Nonaktifkan Member',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
+                IconButton(
+                  icon: Assets.icons.cancel
+                      .svg(color: AppColors.grey, height: 32, width: 32),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
+          ),
+          content: SizedBox(
+            width: context.deviceWidth / 3,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                'Apakah Anda yakin ingin menonaktifkan ${member.name ?? 'member'}? Member yang dinonaktifkan tidak akan muncul dalam daftar member aktif.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.black,
                 ),
               ),
-              IconButton(
-                splashRadius: 18,
-                icon: Assets.icons.cancel
-                    .svg(height: 20, width: 20, color: AppColors.grey),
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-              ),
-            ],
-          ),
-          content: Text(
-            'Apakah Anda yakin ingin menghapus ${member.name ?? 'member'}?',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppColors.black,
             ),
           ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           actions: [
             Row(
               children: [
@@ -248,7 +251,7 @@ class _MembersPageState extends State<MembersPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Button.filled(
-                    label: 'Hapus',
+                    label: 'Nonaktifkan',
                     color: AppColors.danger,
                     onPressed: () => Navigator.of(dialogContext).pop(true),
                   ),
@@ -278,7 +281,7 @@ class _MembersPageState extends State<MembersPage> {
         (message) => messenger.showSnackBar(SnackBar(content: Text(message))),
         (_) {
           messenger.showSnackBar(
-            const SnackBar(content: Text('Member berhasil dihapus')),
+            const SnackBar(content: Text('Member berhasil dinonaktifkan')),
           );
           _refreshMembers();
         },

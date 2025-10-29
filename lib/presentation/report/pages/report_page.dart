@@ -1,4 +1,5 @@
 import 'package:xpress/core/assets/assets.gen.dart';
+import 'package:xpress/core/components/empty_state.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/presentation/report/widgets/report_title.dart';
 import 'package:flutter/material.dart';
@@ -212,7 +213,7 @@ class _ReportPageState extends State<ReportPage> {
                         ? _buildOrdersList()
                         : (hasOfflineData
                             ? _buildOrdersList()
-                            : _buildEmptyOfflineState()),
+                            : _emptyOfflineState()),
                   ),
                   if (!isOnline && hasOfflineData) ...[
                     const SizedBox(height: 8),
@@ -263,19 +264,7 @@ class _ReportPageState extends State<ReportPage> {
     }
 
     if (orders.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Tidak ada data order',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
+      return _emptyOnlineState();
     }
 
     final groupedOrders = _groupOrdersByDate();
@@ -303,25 +292,16 @@ class _ReportPageState extends State<ReportPage> {
     );
   }
 
-  Widget _buildEmptyOfflineState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Assets.icons.deleteMinus
-              .svg(height: 128, width: 128, color: AppColors.primary),
-          const SizedBox(height: 12),
-          const Text(
-            'Riwayat Transaksi Offline Telah Berhasil Disingkronisasi',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 32,
-            ),
-          ),
-        ],
-      ),
+  Widget _emptyOfflineState() {
+    return EmptyState(
+      icon: Assets.icons.deleteMinus,
+      message: "Riwayat Transaksi Offline Telah Berhasil Disingkronisasi",
     );
+  }
+
+  Widget _emptyOnlineState() {
+    return EmptyState(
+        icon: Assets.icons.bill, message: "Tidak Ada Data Transaksi");
   }
 
   Widget _getProductByDate(

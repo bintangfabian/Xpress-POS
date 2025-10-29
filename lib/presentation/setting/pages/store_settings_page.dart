@@ -5,7 +5,7 @@ import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/auth_remote_datasource.dart';
 import 'package:xpress/data/models/response/auth_response_model.dart';
 
-import '../dialogs/form_tax_dialog.dart';
+import '../dialogs/tax_form_dialog.dart';
 import '../models/tax_model.dart';
 import '../widgets/loading_list_placeholder.dart';
 import '../widgets/manage_tax_card.dart';

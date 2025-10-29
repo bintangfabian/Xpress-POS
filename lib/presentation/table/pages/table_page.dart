@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
@@ -66,9 +67,7 @@ class _TablePageState extends State<TablePage> {
                       },
                       success: (tables) {
                         if (tables.isEmpty) {
-                          return const Center(
-                            child: Text('No table available'),
-                          );
+                          return _emptyTable();
                         }
                         return GridView.builder(
                           padding: EdgeInsets.zero,
@@ -121,6 +120,13 @@ class _TablePageState extends State<TablePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _emptyTable() {
+    return EmptyState(
+      icon: Assets.icons.table,
+      message: "Tidak Ada Meja Tersedia",
     );
   }
 }

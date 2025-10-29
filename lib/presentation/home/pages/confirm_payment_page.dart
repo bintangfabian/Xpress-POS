@@ -24,6 +24,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
 
 class ConfirmPaymentPage extends StatefulWidget {
@@ -101,6 +102,9 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         List items = [];
         if (map is Map && map['data'] is List) items = map['data'];
         return items
+            .where((e) =>
+                e['is_active'] == true ||
+                e['is_active'] == 1) // Filter only active members
             .map((e) => {
                   'id': e['id']?.toString(),
                   'name': e['name']?.toString() ?? '',
@@ -348,6 +352,96 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         print('SUBMIT ORDER: Success!');
+
+        // Extract order_id from response
+        final orderRemoteDatasource = OrderRemoteDatasource();
+        final orderId = orderRemoteDatasource.extractOrderId(res.body);
+
+        if (orderId != null && orderId.isNotEmpty) {
+          print('SUBMIT ORDER: Order ID = $orderId');
+
+          // Calculate total amount for payment
+          final state = context.read<CheckoutBloc>().state;
+          final total = state.maybeWhen(
+            loaded: (
+              products,
+              discountModel,
+              discount,
+              discountAmount,
+              tax,
+              serviceCharge,
+              totalQuantity,
+              totalPrice,
+              draftName,
+              orderType,
+            ) {
+              final subtotal = products
+                  .map((e) =>
+                      (e.product.price?.toIntegerFromText ?? 0) * e.quantity)
+                  .fold(0, (a, b) => a + b);
+              final discAmt = _computeDiscountAmount(subtotal, discountModel);
+              final taxAmt = _computeTaxAmount(subtotal, tax);
+              final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
+              return subtotal - discAmt + taxAmt + serviceAmt;
+            },
+            orElse: () => 0,
+          );
+
+          // Create payment
+          final paymentMethod = isCash ? 'cash' : 'qris';
+          final paymentNotes =
+              'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
+
+          print('SUBMIT ORDER: Creating payment...');
+          print('SUBMIT ORDER: Payment Method = $paymentMethod');
+          // Extract total_amount from API response instead of recalculating
+          int apiTotal = 0;
+          try {
+            final decoded = jsonDecode(res.body);
+            final orderData = decoded['data'];
+            if (orderData != null && orderData['total_amount'] != null) {
+              final totalStr = orderData['total_amount'].toString();
+              apiTotal = (double.tryParse(totalStr) ?? 0.0).round();
+              if (apiTotal > 0) {
+                print('SUBMIT ORDER: Using API total amount = $apiTotal');
+                print('SUBMIT ORDER: Calculated total = $total');
+              }
+            }
+          } catch (e) {
+            // Ignore error
+          }
+
+          // Use API total if available, otherwise use calculated total
+          final finalAmount = apiTotal > 0 ? apiTotal : total;
+          print('SUBMIT ORDER: Amount = $finalAmount');
+
+          final paymentCreated = await orderRemoteDatasource.createPayment(
+            orderId: orderId,
+            paymentMethod: paymentMethod,
+            amount: finalAmount,
+            receivedAmount: finalAmount,
+            notes: paymentNotes,
+          );
+
+          if (paymentCreated) {
+            print('SUBMIT ORDER: Payment created successfully!');
+          } else {
+            print('SUBMIT ORDER: Failed to create payment');
+            print('SUBMIT ORDER: Response body for debugging: ${res.body}');
+          }
+        } else {
+          print('ERROR: Could not extract order_id from response');
+          print('SUBMIT ORDER: Response body: ${res.body}');
+          try {
+            final decoded = jsonDecode(res.body);
+            print('SUBMIT ORDER: Decoded response: $decoded');
+            print(
+                'SUBMIT ORDER: Response keys: ${decoded is Map ? decoded.keys.toList() : 'not a map'}');
+          } catch (e) {
+            print('SUBMIT ORDER: Error parsing response: $e');
+          }
+        }
+
         print('========================================');
         return true;
       }

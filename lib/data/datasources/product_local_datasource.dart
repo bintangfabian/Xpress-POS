@@ -35,20 +35,62 @@ class ProductLocalDatasource {
   //           "created_at": "2024-02-08T14:30:22.000000Z",
   //           "updated_at": "2024-02-08T15:14:22.000000Z"
 
+  Future<bool> _columnExists(
+    Database db, {
+    required String table,
+    required String column,
+  }) async {
+    final result = await db.rawQuery('PRAGMA table_info($table)');
+    for (final row in result) {
+      final name = row['name'] as String?;
+      if (name == column) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _addColumnIfMissing(
+    Database db, {
+    required String table,
+    required String column,
+    required String definition,
+  }) async {
+    final exists = await _columnExists(
+      db,
+      table: table,
+      column: column,
+    );
+    if (!exists) {
+      await db.execute(
+        'ALTER TABLE $table ADD COLUMN $column $definition',
+      );
+    }
+  }
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       // Add new columns to existing products table
-      await db.execute('''
-        ALTER TABLE $tableProduct ADD COLUMN minStockLevel INTEGER DEFAULT 0
-      ''');
-      await db.execute('''
-        ALTER TABLE $tableProduct ADD COLUMN trackInventory INTEGER DEFAULT 0
-      ''');
+      await _addColumnIfMissing(
+        db,
+        table: tableProduct,
+        column: 'minStockLevel',
+        definition: 'INTEGER DEFAULT 0',
+      );
+      await _addColumnIfMissing(
+        db,
+        table: tableProduct,
+        column: 'trackInventory',
+        definition: 'INTEGER DEFAULT 0',
+      );
     }
     if (oldVersion < 3) {
-      await db.execute('''
-        ALTER TABLE $tableOrder ADD COLUMN operation_mode TEXT DEFAULT 'dine_in'
-      ''');
+      await _addColumnIfMissing(
+        db,
+        table: tableOrder,
+        column: 'operation_mode',
+        definition: "TEXT DEFAULT 'dine_in'",
+      );
     }
   }
 

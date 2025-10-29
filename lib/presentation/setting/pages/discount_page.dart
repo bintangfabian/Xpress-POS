@@ -6,7 +6,7 @@ import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart';
 import 'package:xpress/presentation/setting/bloc/delete_discount/delete_discount_cubit.dart';
 import 'package:xpress/presentation/setting/bloc/discount/discount_bloc.dart';
-import '../dialogs/form_discount_dialog.dart';
+import '../dialogs/discount_form_dialog.dart';
 import '../widgets/loading_list_placeholder.dart';
 import '../widgets/manage_discount_card.dart';
 
