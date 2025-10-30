@@ -303,11 +303,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 icon: Icons.badge_outlined,
                 label: 'Nama Pengguna',
                 value: _valueOrDash(user.name),
+                expand: true,
               ),
               _InfoTile(
                 icon: Icons.verified_user_outlined,
                 label: 'Peran',
                 value: _roleDisplay,
+                expand: true,
               ),
               _InfoTile(
                 icon: Icons.alternate_email,
@@ -573,55 +575,71 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tile = Container(
-      padding: const EdgeInsets.all(18),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.greyLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyLightActive),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha((0.12 * 255).round()),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.grey,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: AppColors.black,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
+        color: AppColors.primary, // base primary background
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade400,
+            offset: const Offset(0, 5), // Only bottom shadow
+            blurRadius: 2,
+            spreadRadius: 0,
           ),
         ],
+      ),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 0, 0),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha((0.12 * 255).round()),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: AppColors.black,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
