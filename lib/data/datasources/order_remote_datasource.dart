@@ -35,9 +35,9 @@ class OrderRemoteDatasource {
         if (items.isEmpty) return '#0001';
         final last = items.first;
         final on = (last['order_number'] ?? '').toString();
-        print('=== DEBUG ORDER NUMBER ===');
-        print('Raw order_number: $on');
-        print('Type: ${on.runtimeType}');
+        log('=== DEBUG ORDER NUMBER ===');
+        log('Raw order_number: $on');
+        log('Type: ${on.runtimeType}');
         // Try different patterns to extract number
         String numPart = '0';
 
@@ -57,11 +57,11 @@ class OrderRemoteDatasource {
             }
           }
         }
-        print('Extracted number part: $numPart');
+        log('Extracted number part: $numPart');
         final next = (int.tryParse(numPart) ?? 0) + 1;
         final result = '#${next.toString().padLeft(4, '0')}';
-        print('Final result: $result');
-        print('========================');
+        log('Final result: $result');
+        log('========================');
         return result;
       }
     } catch (_) {}

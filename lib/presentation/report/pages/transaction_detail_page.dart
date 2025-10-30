@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
@@ -23,17 +25,24 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  void _logDebug(String message) {
+    assert(() {
+      developer.log(message, name: 'TransactionDetailPage');
+      return true;
+    }());
+  }
+
   @override
   void initState() {
     super.initState();
-    print('=== DEBUG TRANSACTION DETAIL INIT ===');
-    print('widget.order: ${widget.order}');
-    print('widget.orderId: ${widget.orderId}');
-    print('widget.orderId type: ${widget.orderId.runtimeType}');
-    print('widget.orderId is null: ${widget.orderId == null}');
-    print('widget.orderId is empty: ${widget.orderId?.isEmpty ?? true}');
-    print('widget.orderId length: ${widget.orderId?.length}');
-    print('=====================================');
+    _logDebug('=== DEBUG TRANSACTION DETAIL INIT ===');
+    _logDebug('widget.order: ${widget.order}');
+    _logDebug('widget.orderId: ${widget.orderId}');
+    _logDebug('widget.orderId type: ${widget.orderId.runtimeType}');
+    _logDebug('widget.orderId is null: ${widget.orderId == null}');
+    _logDebug('widget.orderId is empty: ${widget.orderId?.isEmpty ?? true}');
+    _logDebug('widget.orderId length: ${widget.orderId?.length}');
+    _logDebug('=====================================');
 
     if (widget.order != null) {
       _order = widget.order;
@@ -46,12 +55,12 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
           _order!.table == null ||
           _order!.items == null ||
           _order!.items!.isEmpty) {
-        print('Order data incomplete, fetching detail...');
+        _logDebug('Order data incomplete, fetching detail...');
         if (widget.orderId != null) {
           _fetchOrderDetail();
         }
       } else {
-        print('Order data complete, using existing data');
+        _logDebug('Order data complete, using existing data');
       }
     } else if (widget.orderId != null) {
       _fetchOrderDetail();
@@ -90,29 +99,29 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   @override
   Widget build(BuildContext context) {
     // Debug print untuk melihat data order
-    print('=== DEBUG ORDER DETAIL ===');
-    print('Order: $_order');
+    _logDebug('=== DEBUG ORDER DETAIL ===');
+    _logDebug('Order: $_order');
     if (_order != null) {
-      print('Order ID: ${_order!.id}');
-      print('Order Number: ${_order!.orderNumber}');
-      print('Total Amount: ${_order!.totalAmount}');
-      print('Subtotal: ${_order!.subtotal}');
-      print('Tax Amount: ${_order!.taxAmount}');
-      print('Discount Amount: ${_order!.discountAmount}');
-      print('Service Charge: ${_order!.serviceCharge}');
-      print('Payment Method: ${_order!.paymentMethod}');
-      print('Status: ${_order!.status}');
-      print('User: ${_order!.user?.name}');
-      print('Table: ${_order!.table?.name}');
-      print('Items: ${_order!.items?.length}');
+      _logDebug('Order ID: ${_order!.id}');
+      _logDebug('Order Number: ${_order!.orderNumber}');
+      _logDebug('Total Amount: ${_order!.totalAmount}');
+      _logDebug('Subtotal: ${_order!.subtotal}');
+      _logDebug('Tax Amount: ${_order!.taxAmount}');
+      _logDebug('Discount Amount: ${_order!.discountAmount}');
+      _logDebug('Service Charge: ${_order!.serviceCharge}');
+      _logDebug('Payment Method: ${_order!.paymentMethod}');
+      _logDebug('Status: ${_order!.status}');
+      _logDebug('User: ${_order!.user?.name}');
+      _logDebug('Table: ${_order!.table?.name}');
+      _logDebug('Items: ${_order!.items?.length}');
       if (_order!.items != null) {
         for (var item in _order!.items!) {
-          print(
+          _logDebug(
               '  - ${item.productName}: ${item.quantity}x ${item.totalPrice}');
         }
       }
     }
-    print('========================');
+    _logDebug('========================');
 
     if (_isLoading) {
       return Container(
@@ -137,8 +146,12 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                   Navigator.of(context).pop();
                 }
               },
-              icon: Assets.icons.backArrow
-                  .svg(color: AppColors.white, height: 48, width: 48),
+              icon: Assets.icons.backArrow.svg(
+                colorFilter:
+                    ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                height: 48,
+                width: 48,
+              ),
             ),
             title: const Text(
               'Detail Transaksi',
@@ -187,8 +200,12 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                   Navigator.of(context).pop();
                 }
               },
-              icon: Assets.icons.backArrow
-                  .svg(color: AppColors.white, height: 48, width: 48),
+              icon: Assets.icons.backArrow.svg(
+                colorFilter:
+                    ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                height: 48,
+                width: 48,
+              ),
             ),
             title: const Text(
               'Detail Transaksi',
@@ -249,8 +266,11 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 Navigator.of(context).pop();
               }
             },
-            icon: Assets.icons.backArrow
-                .svg(color: AppColors.white, height: 48, width: 48),
+            icon: Assets.icons.backArrow.svg(
+              colorFilter: ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+              height: 48,
+              width: 48,
+            ),
           ),
           title: const Text(
             'Detail Transaksi',
@@ -324,8 +344,12 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 color: AppColors.dangerLight,
                 borderColor: AppColors.danger,
                 textColor: AppColors.danger,
-                icon: Assets.icons.refund
-                    .svg(color: AppColors.danger, height: 20, width: 20),
+                icon: Assets.icons.refund.svg(
+                  colorFilter:
+                      ColorFilter.mode(AppColors.danger, BlendMode.srcIn),
+                  height: 20,
+                  width: 20,
+                ),
                 label: 'Refund',
               ),
               const SizedBox(height: 8),
@@ -337,8 +361,12 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 color: AppColors.primaryLight,
                 borderColor: AppColors.primary,
                 textColor: AppColors.primary,
-                icon: Assets.icons.printer
-                    .svg(color: AppColors.primary, height: 20, width: 20),
+                icon: Assets.icons.printer.svg(
+                  colorFilter:
+                      ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+                  height: 20,
+                  width: 20,
+                ),
                 label: 'Cetak Struk',
               ),
               const SizedBox(height: 32),

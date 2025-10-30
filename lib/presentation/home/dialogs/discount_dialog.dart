@@ -30,8 +30,11 @@ class _DiscountDialogState extends State<DiscountDialog> {
             const Text('DISKON',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],

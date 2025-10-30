@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
@@ -51,6 +53,13 @@ class _HomePageState extends State<HomePage> {
   String _searchQuery = '';
   SortOption? _sortOption;
 
+  void _logHome(String message) {
+    assert(() {
+      developer.log(message, name: 'HomePage');
+      return true;
+    }());
+  }
+
   @override
   void initState() {
     // Force delete and re-sync products to ensure trackInventory is loaded
@@ -62,13 +71,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _forceResyncProducts() async {
-    print('========================================');
-    print('FORCE RESYNC: Deleting all products...');
+    _logHome('========================================');
+    _logHome('FORCE RESYNC: Deleting all products...');
 
     // Clear local products
     await ProductLocalDatasource.instance.deleteAllProducts();
 
-    print('FORCE RESYNC: Products deleted, starting sync...');
+    _logHome('FORCE RESYNC: Products deleted, starting sync...');
 
     if (!mounted) return;
 
@@ -80,8 +89,8 @@ class _HomePageState extends State<HomePage> {
         .read<LocalProductBloc>()
         .add(const LocalProductEvent.getLocalProduct());
 
-    print('FORCE RESYNC: Complete');
-    print('========================================');
+    _logHome('FORCE RESYNC: Complete');
+    _logHome('========================================');
   }
 
   Future<void> _loadNextOrderNumber() async {
@@ -111,7 +120,7 @@ class _HomePageState extends State<HomePage> {
             await ProductLocalDatasource.instance.deleteAllProducts();
             await ProductLocalDatasource.instance
                 .insertProducts(productResponseModel.data!);
-            if (!mounted) return;
+            if (!context.mounted) return;
             context
                 .read<LocalProductBloc>()
                 .add(const LocalProductEvent.getLocalProduct());
@@ -450,8 +459,9 @@ class _HomePageState extends State<HomePage> {
                                       ________,
                                       _________,
                                     ) {
-                                      if (products.isEmpty)
+                                      if (products.isEmpty) {
                                         return _emptyOrder();
+                                      }
 
                                       return Column(
                                         children: [
@@ -591,8 +601,9 @@ class _HomePageState extends State<HomePage> {
                                     ________,
                                     _________,
                                   ) {
-                                    if (products.isEmpty)
+                                    if (products.isEmpty) {
                                       return const SizedBox();
+                                    }
 
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(
@@ -621,8 +632,9 @@ class _HomePageState extends State<HomePage> {
                                                     const ClearOrderDialog(),
                                               );
 
+                                              if (!context.mounted) return;
+
                                               if (confirm == true) {
-                                                if (!mounted) return;
                                                 context
                                                     .read<CheckoutBloc>()
                                                     .add(const CheckoutEvent
@@ -902,6 +914,7 @@ class _HomePageState extends State<HomePage> {
                         context: context,
                         builder: (_) => VariantDialog(product: filtered[i]),
                       );
+                      if (!context.mounted) return;
                       if (res != null) {
                         final bloc = context.read<CheckoutBloc>();
                         bloc.setPendingVariants(res);

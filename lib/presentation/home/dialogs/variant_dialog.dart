@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
@@ -8,7 +11,6 @@ import 'package:xpress/core/utils/image_utils.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/presentation/home/models/product_variant.dart';
@@ -71,6 +73,13 @@ class _VariantDialogState extends State<VariantDialog> {
   bool _loading = true;
   List<_VariantItem> _options = [];
 
+  void _logDebug(String message, {Object? error}) {
+    assert(() {
+      developer.log(message, name: 'VariantDialog', error: error);
+      return true;
+    }());
+  }
+
   @override
   void initState() {
     super.initState();
@@ -86,13 +95,13 @@ class _VariantDialogState extends State<VariantDialog> {
       // id is local database ID, productId is from server
       final id = widget.product.productId ?? widget.product.id;
 
-      print('========================================');
-      print('VARIANT DIALOG - Fetching options for:');
-      print('Product Name: ${widget.product.name}');
-      print('Product ID (local): ${widget.product.id}');
-      print('Product ProductId (server): ${widget.product.productId}');
-      print('Using ID for API: $id');
-      print('========================================');
+      _logDebug('========================================');
+      _logDebug('VARIANT DIALOG - Fetching options for:');
+      _logDebug('Product Name: ${widget.product.name}');
+      _logDebug('Product ID (local): ${widget.product.id}');
+      _logDebug('Product ProductId (server): ${widget.product.productId}');
+      _logDebug('Using ID for API: $id');
+      _logDebug('========================================');
 
       if (id == null) {
         setState(() {
@@ -105,7 +114,7 @@ class _VariantDialogState extends State<VariantDialog> {
       final uri = Uri.parse(
           '${Variables.baseUrl}/api/${Variables.apiVersion}/products/$id/options');
 
-      print('VARIANT DIALOG - API URL: $uri');
+      _logDebug('VARIANT DIALOG - API URL: $uri');
 
       final headers = {
         'Authorization': 'Bearer ${auth.token}',
@@ -115,8 +124,8 @@ class _VariantDialogState extends State<VariantDialog> {
 
       var res = await http.get(uri, headers: headers);
 
-      print('VARIANT DIALOG - Response Status: ${res.statusCode}');
-      print('VARIANT DIALOG - Response Body: ${res.body}');
+      _logDebug('VARIANT DIALOG - Response Status: ${res.statusCode}');
+      _logDebug('VARIANT DIALOG - Response Body: ${res.body}');
 
       if (res.statusCode == 403) {
         res = await http.get(uri, headers: {
@@ -126,20 +135,20 @@ class _VariantDialogState extends State<VariantDialog> {
       }
       if (res.statusCode == 200) {
         final parsed = _parseOptions(res.body);
-        print('VARIANT DIALOG - Parsed ${parsed.length} options');
+        _logDebug('VARIANT DIALOG - Parsed ${parsed.length} options');
         setState(() {
           _options = parsed;
           _loading = false;
         });
       } else {
-        print('VARIANT DIALOG - No options found');
+        _logDebug('VARIANT DIALOG - No options found');
         setState(() {
           _options = [];
           _loading = false;
         });
       }
     } catch (e) {
-      print('VARIANT DIALOG - Error: $e');
+      _logDebug('VARIANT DIALOG - Error: $e', error: e);
       setState(() {
         _options = [];
         _loading = false;
@@ -160,8 +169,11 @@ class _VariantDialogState extends State<VariantDialog> {
             const Text('Tambah Opsi Varian',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -185,7 +197,7 @@ class _VariantDialogState extends State<VariantDialog> {
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withAlpha((0.05 * 255).round()),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -426,7 +438,7 @@ class _VariantDialogState extends State<VariantDialog> {
       return Container(
         height: double.infinity,
         width: double.infinity,
-        color: AppColors.grey.withOpacity(0.3),
+        color: AppColors.grey.withAlpha((0.3 * 255).round()),
         child: const Icon(
           Icons.image_not_supported,
           size: 40,
@@ -444,7 +456,7 @@ class _VariantDialogState extends State<VariantDialog> {
         return Container(
           height: double.infinity,
           width: double.infinity,
-          color: AppColors.grey.withOpacity(0.3),
+          color: AppColors.grey.withAlpha((0.3 * 255).round()),
           child: const Icon(
             Icons.image_not_supported,
             size: 40,
@@ -457,7 +469,7 @@ class _VariantDialogState extends State<VariantDialog> {
         return Container(
           height: double.infinity,
           width: double.infinity,
-          color: AppColors.grey.withOpacity(0.3),
+          color: AppColors.grey.withAlpha((0.3 * 255).round()),
           child: const Center(
             child: CircularProgressIndicator(strokeWidth: 2),
           ),

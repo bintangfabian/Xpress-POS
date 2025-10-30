@@ -1,15 +1,17 @@
+import 'dart:developer' as developer;
+
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
+import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/core/components/empty_state.dart';
 import 'package:xpress/core/constants/colors.dart';
-import 'package:xpress/presentation/report/widgets/report_title.dart';
-import 'package:flutter/material.dart';
-import 'package:xpress/presentation/report/pages/transaction_detail_page.dart';
-import 'package:xpress/core/components/buttons.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
-import 'package:intl/intl.dart';
-import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
+import 'package:xpress/presentation/report/pages/transaction_detail_page.dart';
+import 'package:xpress/presentation/report/widgets/report_title.dart';
 
 class ReportPage extends StatefulWidget {
   final Function(String orderId)? onOpenDetail;
@@ -29,6 +31,13 @@ class _ReportPageState extends State<ReportPage> {
   List<ItemOrder> orders = [];
   bool isLoading = false;
   String? errorMessage;
+
+  void _logDebug(String message) {
+    assert(() {
+      developer.log(message, name: 'ReportPage');
+      return true;
+    }());
+  }
 
   @override
   void initState() {
@@ -63,16 +72,16 @@ class _ReportPageState extends State<ReportPage> {
           });
 
           // Debug print untuk melihat data
-          print('=== DEBUG ORDERS ===');
+          _logDebug('=== DEBUG ORDERS ===');
           for (var order in orders) {
-            print('Order ID: ${order.id}');
-            print('Total Amount: ${order.totalAmount}');
-            print('Table Number: ${order.table?.tableNumber}');
-            print('Table Name: ${order.table?.name}');
-            print('Status: ${order.status}');
-            print('---');
+            _logDebug('Order ID: ${order.id}');
+            _logDebug('Total Amount: ${order.totalAmount}');
+            _logDebug('Table Number: ${order.table?.tableNumber}');
+            _logDebug('Table Name: ${order.table?.name}');
+            _logDebug('Status: ${order.status}');
+            _logDebug('---');
           }
-          print('Total orders: ${orders.length}');
+          _logDebug('Total orders: ${orders.length}');
         },
       );
     } catch (e) {
@@ -220,8 +229,12 @@ class _ReportPageState extends State<ReportPage> {
                     Button.filled(
                       height: 52,
                       onPressed: () {},
-                      icon: Assets.icons.sync
-                          .svg(height: 20, width: 20, color: AppColors.white),
+                      icon: Assets.icons.sync.svg(
+                        height: 20,
+                        width: 20,
+                        colorFilter:
+                            ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                      ),
                       label: 'Transfer Data',
                     ),
                   ],
@@ -349,11 +362,17 @@ class _ReportPageState extends State<ReportPage> {
     }
 
     // Tentukan icon berdasarkan payment method
-    Widget paymentIcon =
-        Assets.icons.tunai.svg(color: AppColors.primary, height: 46, width: 46);
+    Widget paymentIcon = Assets.icons.tunai.svg(
+      colorFilter: ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+      height: 46,
+      width: 46,
+    );
     if (order.paymentMethod?.toLowerCase() == 'qris') {
-      paymentIcon = Assets.icons.nonTunai
-          .svg(color: AppColors.primary, height: 46, width: 46);
+      paymentIcon = Assets.icons.nonTunai.svg(
+        colorFilter: ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+        height: 46,
+        width: 46,
+      );
     }
 
     // Tentukan warna status
@@ -373,19 +392,20 @@ class _ReportPageState extends State<ReportPage> {
 
     return InkWell(
       onTap: () {
-        print('=== DEBUG ORDER CLICK ===');
-        print('Order: $order');
-        print('Order ID: ${order.id}');
-        print('Order Number: ${order.orderNumber}');
-        print('Order ID is null: ${order.id == null}');
-        print('Order ID is empty: ${order.id?.isEmpty ?? true}');
-        print('========================');
+        _logDebug('=== DEBUG ORDER CLICK ===');
+        _logDebug('Order: $order');
+        _logDebug('Order ID: ${order.id}');
+        _logDebug('Order Number: ${order.orderNumber}');
+        _logDebug('Order ID is null: ${order.id == null}');
+        _logDebug('Order ID is empty: ${order.id?.isEmpty ?? true}');
+        _logDebug('========================');
 
         if (widget.onOpenDetail != null) {
           if (order.id != null && order.id!.isNotEmpty) {
             widget.onOpenDetail!.call(order.id!);
           } else {
-            print('ERROR: Order ID is null or empty, cannot open detail page');
+            _logDebug(
+                'ERROR: Order ID is null or empty, cannot open detail page');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Error: Order ID tidak valid')),
             );
@@ -393,14 +413,14 @@ class _ReportPageState extends State<ReportPage> {
         } else {
           if (order.id != null && order.id!.isNotEmpty) {
             // Try to use existing order data first, but fetch detail if needed
-            print('=== NAVIGATING TO DETAIL PAGE ===');
-            print('Passing order: $order');
-            print('Passing orderId: ${order.id}');
-            print('Order ID type: ${order.id.runtimeType}');
-            print('Order ID is null: ${order.id == null}');
-            print('Order ID is empty: ${order.id?.isEmpty ?? true}');
-            print('Order ID length: ${order.id?.length}');
-            print('=================================');
+            _logDebug('=== NAVIGATING TO DETAIL PAGE ===');
+            _logDebug('Passing order: $order');
+            _logDebug('Passing orderId: ${order.id}');
+            _logDebug('Order ID type: ${order.id.runtimeType}');
+            _logDebug('Order ID is null: ${order.id == null}');
+            _logDebug('Order ID is empty: ${order.id?.isEmpty ?? true}');
+            _logDebug('Order ID length: ${order.id?.length}');
+            _logDebug('=================================');
 
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -410,7 +430,8 @@ class _ReportPageState extends State<ReportPage> {
               ),
             );
           } else {
-            print('ERROR: Order ID is null or empty, cannot open detail page');
+            _logDebug(
+                'ERROR: Order ID is null or empty, cannot open detail page');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Error: Order ID tidak valid')),
             );
@@ -430,7 +451,7 @@ class _ReportPageState extends State<ReportPage> {
             Expanded(
               flex: 3,
               child: Padding(
-                padding: EdgeInsetsGeometry.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
                     paymentIcon,

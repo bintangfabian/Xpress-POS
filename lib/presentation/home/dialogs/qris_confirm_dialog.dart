@@ -44,8 +44,11 @@ class QrisConfirmDialog extends StatelessWidget {
             const Text('Konfirmasi QRIS',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -70,7 +73,10 @@ class QrisConfirmDialog extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Assets.icons.qr.svg(color: AppColors.black),
+                child: Assets.icons.qr.svg(
+                  colorFilter:
+                      ColorFilter.mode(AppColors.black, BlendMode.srcIn),
+                ),
               ),
             ),
             const SpaceHeight(12),

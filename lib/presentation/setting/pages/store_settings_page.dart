@@ -681,7 +681,7 @@ class _InfoTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
+          border: Border.all(color: Colors.black.withAlpha((0.05 * 255).round()), width: 1),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/core/utils/image_utils.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
-import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 
 import '../../../core/constants/colors.dart';
 
@@ -30,10 +28,6 @@ class ProductCard extends StatelessWidget {
     // Out of stock hanya untuk produk yang tracking inventory dan stock nya 0
     final isOutOfStock = isTrackingInventory && actualStock <= 0;
 
-    // Debug logging - print untuk SEMUA produk
-    print(
-        'PRODUCT: ${data.name} | trackInventory=${data.trackInventory} | stock=${data.stock} | displayStock=$displayStock');
-
     return GestureDetector(
       onTap: isOutOfStock ? null : onCartButton,
       child: Opacity(
@@ -45,7 +39,7 @@ class ProductCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withAlpha((0.05 * 255).round()),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -72,7 +66,7 @@ class ProductCard extends StatelessWidget {
                         child: Container(
                           margin: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.7),
+                            color: Colors.black.withAlpha((0.7 * 255).round()),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Center(
@@ -178,7 +172,7 @@ class ProductCard extends StatelessWidget {
       return Container(
         height: double.infinity,
         width: double.infinity,
-        color: AppColors.grey.withOpacity(0.3),
+        color: AppColors.grey.withAlpha((0.3 * 255).round()),
         child: const Icon(
           Icons.image_not_supported,
           size: 40,
@@ -196,7 +190,7 @@ class ProductCard extends StatelessWidget {
         return Container(
           height: double.infinity,
           width: double.infinity,
-          color: AppColors.grey.withOpacity(0.3),
+          color: AppColors.grey.withAlpha((0.3 * 255).round()),
           child: const Icon(
             Icons.image_not_supported,
             size: 40,
@@ -209,7 +203,7 @@ class ProductCard extends StatelessWidget {
         return Container(
           height: double.infinity,
           width: double.infinity,
-          color: AppColors.grey.withOpacity(0.3),
+          color: AppColors.grey.withAlpha((0.3 * 255).round()),
           child: const Center(
             child: CircularProgressIndicator(strokeWidth: 2),
           ),

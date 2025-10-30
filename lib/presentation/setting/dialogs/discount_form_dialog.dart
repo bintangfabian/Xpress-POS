@@ -50,8 +50,11 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
             const Text('Tambah Diskon',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -139,7 +142,7 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
                     Expanded(
                       flex: 4,
                       child: DropdownButtonFormField<String>(
-                        value: _selectedType,
+                        initialValue: _selectedType,
                         items: _typeOptions
                             .map(
                               (type) => DropdownMenuItem<String>(

@@ -66,8 +66,12 @@ class _SalesPageState extends State<SalesPage> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        Assets.icons.calender
-                            .svg(height: 32, width: 32, color: AppColors.white),
+                        Assets.icons.calender.svg(
+                          height: 32,
+                          width: 32,
+                          colorFilter:
+                              ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                        ),
                       ],
                     ),
                   ),

@@ -24,18 +24,21 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _bootstrap() async {
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    final isOnline = context.read<OnlineCheckerBloc>().isOnline;
+    if (!context.mounted) return;
+    // ignore: use_build_context_synchronously
+    final isOnline = onlineCheckerBloc.isOnline;
     final hasCachedUser = await _authLocalDataSource.hasCachedUser();
     final isAuthenticated = await _authLocalDataSource.isAuthenticated();
     final token = await _authLocalDataSource.getToken();
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     if (isAuthenticated && token != null && token.isNotEmpty) {
       if (isOnline) {
         final result = await _authRemoteDatasource.fetchProfile(token);
-        if (!mounted) return;
+        if (!context.mounted) return;
         await result.fold(
           (error) async {
             await _authLocalDataSource.removeAuthData();
@@ -53,7 +56,7 @@ class _SplashPageState extends State<SplashPage> {
         return;
       } else if (hasCachedUser) {
         await _authLocalDataSource.markOfflineLogin();
-        if (!mounted) return;
+        if (!context.mounted) return;
         _navigateToHome();
         return;
       }
@@ -61,7 +64,7 @@ class _SplashPageState extends State<SplashPage> {
 
     if (hasCachedUser) {
       await _authLocalDataSource.markOfflineLogin();
-      if (!mounted) return;
+      if (!context.mounted) return;
       _navigateToHome();
       return;
     }

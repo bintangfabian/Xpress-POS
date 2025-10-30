@@ -6,7 +6,6 @@ import 'package:xpress/presentation/setting/pages/sync_data_page.dart';
 import 'package:xpress/presentation/setting/pages/store_settings_page.dart';
 import 'package:xpress/presentation/setting/pages/user_profile_page.dart';
 import 'package:xpress/presentation/setting/pages/members_page.dart';
-import 'package:xpress/presentation/setting/pages/services_page.dart';
 
 import '../../../core/assets/assets.gen.dart';
 import '../../../core/components/components.dart';
@@ -116,7 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () async {
                           // Clear local auth and navigate to Login
                           await AuthLocalDataSource().removeAuthData();
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(
                                 builder: (_) => const LoginPage()),
@@ -217,7 +216,7 @@ class _StoreContextPageState extends State<_StoreContextPage> {
                 final v = _controller.text.trim();
                 if (v.isEmpty) {
                   await AuthLocalDataSource().saveStoreUuid('');
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   setState(() => _current = null);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Store UUID dikosongkan')),
@@ -225,7 +224,7 @@ class _StoreContextPageState extends State<_StoreContextPage> {
                   return;
                 }
                 await AuthLocalDataSource().saveStoreUuid(v);
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setState(() => _current = v);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Store UUID disimpan')),

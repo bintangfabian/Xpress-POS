@@ -16,7 +16,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
 
   int _saldoAwal = 0;
   int _totalPengeluaran = 0;
-  int _penjualanTunai = 0; // placeholder, bisa dihitung dari data transaksi
+  final int _penjualanTunai = 0; // placeholder, bisa dihitung dari data transaksi
 
   @override
   void dispose() {
@@ -143,7 +143,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withAlpha((0.06 * 255).round()),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

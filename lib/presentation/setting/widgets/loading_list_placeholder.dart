@@ -61,8 +61,8 @@ class _AnimatedPlaceholderRowState extends State<_AnimatedPlaceholderRow>
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = AppColors.primary.withOpacity(0.06);
-    final highlightColor = AppColors.primary.withOpacity(0.18);
+    final baseColor = AppColors.primary.withAlpha((0.06 * 255).round());
+    final highlightColor = AppColors.primary.withAlpha((0.18 * 255).round());
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {

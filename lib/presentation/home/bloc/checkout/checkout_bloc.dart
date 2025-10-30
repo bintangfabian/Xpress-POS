@@ -100,17 +100,16 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
 
       // Calculate discount amount
       int discountAmount = 0;
-      if (event.discount != null) {
-        final val = double.tryParse(event.discount.value ?? '0') ?? 0.0;
-        final type = (event.discount.type ?? '').toLowerCase();
+      final discount = event.discount;
+      final discountValue = double.tryParse(discount.value ?? '0') ?? 0.0;
+      final discountType = (discount.type ?? '').toLowerCase();
 
-        if (type == 'percentage') {
-          discountAmount = (subtotal * (val / 100)).floor();
-        } else if (type == 'fixed') {
-          discountAmount = val.toInt();
-        }
-        discountAmount = discountAmount.clamp(0, subtotal);
+      if (discountType == 'percentage') {
+        discountAmount = (subtotal * (discountValue / 100)).floor();
+      } else if (discountType == 'fixed') {
+        discountAmount = discountValue.toInt();
       }
+      discountAmount = discountAmount.clamp(0, subtotal);
 
       emit(_Loaded(
         currentState.items,

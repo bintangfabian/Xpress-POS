@@ -8,7 +8,7 @@ part 'stock_dao.g.dart';
 
 @DriftAccessor(tables: [StockMovements])
 class StockDao extends DatabaseAccessor<AppDatabase> with _$StockDaoMixin {
-  StockDao(AppDatabase db) : super(db);
+  StockDao(super.db);
 
   Future<void> insertStockMovement(StockMovementsCompanion movement) async {
     await into(stockMovements).insertOnConflictUpdate(movement);

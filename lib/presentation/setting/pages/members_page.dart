@@ -215,8 +215,12 @@ class _MembersPageState extends State<MembersPage> {
                     style:
                         TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
                 IconButton(
-                  icon: Assets.icons.cancel
-                      .svg(color: AppColors.grey, height: 32, width: 32),
+                  icon: Assets.icons.cancel.svg(
+                    colorFilter:
+                        ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                    height: 32,
+                    width: 32,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 )
               ],
@@ -264,6 +268,7 @@ class _MembersPageState extends State<MembersPage> {
     );
 
     if (shouldDelete == true) {
+      // ignore: use_build_context_synchronously
       final messenger = ScaffoldMessenger.of(context);
       messenger
         ..hideCurrentSnackBar()
@@ -275,7 +280,7 @@ class _MembersPageState extends State<MembersPage> {
         );
 
       final result = await MemberRemoteDatasource().deleteMember(id);
-      if (!mounted) return;
+      if (!context.mounted) return;
       messenger.hideCurrentSnackBar();
       result.fold(
         (message) => messenger.showSnackBar(SnackBar(content: Text(message))),
@@ -307,7 +312,7 @@ class _MembersHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF2F6FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withAlpha((0.08 * 255).round())),
       ),
       child: Row(
         children: const [
@@ -354,7 +359,7 @@ class _MembersEmptyState extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withAlpha((0.08 * 255).round()),
                     ),
                   ),
                   child: Center(

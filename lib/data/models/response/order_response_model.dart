@@ -1,4 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
+
+void _orderResponseLog(String message) {
+  assert(() {
+    developer.log(message, name: 'OrderResponseModel');
+    return true;
+  }());
+}
 
 class OrderResponseModel {
   String? status;
@@ -15,19 +23,22 @@ class OrderResponseModel {
   String toJson() => json.encode(toMap());
 
   factory OrderResponseModel.fromMap(Map<String, dynamic> json) {
-    print('=== PARSING ORDER RESPONSE ===');
-    print('JSON keys: ${json.keys.toList()}');
-    print('success: ${json["success"]} (type: ${json["success"].runtimeType})');
-    print('status: ${json["status"]} (type: ${json["status"].runtimeType})');
-    print('data: ${json["data"]} (type: ${json["data"].runtimeType})');
-    print('data length: ${json["data"]?.length}');
+    _orderResponseLog('=== PARSING ORDER RESPONSE ===');
+    _orderResponseLog('JSON keys: ${json.keys.toList()}');
+    _orderResponseLog(
+        'success: ${json["success"]} (type: ${json["success"].runtimeType})');
+    _orderResponseLog(
+        'status: ${json["status"]} (type: ${json["status"].runtimeType})');
+    _orderResponseLog('data: ${json["data"]} (type: ${json["data"].runtimeType})');
+    _orderResponseLog('data length: ${json["data"]?.length}');
     if (json["data"] != null &&
         json["data"] is List &&
         json["data"].isNotEmpty) {
-      print('First data item: ${json["data"][0]}');
-      print('First data item keys: ${json["data"][0].keys.toList()}');
+      _orderResponseLog('First data item: ${json["data"][0]}');
+      _orderResponseLog(
+          'First data item keys: ${json["data"][0].keys.toList()}');
     }
-    print('=============================');
+    _orderResponseLog('=============================');
 
     return OrderResponseModel(
       status: json["status"] ?? (json["success"] == true ? "success" : "error"),
@@ -103,22 +114,23 @@ class ItemOrder {
   String toJson() => json.encode(toMap());
 
   factory ItemOrder.fromMap(Map<String, dynamic> json) {
-    print('=== PARSING ORDER ===');
-    print('JSON keys: ${json.keys.toList()}');
-    print('id: ${json["id"]} (type: ${json["id"].runtimeType})');
-    print('id is null: ${json["id"] == null}');
-    print('id is empty: ${json["id"]?.toString().isEmpty ?? true}');
-    print('id length: ${json["id"]?.toString().length}');
-    print(
+    _orderResponseLog('=== PARSING ORDER ===');
+    _orderResponseLog('JSON keys: ${json.keys.toList()}');
+    _orderResponseLog('id: ${json["id"]} (type: ${json["id"].runtimeType})');
+    _orderResponseLog('id is null: ${json["id"] == null}');
+    _orderResponseLog(
+        'id is empty: ${json["id"]?.toString().isEmpty ?? true}');
+    _orderResponseLog('id length: ${json["id"]?.toString().length}');
+    _orderResponseLog(
         'order_number: ${json["order_number"]} (type: ${json["order_number"].runtimeType})');
-    print(
+    _orderResponseLog(
         'total_amount: ${json["total_amount"]} (type: ${json["total_amount"].runtimeType})');
-    print(
+    _orderResponseLog(
         'subtotal: ${json["subtotal"]} (type: ${json["subtotal"].runtimeType})');
-    print('user: ${json["user"]}');
-    print('table: ${json["table"]}');
-    print('items: ${json["items"]}');
-    print('====================');
+    _orderResponseLog('user: ${json["user"]}');
+    _orderResponseLog('table: ${json["table"]}');
+    _orderResponseLog('items: ${json["items"]}');
+    _orderResponseLog('====================');
 
     return ItemOrder(
       id: json["id"]?.toString(),

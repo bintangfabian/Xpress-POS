@@ -8,7 +8,7 @@ part 'payment_dao.g.dart';
 
 @DriftAccessor(tables: [Payments])
 class PaymentDao extends DatabaseAccessor<AppDatabase> with _$PaymentDaoMixin {
-  PaymentDao(AppDatabase db) : super(db);
+  PaymentDao(super.db);
 
   Future<List<Payment>> getPendingPayments() {
     return (select(payments)..where((tbl) => tbl.syncStatus.equals('pending')))

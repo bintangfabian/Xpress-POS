@@ -93,10 +93,6 @@ class _SuccessPaymentDialogState extends State<SuccessPaymentDialog> {
             const SpaceHeight(5.0),
             BlocBuilder<OrderBloc, OrderState>(
               builder: (context, state) {
-                final total = state.maybeWhen(
-                  orElse: () => 0,
-                  loaded: (model, orderId) => model.total,
-                );
                 return Text(
                   widget.totalPrice.currencyFormatRp,
                   style: const TextStyle(

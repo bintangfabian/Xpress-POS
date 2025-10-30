@@ -29,7 +29,7 @@ class AddData extends StatelessWidget {
           ),
           shadows: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withAlpha((0.06 * 255).round()),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

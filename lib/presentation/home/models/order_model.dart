@@ -122,7 +122,6 @@ class OrderModel {
   }
 
   factory OrderModel.fromMap(Map<String, dynamic> map) {
-    print("Discount AMount${map['discount_amount']}");
     return OrderModel(
       id: map['id']?.toInt(),
       paymentAmount: map['payment_amount']?.toInt() ?? 0,

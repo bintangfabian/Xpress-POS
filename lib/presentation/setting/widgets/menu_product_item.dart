@@ -167,7 +167,7 @@ class MenuProductItem extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.3),
+          color: Colors.grey.withAlpha((0.3 * 255).round()),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
@@ -184,7 +184,7 @@ class MenuProductItem extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.3),
+          color: Colors.grey.withAlpha((0.3 * 255).round()),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Center(
@@ -202,7 +202,7 @@ class MenuProductItem extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.3),
+          color: Colors.grey.withAlpha((0.3 * 255).round()),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(

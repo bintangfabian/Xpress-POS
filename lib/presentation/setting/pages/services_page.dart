@@ -131,7 +131,7 @@ class _ServiceTableHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF2F6FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withAlpha((0.08 * 255).round())),
       ),
       child: Row(
         children: const [
@@ -169,7 +169,7 @@ class _ServiceEmptyState extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.08)),
+              border: Border.all(color: Colors.black.withAlpha((0.08 * 255).round())),
             ),
             child: Center(
               child: Text(

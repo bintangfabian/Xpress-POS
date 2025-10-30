@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
-import 'package:intl/intl.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 import 'package:xpress/core/extensions/build_context_ext.dart';
-import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/data/models/response/table_model.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
@@ -15,7 +13,6 @@ import '../../../core/components/buttons.dart';
 import '../../../core/components/spaces.dart';
 import '../../table/blocs/get_table/get_table_bloc.dart';
 import '../bloc/checkout/checkout_bloc.dart';
-import '../bloc/order/order_bloc.dart';
 
 class SaveOrderDialog extends StatefulWidget {
   const SaveOrderDialog({

@@ -334,10 +334,18 @@ class _DashboardPageState extends State<DashboardPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           online
-              ? Assets.icons.signalON
-                  .svg(height: 24, width: 24, color: AppColors.white)
-              : Assets.icons.signalOff
-                  .svg(height: 24, width: 24, color: AppColors.white),
+              ? Assets.icons.signalON.svg(
+                  height: 24,
+                  width: 24,
+                  colorFilter:
+                      ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                )
+              : Assets.icons.signalOff.svg(
+                  height: 24,
+                  width: 24,
+                  colorFilter:
+                      ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                ),
           Text(
             online ? "Online" : "Offline",
             style: const TextStyle(

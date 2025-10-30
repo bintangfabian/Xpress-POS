@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 
-import 'package:flutter_svg/flutter_svg.dart';
-
 import '../../../core/assets/assets.gen.dart';
 import '../../../core/components/buttons.dart';
 import '../../../core/components/custom_text_field.dart';
@@ -50,11 +48,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               height: 363,
               decoration: BoxDecoration(
                 color: AppColors.white,
-                // .withOpacity(0.9),
+                // .withAlpha((0.9 * 255).round()),
                 borderRadius: const BorderRadius.all(Radius.circular(10.0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha((0.1 * 255).round()),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

@@ -54,8 +54,11 @@ class CashSuccessDialog extends StatelessWidget {
             const Text('Transaksi Berhasil',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -82,7 +85,10 @@ class CashSuccessDialog extends StatelessWidget {
                   color: AppColors.successLight,
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(width: 6, color: AppColors.success)),
-              child: Assets.icons.checklis.svg(color: AppColors.success),
+              child: Assets.icons.checklis.svg(
+                colorFilter:
+                    ColorFilter.mode(AppColors.success, BlendMode.srcIn),
+              ),
             ),
             // const Icon(Icons.check_circle, color: AppColors.success, size: 64),
             const SpaceHeight(12),

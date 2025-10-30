@@ -1,7 +1,5 @@
 import 'package:xpress/data/models/response/product_response_model.dart';
 
-import 'product_model.dart';
-
 class OrderItem {
   final Product product;
   int quantity;

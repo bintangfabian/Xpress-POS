@@ -119,15 +119,15 @@ class _CardTableWidgetState extends State<CardTableWidget> {
         }
 
         // Handle berdasarkan pilihan
-        if (!mounted) return;
-
         if (result == 'add_order') {
+          if (!context.mounted) return;
           // Tambah Pesanan - selalu ke HomePage untuk buat/tambah pesanan
           context.push(DashboardPage(
             initialIndex: 0,
             selectedTable: widget.table,
           ));
         } else {
+          if (!context.mounted) return;
           // Update status meja (available, reserved, occupied)
           log('Preparing to update status to: $result');
 

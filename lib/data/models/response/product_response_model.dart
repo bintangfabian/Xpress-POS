@@ -1,6 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
-import 'package:xpress/presentation/home/pages/confirm_payment_page.dart';
+void _productLog(String message) {
+  assert(() {
+    developer.log(message, name: 'ProductResponseModel');
+    return true;
+  }());
+}
 
 class ProductResponseModel {
   final String? status;
@@ -298,23 +304,23 @@ DateTime? _tryParseDate(dynamic value) {
 
 bool _parseBool(dynamic value) {
   if (value == null) {
-    print('_parseBool: value is null, returning false');
+    _productLog('_parseBool: value is null, returning false');
     return false;
   }
   if (value is bool) {
-    print('_parseBool: value is bool = $value');
+    _productLog('_parseBool: value is bool = $value');
     return value;
   }
   if (value is int) {
-    print('_parseBool: value is int = $value, returning ${value == 1}');
+    _productLog('_parseBool: value is int = $value, returning ${value == 1}');
     return value == 1;
   }
   if (value is String) {
     final lower = value.toLowerCase();
     final result = lower == 'true' || lower == '1';
-    print('_parseBool: value is String = "$value", returning $result');
+    _productLog('_parseBool: value is String = "$value", returning $result');
     return result;
   }
-  print('_parseBool: unknown type ${value.runtimeType}, returning false');
+  _productLog('_parseBool: unknown type ${value.runtimeType}, returning false');
   return false;
 }

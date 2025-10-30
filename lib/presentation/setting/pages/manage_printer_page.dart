@@ -1,8 +1,9 @@
+import 'dart:developer' as developer;
+
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xpress/core/components/components.dart';
-import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
@@ -36,24 +37,20 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
 
   String macName = '';
 
-  String _info = "";
-  String _msj = '';
   bool connected = false;
   List<BluetoothInfo> items = [];
-  final List<String> _options = [
-    "permission bluetooth granted",
-    "bluetooth enabled",
-    "connection status",
-    "update info"
-  ];
-
   final String _selectSize = "2";
   final _txtText = TextEditingController(text: "Hello developer");
-  bool _progress = false;
-  String _msjprogress = "";
 
   String optionprinttype = "58 mm";
   List<String> options = ["58 mm", "80 mm"];
+
+  void _logDebug(String message) {
+    assert(() {
+      developer.log(message, name: 'ManagePrinterPage');
+      return true;
+    }());
+  }
 
   @override
   void initState() {
@@ -68,7 +65,7 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
     // Platform messages may fail, so we use a try/catch PlatformException.
     try {
       platformVersion = await PrintBluetoothThermal.platformVersion;
-      print("patformversion: $platformVersion");
+      _logDebug("Platform version: $platformVersion");
       porcentbatery = await PrintBluetoothThermal.batteryLevel;
     } on PlatformException {
       platformVersion = 'Failed to get platform version.';
@@ -80,22 +77,12 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
     if (!mounted) return;
 
     final bool result = await PrintBluetoothThermal.bluetoothEnabled;
-    print("bluetooth enabled: $result");
-    if (result) {
-      _msj = "Bluetooth enabled, please search and connect";
-    } else {
-      _msj = "Bluetooth not enabled";
-    }
-
-    setState(() {
-      _info = "$platformVersion ($porcentbatery% battery)";
-    });
+    _logDebug("Bluetooth enabled: $result");
+    _logDebug("Device info: $platformVersion ($porcentbatery% battery)");
   }
 
   Future<void> getBluetoots() async {
     setState(() {
-      _progress = true;
-      _msjprogress = "Wait";
       items = [];
     });
     var status2 = await Permission.bluetoothScan.status;
@@ -109,15 +96,11 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
     final List<BluetoothInfo> listResult =
         await PrintBluetoothThermal.pairedBluetooths;
 
-    setState(() {
-      _progress = false;
-    });
-
     if (listResult.isEmpty) {
-      _msj =
-          "There are no bluetoohs linked, go to settings and link the printer";
+      _logDebug(
+          "There are no bluetooth devices linked, go to settings and link the printer");
     } else {
-      _msj = "Touch an item in the list to connect";
+      _logDebug("Touch an item in the list to connect");
     }
 
     setState(() {
@@ -127,16 +110,14 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
 
   Future<void> connect(String mac) async {
     setState(() {
-      _progress = true;
-      _msjprogress = "Connecting...";
       connected = false;
     });
     final bool result =
         await PrintBluetoothThermal.connect(macPrinterAddress: mac);
-    print("state conected $result");
-    if (result) connected = true;
+    _logDebug("State connected $result");
+    if (!mounted) return;
     setState(() {
-      _progress = false;
+      connected = result;
     });
   }
 
@@ -145,7 +126,7 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
     setState(() {
       connected = false;
     });
-    print("status disconnect $status");
+    _logDebug("Status disconnect $status");
   }
 
   Future<void> printTest() async {
@@ -154,9 +135,10 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
     if (conexionStatus) {
       List<int> ticket = await testTicket();
       final result = await PrintBluetoothThermal.writeBytes(ticket);
-      print("print test result:  $result");
+      _logDebug("Print test result: $result");
     } else {
       //no conectado, reconecte
+      _logDebug("No connected device for test print");
     }
   }
 
@@ -202,16 +184,18 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
       String text = "${_txtText.text}\n";
       bool result = await PrintBluetoothThermal.writeString(
           printText: PrintTextSize(size: int.parse(_selectSize), text: text));
-      print("status print result: $result");
-      setState(() {
-        _msj = "printed status: $result";
-      });
+      _logDebug("Status print result: $result");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Status cetak: $result')),
+      );
     } else {
       //no conectado, reconecte
-      setState(() {
-        _msj = "no connected device";
-      });
-      print("no conectado");
+      _logDebug("No connected device");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak ada perangkat yang terhubung')),
+      );
     }
   }
 
@@ -230,7 +214,7 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
           printText: PrintTextSize(size: 3, text: "$text size 3"));
     } else {
       //desconectado
-      print("desconectado bluetooth $conexionStatus");
+      _logDebug("Desconectado bluetooth $conexionStatus");
     }
   }
 
@@ -289,11 +273,11 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                   const SpaceHeight(12),
                   // List hasil deteksi
                   ...items
-                      .where((e) => (e.name ?? '')
+                      .where((e) => e.name
                           .toLowerCase()
                           .contains(searchCtrl.text.toLowerCase()))
                       .map((e) => _PrinterDetectCard(
-                            name: e.name ?? 'Unknown',
+                            name: e.name,
                             subtitle: 'Bluetooth - Ready',
                             status: 'READY',
                             statusColor: AppColors.success,
@@ -302,8 +286,7 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                               macName = e.macAdress;
                               setState(() {});
                             },
-                          ))
-                      .toList(),
+                          )),
                   if (items.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -373,35 +356,22 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                   const SpaceHeight(16),
                   const Text('Ukuran Kertas Struk'),
                   const SpaceHeight(8),
-                  Row(
+                  Wrap(
+                    spacing: 12,
                     children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Radio<int>(
-                              value: 58,
-                              groupValue: selectedSize,
-                              onChanged: (value) {
-                                setState(() => selectedSize = value);
-                              },
-                            ),
-                            const Text('58 mm'),
-                          ],
-                        ),
+                      ChoiceChip(
+                        label: const Text('58 mm'),
+                        selected: selectedSize == 58,
+                        onSelected: (selected) {
+                          setState(() => selectedSize = selected ? 58 : selectedSize);
+                        },
                       ),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Radio<int>(
-                              value: 80,
-                              groupValue: selectedSize,
-                              onChanged: (value) {
-                                setState(() => selectedSize = value);
-                              },
-                            ),
-                            const Text('80 mm'),
-                          ],
-                        ),
+                      ChoiceChip(
+                        label: const Text('80 mm'),
+                        selected: selectedSize == 80,
+                        onSelected: (selected) {
+                          setState(() => selectedSize = selected ? 80 : selectedSize);
+                        },
                       ),
                     ],
                   ),
@@ -426,8 +396,8 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                           onPressed: () async {
                             if (selectedSize != null) {
                               await AuthLocalDataSource()
-                                  .saveSizeReceipt('${selectedSize}');
-                              if (!mounted) return;
+                                  .saveSizeReceipt('$selectedSize');
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content: Text('Pengaturan disimpan')),
@@ -460,7 +430,7 @@ Widget _section({required String title, required Widget child}) {
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.08),
+          color: Colors.black.withAlpha((0.08 * 255).round()),
           blurRadius: 8,
           offset: const Offset(0, 4),
         ),
@@ -506,7 +476,7 @@ class _PrinterDetectCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withAlpha((0.08 * 255).round()),
             blurRadius: 6,
             offset: const Offset(0, 3),
           )
@@ -529,7 +499,7 @@ class _PrinterDetectCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
+              color: statusColor.withAlpha((0.15 * 255).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -580,7 +550,7 @@ class _SavedPrinterCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withAlpha((0.08 * 255).round()),
             blurRadius: 6,
             offset: const Offset(0, 3),
           )
@@ -603,7 +573,7 @@ class _SavedPrinterCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: badgeColor.withOpacity(0.15),
+              color: badgeColor.withAlpha((0.15 * 255).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(

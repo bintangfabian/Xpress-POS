@@ -63,7 +63,6 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
     _displayedMonth = DateTime(clamped.year, clamped.month);
   }
 
-  @override
   DateTime _clampToRange(DateTime date) {
     if (date.isBefore(widget.firstDate)) return widget.firstDate;
     if (date.isAfter(widget.lastDate)) return widget.lastDate;
@@ -192,7 +191,7 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withOpacity(0.1)),
+            border: Border.all(color: Colors.black.withAlpha((0.1 * 255).round())),
           ),
           child: Column(
             children: [
@@ -241,7 +240,7 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
           ),
           child: const Center(
             child: Text(
@@ -298,11 +297,11 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
           ),
           child: Center(
             child: Text(
-              '${_formatDisplayDate(_selectedDate)}',
+              _formatDisplayDate(_selectedDate),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -491,7 +490,7 @@ class _CalendarGrid extends StatelessWidget {
                   border: Border.all(
                     color: isSelected
                         ? AppColors.primaryActive
-                        : Colors.black.withOpacity(0.05),
+                        : Colors.black.withAlpha((0.05 * 255).round()),
                   ),
                 ),
                 alignment: Alignment.center,

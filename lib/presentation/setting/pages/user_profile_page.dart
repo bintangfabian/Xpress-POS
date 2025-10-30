@@ -15,7 +15,6 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   User? _user;
-  String? _storeName;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -42,7 +41,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (!mounted) return;
       setState(() {
         _user = auth.user;
-        _storeName = auth.user?.store?.name ?? auth.user?.storeId ?? storeUuid;
       });
 
       final identifier =
@@ -56,7 +54,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (!mounted) return;
       setState(() {
         _user = null;
-        _storeName = null;
         _isLoading = false;
         _errorMessage = 'Gagal memuat data profil: $e';
       });
@@ -103,14 +100,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         if (identifier != null && identifier.isNotEmpty) {
           await ds.saveStoreUuid(identifier);
         }
-        final latestStoreUuid = await ds.getStoreUuid();
         if (!mounted) return;
         setState(() {
           _user = user;
-          _storeName = user.store?.name ??
-              user.storeId ??
-              latestStoreUuid ??
-              cachedStoreUuid;
           _isLoading = false;
           _errorMessage = null;
         });
@@ -594,7 +586,7 @@ class _InfoTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
+          border: Border.all(color: Colors.black.withAlpha((0.05 * 255).round()), width: 1),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

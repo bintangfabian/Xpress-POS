@@ -30,8 +30,11 @@ class _FormTableDialogState extends State<FormTableDialog> {
             const Text('Kelola Meja',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],

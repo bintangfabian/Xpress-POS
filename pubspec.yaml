@@ -63,6 +63,7 @@ dependencies:
   device_info_plus: ^11.1.0
   widgets_to_image: ^1.0.0
   connectivity_plus: ^6.1.0
+  collection: ^1.17.2
 
 dev_dependencies:
   build_runner: ^2.4.9

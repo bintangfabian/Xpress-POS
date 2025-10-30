@@ -38,7 +38,11 @@ class CustomButton extends StatelessWidget {
         color: AppColors.primary,
         textColor: Colors.white,
         padding: EdgeInsets.symmetric(horizontal: 8),
-        icon: svgIcon?.svg(width: 20, height: 20, color: Colors.white),
+        icon: svgIcon?.svg(
+          width: 20,
+          height: 20,
+          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+        ),
         fontWeight: FontWeight.bold,
         disabled: disabled,
       );
@@ -54,7 +58,12 @@ class CustomButton extends StatelessWidget {
         textColor: AppColors.primary,
         borderWidth: 2,
         padding: EdgeInsets.symmetric(horizontal: 8),
-        icon: svgIcon?.svg(width: 20, height: 20, color: AppColors.primary),
+        icon: svgIcon?.svg(
+          width: 20,
+          height: 20,
+          colorFilter:
+              ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+        ),
         fontWeight: FontWeight.bold,
         disabled: disabled,
       );

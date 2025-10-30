@@ -46,8 +46,11 @@ class _MemberDialogState extends State<MemberDialog> {
                 style: TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 32, fontFamily: '')),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -71,9 +74,11 @@ class _MemberDialogState extends State<MemberDialog> {
                       padding: const EdgeInsets.all(
                           8.0), // optional: adjust padding as needed
                       child: Assets.icons.user.svg(
-                          color: AppColors.greyLightActive,
-                          height: 18,
-                          width: 18),
+                        colorFilter: ColorFilter.mode(
+                            AppColors.greyLightActive, BlendMode.srcIn),
+                        height: 18,
+                        width: 18,
+                      ),
                     ),
                     hintText: 'Cari Member',
                     border: OutlineInputBorder(
@@ -90,8 +95,11 @@ class _MemberDialogState extends State<MemberDialog> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Assets.icons.user
-                                  .svg(color: AppColors.grey, height: 128),
+                              Assets.icons.user.svg(
+                                colorFilter: ColorFilter.mode(
+                                    AppColors.grey, BlendMode.srcIn),
+                                height: 128,
+                              ),
                               const SizedBox(height: 8),
                               Text('Tidak Ada Member',
                                   style: TextStyle(

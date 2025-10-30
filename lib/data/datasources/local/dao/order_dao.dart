@@ -9,7 +9,7 @@ part 'order_dao.g.dart';
 
 @DriftAccessor(tables: [Orders, OrderItems])
 class OrderDao extends DatabaseAccessor<AppDatabase> with _$OrderDaoMixin {
-  OrderDao(AppDatabase db) : super(db);
+  OrderDao(super.db);
 
   Future<List<Order>> getAllOrders() {
     return select(orders).get();

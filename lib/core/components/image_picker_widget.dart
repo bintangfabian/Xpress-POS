@@ -78,7 +78,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
                         )
                       : Container(
                           padding: const EdgeInsets.all(16.0),
-                          color: AppColors.black.withOpacity(0.05),
+                          color: AppColors.black.withAlpha((0.05 * 255).round()),
                           child: Assets.icons.home.svg(),
                         ),
                 ),

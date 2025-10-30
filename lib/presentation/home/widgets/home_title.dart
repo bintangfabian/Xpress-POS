@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:xpress/core/extensions/date_time_ext.dart';
-import 'package:xpress/presentation/home/widgets/custom_button.dart';
 import '../../../core/components/components.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/assets/assets.gen.dart';
@@ -49,8 +47,11 @@ class HomeTitle extends StatelessWidget {
         Button.outlined(
           width: 48,
           height: 48,
-          icon: Assets.icons.sort
-              .svg(height: 24, width: 24, color: AppColors.primary),
+          icon: Assets.icons.sort.svg(
+            height: 24,
+            width: 24,
+            colorFilter: ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+          ),
           color: AppColors.primaryLight,
           borderColor: AppColors.primary,
           padding: EdgeInsets.zero,

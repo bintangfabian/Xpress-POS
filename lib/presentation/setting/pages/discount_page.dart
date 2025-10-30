@@ -208,8 +208,12 @@ class _DiscountPageState extends State<DiscountPage> {
                     style:
                         TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
                 IconButton(
-                  icon: Assets.icons.cancel
-                      .svg(color: AppColors.grey, height: 32, width: 32),
+                  icon: Assets.icons.cancel.svg(
+                    colorFilter:
+                        ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                    height: 32,
+                    width: 32,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 )
               ],
@@ -256,6 +260,8 @@ class _DiscountPageState extends State<DiscountPage> {
     );
 
     if (shouldDelete == true) {
+      if (!context.mounted) return;
+      // ignore: use_build_context_synchronously
       context.read<DeleteDiscountCubit>().delete(id);
     }
   }
@@ -278,7 +284,7 @@ class _DiscountTableHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF2F6FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withAlpha((0.08 * 255).round())),
       ),
       child: Row(
         children: const [
@@ -329,7 +335,7 @@ class _DiscountEmptyState extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black.withOpacity(0.08)),
+                    border: Border.all(color: Colors.black.withAlpha((0.08 * 255).round())),
                   ),
                   child: Center(
                     child: Text(

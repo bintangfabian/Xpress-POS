@@ -33,8 +33,11 @@ class SearchInput extends StatelessWidget {
           hintText: hintText,
           suffixIcon: Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Assets.icons.search
-                .svg(height: 30, width: 30, color: AppColors.grey),
+            child: Assets.icons.search.svg(
+              height: 30,
+              width: 30,
+              colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+            ),
           ),
           contentPadding: const EdgeInsets.all(16.0),
           border: OutlineInputBorder(

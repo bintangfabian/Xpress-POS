@@ -39,7 +39,11 @@ class MenuTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         child: Row(
           children: [
-            icon.svg(height: 32, width: 32, color: iconColor),
+            icon.svg(
+              height: 32,
+              width: 32,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

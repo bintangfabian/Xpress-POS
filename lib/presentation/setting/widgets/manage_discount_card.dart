@@ -23,10 +23,10 @@ class ManageDiscountCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        border: Border.all(color: Colors.black.withAlpha((0.06 * 255).round())),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withAlpha((0.04 * 255).round()),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -40,7 +40,8 @@ class ManageDiscountCard extends StatelessWidget {
               icon: Assets.icons.bill.svg(
                 height: 24,
                 width: 24,
-                color: AppColors.primary,
+                colorFilter:
+                    ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
               ),
               text: data.name ?? '-',
             ),
@@ -91,15 +92,23 @@ class ManageDiscountCard extends StatelessWidget {
               children: [
                 _ActionButton(
                   color: AppColors.primary,
-                  icon: Assets.icons.editUnderline
-                      .svg(height: 16, width: 16, color: AppColors.white),
+                  icon: Assets.icons.editUnderline.svg(
+                    height: 16,
+                    width: 16,
+                    colorFilter:
+                        ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                  ),
                   onTap: onEditTap,
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.danger,
-                  icon: Assets.icons.trash
-                      .svg(height: 16, width: 16, color: AppColors.white),
+                  icon: Assets.icons.trash.svg(
+                    height: 16,
+                    width: 16,
+                    colorFilter:
+                        ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                  ),
                   onTap: onDeleteTap,
                 ),
               ],
@@ -162,7 +171,7 @@ class _CellContent extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withAlpha((0.1 * 255).round()),
             borderRadius: BorderRadius.circular(10),
           ),
           child: icon,

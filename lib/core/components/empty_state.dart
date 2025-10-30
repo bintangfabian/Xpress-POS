@@ -26,7 +26,11 @@ class EmptyState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (icon != null)
-            icon!.svg(width: iconSize, height: iconSize, color: iconColor),
+            icon!.svg(
+              width: iconSize,
+              height: iconSize,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            ),
           if (icon != null) const SizedBox(height: 24),
           Text(
             message,

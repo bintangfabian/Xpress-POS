@@ -62,15 +62,19 @@ class _InventoryPageState extends State<InventoryPage> {
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withAlpha((0.06 * 255).round()),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
                 child: Center(
-                  child: Assets.icons.sort
-                      .svg(height: 20, width: 20, color: AppColors.primary),
+                  child: Assets.icons.sort.svg(
+                    height: 20,
+                    width: 20,
+                    colorFilter:
+                        ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+                  ),
                 ),
               )
             ],

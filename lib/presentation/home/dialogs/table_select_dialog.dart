@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/buttons.dart';
-import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 
@@ -37,8 +36,11 @@ class _TableSelectDialogState extends State<TableSelectDialog> {
                 style: TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 32, fontFamily: '')),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                height: 32,
+                width: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             )
           ],

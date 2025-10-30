@@ -48,7 +48,7 @@ class _SyncDataPageState extends State<SyncDataPage> {
                   await ProductLocalDatasource.instance.deleteAllProducts();
                   await ProductLocalDatasource.instance
                       .insertProducts(productResponseModel.data!);
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text('Sinkronisasi produk berhasil'),
@@ -184,7 +184,7 @@ class _SyncRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha((0.08 * 255).round()),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -193,7 +193,11 @@ class _SyncRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Row(
           children: [
-            icon.svg(height: 32, width: 32, color: AppColors.black),
+            icon.svg(
+              height: 32,
+              width: 32,
+              colorFilter: ColorFilter.mode(AppColors.black, BlendMode.srcIn),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

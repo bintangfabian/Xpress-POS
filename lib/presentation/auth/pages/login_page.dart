@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 
@@ -86,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                 borderRadius: const BorderRadius.all(Radius.circular(10.0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha((0.1 * 255).round()),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -173,7 +172,7 @@ class _LoginPageState extends State<LoginPage> {
                           if (storeUuid != null && storeUuid.isNotEmpty) {
                             await ds.saveStoreUuid(storeUuid);
                           }
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
@@ -202,7 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                                   final hasCached = await ds.hasCachedUser();
                                   if (hasCached) {
                                     await ds.markOfflineLogin();
-                                    if (!mounted) return;
+                                    if (!context.mounted) return;
                                     Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
@@ -211,8 +210,8 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     );
                                   } else {
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
                                           'Silakan login saat online terlebih dahulu.',

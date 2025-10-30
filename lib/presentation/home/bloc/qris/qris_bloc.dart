@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,14 +19,14 @@ class QrisBloc extends Bloc<QrisEvent, QrisState> {
       emit(const QrisState.loading());
       final response =
           await datasource.generateQRCode(event.orderId, event.grossAmount);
-      log("response: ${response}");
+      log("response: $response");
       emit(_QrisResponse(response));
     });
 
     on<_CheckPaymentStatus>((event, emit) async {
       // emit(const QrisState.loading());
       final response = await datasource.checkPaymentStatus(event.orderId);
-      log(" OrderID: ${event.orderId} | response: ${response}");
+      log(" OrderID: ${event.orderId} | response: $response");
       // Future.delayed(const Duration(seconds: 5));
       // emit(QrisState.statusCheck(response));
       if (response.transactionStatus == 'settlement') {

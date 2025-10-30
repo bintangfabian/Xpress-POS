@@ -340,7 +340,7 @@ class SyncRepository {
       return value
           .whereType<Map>()
           .map<Map<String, dynamic>>(
-            (item) => Map<String, dynamic>.from(item as Map),
+            (item) => Map<String, dynamic>.from(item),
           )
           .toList();
     }

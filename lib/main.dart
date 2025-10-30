@@ -17,7 +17,6 @@ import 'package:xpress/data/services/api_service.dart';
 import 'package:xpress/logic/bloc/sync/sync_bloc.dart';
 import 'package:xpress/presentation/auth/bloc/login/login_bloc.dart';
 import 'package:xpress/presentation/auth/bloc/logout/logout_bloc.dart';
-import 'package:xpress/presentation/auth/pages/login_page.dart';
 import 'package:xpress/presentation/auth/pages/splash_page.dart';
 import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 import 'package:xpress/presentation/home/bloc/get_table_status/get_table_status_bloc.dart';
@@ -26,7 +25,6 @@ import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc
 import 'package:xpress/presentation/home/bloc/order/order_bloc.dart';
 import 'package:xpress/presentation/home/bloc/qris/qris_bloc.dart';
 import 'package:xpress/presentation/home/bloc/status_table/status_table_bloc.dart';
-import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/presentation/report/blocs/item_sales_report/item_sales_report_bloc.dart';
 import 'package:xpress/presentation/report/blocs/product_sales/product_sales_bloc.dart';
 import 'package:xpress/presentation/report/blocs/summary/summary_bloc.dart';
@@ -191,7 +189,7 @@ class MyApp extends StatelessWidget {
               Theme.of(context).textTheme,
             ),
             appBarTheme: AppBarTheme(
-              color: AppColors.white,
+              backgroundColor: AppColors.white,
               elevation: 0,
               titleTextStyle: GoogleFonts.poppins(
                 color: AppColors.primary,
