@@ -157,16 +157,17 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   // Submit order to server
   Future<bool> _submitOrder() async {
     try {
-      print('========================================');
-      print('SUBMIT ORDER: Starting...');
+      // print('========================================');
+      // print('SUBMIT ORDER: Starting...');
 
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
 
-      print('SUBMIT ORDER: User ID = ${auth.user?.id}');
-      print('SUBMIT ORDER: Store UUID = $storeUuid');
-      print('SUBMIT ORDER: Table ID = ${widget.table?.id}');
+      // print('SUBMIT ORDER: User ID = ${auth.user?.id}');
+      // print('SUBMIT ORDER: Store UUID = $storeUuid');
+      // print('SUBMIT ORDER: Table ID = ${widget.table?.id}');
 
+      if (!mounted) return false;
       final state = context.read<CheckoutBloc>().state;
 
       final orderData = await state.maybeWhen(
@@ -196,18 +197,18 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
 
           // Debug print untuk melihat nilai diskon
-          print('=== DEBUG DISCOUNT ===');
-          print('Subtotal: $subtotal');
-          print('Discount Model: $discountModel');
-          print('Discount Amount: $discAmt');
-          print('Tax Amount: $taxAmt');
-          print('Service Amount: $serviceAmt');
-          print('====================');
+          // print('=== DEBUG DISCOUNT ===');
+          // print('Subtotal: $subtotal');
+          // print('Discount Model: $discountModel');
+          // print('Discount Amount: $discAmt');
+          // print('Tax Amount: $taxAmt');
+          // print('Service Amount: $serviceAmt');
+          // print('====================');
 
           final rawOrderType = orderType ?? widget.orderType;
           final operationMode = normalizeOperationMode(rawOrderType);
-          print('Order Type (raw): $rawOrderType');
-          print('Operation Mode (normalized): $operationMode');
+          // print('Order Type (raw): $rawOrderType');
+          // print('Operation Mode (normalized): $operationMode');
 
           // Build items array
           final items = products.map((p) {
@@ -233,9 +234,9 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             return item;
           }).toList();
 
-          print('SUBMIT ORDER: Items = ${items.length}');
+          // print('SUBMIT ORDER: Items = ${items.length}');
           for (var i = 0; i < items.length; i++) {
-            print('  Item $i: ${jsonEncode(items[i])}');
+            // print('  Item $i: ${jsonEncode(items[i])}');
           }
 
           // Build request body
@@ -311,11 +312,11 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       );
 
       if (orderData == null) {
-        print('SUBMIT ORDER: Failed - no order data');
+        // print('SUBMIT ORDER: Failed - no order data');
         return false;
       }
 
-      print('SUBMIT ORDER: Request body = ${jsonEncode(orderData)}');
+      // print('SUBMIT ORDER: Request body = ${jsonEncode(orderData)}');
 
       // Make API request
       final uri =
@@ -327,7 +328,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      print('SUBMIT ORDER: POST $uri');
+      // print('SUBMIT ORDER: POST $uri');
 
       var res = await http.post(
         uri,
@@ -335,8 +336,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         body: jsonEncode(orderData),
       );
 
-      print('SUBMIT ORDER: Response status = ${res.statusCode}');
-      print('SUBMIT ORDER: Response body = ${res.body}');
+      // print('SUBMIT ORDER: Response status = ${res.statusCode}');
+      // print('SUBMIT ORDER: Response body = ${res.body}');
 
       if (res.statusCode == 403) {
         // Retry without store header if forbidden
@@ -346,21 +347,22 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           headers: headers,
           body: jsonEncode(orderData),
         );
-        print('SUBMIT ORDER: Retry response status = ${res.statusCode}');
-        print('SUBMIT ORDER: Retry response body = ${res.body}');
+        // print('SUBMIT ORDER: Retry response status = ${res.statusCode}');
+        // print('SUBMIT ORDER: Retry response body = ${res.body}');
       }
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        print('SUBMIT ORDER: Success!');
+        // print('SUBMIT ORDER: Success!');
 
         // Extract order_id from response
         final orderRemoteDatasource = OrderRemoteDatasource();
         final orderId = orderRemoteDatasource.extractOrderId(res.body);
 
         if (orderId != null && orderId.isNotEmpty) {
-          print('SUBMIT ORDER: Order ID = $orderId');
+          // print('SUBMIT ORDER: Order ID = $orderId');
 
           // Calculate total amount for payment
+          if (!mounted) return false;
           final state = context.read<CheckoutBloc>().state;
           final total = state.maybeWhen(
             loaded: (
@@ -392,8 +394,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           final paymentNotes =
               'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
 
-          print('SUBMIT ORDER: Creating payment...');
-          print('SUBMIT ORDER: Payment Method = $paymentMethod');
+          // print('SUBMIT ORDER: Creating payment...');
+          // print('SUBMIT ORDER: Payment Method = $paymentMethod');
           // Extract total_amount from API response instead of recalculating
           int apiTotal = 0;
           try {
@@ -403,8 +405,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
               final totalStr = orderData['total_amount'].toString();
               apiTotal = (double.tryParse(totalStr) ?? 0.0).round();
               if (apiTotal > 0) {
-                print('SUBMIT ORDER: Using API total amount = $apiTotal');
-                print('SUBMIT ORDER: Calculated total = $total');
+                // print('SUBMIT ORDER: Using API total amount = $apiTotal');
+                // print('SUBMIT ORDER: Calculated total = $total');
               }
             }
           } catch (e) {
@@ -413,7 +415,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
           // Use API total if available, otherwise use calculated total
           final finalAmount = apiTotal > 0 ? apiTotal : total;
-          print('SUBMIT ORDER: Amount = $finalAmount');
+          // print('SUBMIT ORDER: Amount = $finalAmount');
 
           final paymentCreated = await orderRemoteDatasource.createPayment(
             orderId: orderId,
@@ -424,49 +426,35 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           );
 
           if (paymentCreated) {
-            print('SUBMIT ORDER: Payment created successfully!');
+            // print('SUBMIT ORDER: Payment created successfully!');
           } else {
-            print('SUBMIT ORDER: Failed to create payment');
-            print('SUBMIT ORDER: Response body for debugging: ${res.body}');
+            // print('SUBMIT ORDER: Failed to create payment');
+            // print('SUBMIT ORDER: Response body for debugging: ${res.body}');
           }
         } else {
-          print('ERROR: Could not extract order_id from response');
-          print('SUBMIT ORDER: Response body: ${res.body}');
+          // print('ERROR: Could not extract order_id from response');
+          // print('SUBMIT ORDER: Response body: ${res.body}');
           try {
-            final decoded = jsonDecode(res.body);
-            print('SUBMIT ORDER: Decoded response: $decoded');
-            print(
-                'SUBMIT ORDER: Response keys: ${decoded is Map ? decoded.keys.toList() : 'not a map'}');
+            // final decoded = jsonDecode(res.body);
+            // print('SUBMIT ORDER: Decoded response: $decoded');
+            // print('SUBMIT ORDER: Response keys: ${decoded is Map ? decoded.keys.toList() : 'not a map'}');
           } catch (e) {
-            print('SUBMIT ORDER: Error parsing response: $e');
+            // print('SUBMIT ORDER: Error parsing response: $e');
           }
         }
 
-        print('========================================');
+        // print('========================================');
         return true;
       }
 
-      print('SUBMIT ORDER: Failed with status ${res.statusCode}');
-      print('========================================');
+      // print('SUBMIT ORDER: Failed with status ${res.statusCode}');
+      // print('========================================');
       return false;
     } catch (e) {
-      print('SUBMIT ORDER: Exception = $e');
-      print('========================================');
+      // print('SUBMIT ORDER: Exception = $e');
+      // print('========================================');
       return false;
     }
-  }
-
-  int _calculateCartTotal() {
-    final state = context.read<CheckoutBloc>().state;
-    return state.maybeWhen(
-      loaded: (products, discountModel, discount, discountAmount, tax,
-              serviceCharge, totalQuantity, totalPrice, draftName, orderType) =>
-          products
-              .map(
-                  (e) => (e.product.price?.toIntegerFromText ?? 0) * e.quantity)
-              .fold(0, (a, b) => a + b),
-      orElse: () => 0,
-    );
   }
 
   int _currentTotalPay() {
@@ -526,32 +514,31 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     final val = double.tryParse(model.value ?? '0') ?? 0.0;
     final type = (model.type ?? '').toLowerCase();
 
-    print('=== DEBUG DISCOUNT CALCULATION ===');
-    print('Model: $model');
-    print('Value: ${model.value}');
-    print('Parsed Value: $val');
-    print('Type: $type');
-    print('Subtotal: $subtotal');
+    // print('=== DEBUG DISCOUNT CALCULATION ===');
+    // print('Model: $model');
+    // print('Value: ${model.value}');
+    // print('Parsed Value: $val');
+    // print('Type: $type');
+    // print('Subtotal: $subtotal');
 
     int discountAmount = 0;
 
     if (type == 'percentage') {
       // Percentage discount: 50.00 means 50%
       discountAmount = (subtotal * (val / 100)).floor();
-      print(
-          'Percentage calculation: $subtotal * ($val / 100) = $discountAmount');
+      // print('Percentage calculation: $subtotal * ($val / 100) = $discountAmount');
     } else if (type == 'fixed') {
       // Fixed amount discount: 3000.00 means 3000 rupiah
       discountAmount = val.toInt();
-      print('Fixed amount: $discountAmount');
+      // print('Fixed amount: $discountAmount');
     } else {
-      print('Unknown discount type: $type');
+      // print('Unknown discount type: $type');
     }
 
     // Ensure discount doesn't exceed subtotal
     discountAmount = discountAmount.clamp(0, subtotal);
-    print('Final discount amount: $discountAmount');
-    print('================================');
+    // print('Final discount amount: $discountAmount');
+    // print('================================');
 
     return discountAmount;
   }
@@ -679,8 +666,11 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                               padding:
                                                   const EdgeInsets.all(12.0),
                                               child: Assets.icons.payment.svg(
-                                                  color: AppColors
-                                                      .greyLightActive),
+                                                  colorFilter:
+                                                      const ColorFilter.mode(
+                                                          AppColors
+                                                              .greyLightActive,
+                                                          BlendMode.srcIn)),
                                             ),
                                             contentPadding:
                                                 const EdgeInsets.symmetric(
@@ -872,7 +862,9 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                       borderColor: AppColors.primary,
                                       padding: EdgeInsets.zero,
                                       icon: Assets.icons.backArrow.svg(
-                                          color: AppColors.primary,
+                                          colorFilter: const ColorFilter.mode(
+                                              AppColors.primary,
+                                              BlendMode.srcIn),
                                           height: 24,
                                           width: 24),
                                       onPressed: () {
@@ -1017,7 +1009,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: EdgeInsetsGeometry.only(bottom: 8),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: const Text(
                             'Detail Pesanan',
                             style: TextStyle(
@@ -1272,8 +1264,11 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             decoration: InputDecoration(
               prefixIcon: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Assets.icons.user
-                    .svg(height: 24, width: 24, color: AppColors.grey),
+                child: Assets.icons.user.svg(
+                    height: 24,
+                    width: 24,
+                    colorFilter: const ColorFilter.mode(
+                        AppColors.grey, BlendMode.srcIn)),
               ),
               hintText: "Nama Customer",
               border:
@@ -1298,6 +1293,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                         .map((m) => m['name'] ?? '')
                         .cast<String>()
                         .toList();
+                    if (!mounted) return;
                     final res = await showDialog<String>(
                       context: context,
                       builder: (_) => MemberDialog(
@@ -1305,6 +1301,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                         initial: customerController.text,
                       ),
                     );
+                    if (!mounted) return;
                     if (res != null && res.isNotEmpty) {
                       // Find the selected member using a safer approach
                       Map<String, dynamic>? selectedMember;
@@ -1337,6 +1334,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                     final bloc = context.read<GetTableBloc>();
                     bloc.add(const GetTableEvent.getTables());
 
+                    if (!mounted) return;
                     final selected = await showDialog<int>(
                       context: context,
                       builder: (_) => TableSelectDialog(
@@ -1345,6 +1343,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                             0,
                       ),
                     );
+                    if (!mounted) return;
                     if (selected != null) {
                       setState(() => _selectedTableNumber = selected);
                     }
@@ -1366,10 +1365,12 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   label: "Diskon",
                   onPressed: () async {
                     final discounts = await _fetchDiscounts();
+                    if (!mounted) return;
                     final selected = await showDialog<Discount>(
                       context: context,
                       builder: (_) => DiscountDialog(discounts: discounts),
                     );
+                    if (!mounted) return;
                     if (selected != null) {
                       context
                           .read<CheckoutBloc>()
@@ -1385,10 +1386,12 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   filled: false,
                   label: "Pajak",
                   onPressed: () async {
+                    if (!mounted) return;
                     final selected = await showDialog<int>(
                       context: context,
                       builder: (_) => const TaxDialog(),
                     );
+                    if (!mounted) return;
                     if (selected != null) {
                       context
                           .read<CheckoutBloc>()
@@ -1404,10 +1407,12 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   filled: false,
                   label: "Layanan",
                   onPressed: () async {
+                    if (!mounted) return;
                     final selected = await showDialog<int>(
                       context: context,
                       builder: (_) => const ServiceDialog(),
                     );
+                    if (!mounted) return;
                     if (selected != null) {
                       context
                           .read<CheckoutBloc>()
@@ -1518,8 +1523,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     );
   }
 
-  Widget _priceRow(String label, String value,
-      {bool bold = false, bool highlight = false}) {
+  Widget _priceRow(String label, String value) {
     return Container(
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -1545,8 +1549,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     );
   }
 
-  Widget _totalPriceRow(String label, String value,
-      {bool bold = false, bool highlight = false}) {
+  Widget _totalPriceRow(String label, String value) {
     return Container(
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -1579,7 +1582,11 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Assets.icons.bill.svg(width: 120, height: 120, color: AppColors.grey),
+          Assets.icons.bill.svg(
+              width: 120,
+              height: 120,
+              colorFilter:
+                  const ColorFilter.mode(AppColors.grey, BlendMode.srcIn)),
           const SpaceHeight(24),
           Column(
             children: [

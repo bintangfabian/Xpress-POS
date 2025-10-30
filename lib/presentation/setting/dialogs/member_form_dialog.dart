@@ -41,8 +41,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
     final parsed = _dobController.text.isNotEmpty
         ? DateTime.tryParse(_dobController.text.trim())
         : null;
-    final initial =
-        parsed == null ? DateTime(now.year - 20, now.month, now.day) : parsed;
+    final initial = parsed ?? DateTime(now.year - 20, now.month, now.day);
     final picked = await showCustomDatePicker(
       context: context,
       initialDate: initial.isAfter(now) ? now : initial,
@@ -107,8 +106,11 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
             const Text('Tambah Member',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
             IconButton(
-              icon: Assets.icons.cancel
-                  .svg(color: AppColors.grey, height: 32, width: 32),
+              icon: Assets.icons.cancel.svg(
+                  colorFilter:
+                      const ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                  height: 32,
+                  width: 32),
               onPressed: () => Navigator.pop(context),
             )
           ],

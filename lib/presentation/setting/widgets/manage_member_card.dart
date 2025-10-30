@@ -42,7 +42,8 @@ class ManageMemberCard extends StatelessWidget {
               icon: Assets.icons.user.svg(
                 height: 24,
                 width: 24,
-                color: AppColors.primary,
+                colorFilter:
+                    const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
               ),
               text: data.name ?? '-',
             ),
@@ -91,22 +92,31 @@ class ManageMemberCard extends StatelessWidget {
               children: [
                 _ActionButton(
                   color: AppColors.primaryLightActive,
-                  icon: Assets.icons.eye
-                      .svg(height: 16, width: 16, color: AppColors.black),
+                  icon: Assets.icons.eye.svg(
+                      height: 16,
+                      width: 16,
+                      colorFilter: const ColorFilter.mode(
+                          AppColors.black, BlendMode.srcIn)),
                   onTap: () => _showMemberDetail(context),
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.primary,
-                  icon: Assets.icons.editUnderline
-                      .svg(height: 16, width: 16, color: AppColors.white),
+                  icon: Assets.icons.editUnderline.svg(
+                      height: 16,
+                      width: 16,
+                      colorFilter: const ColorFilter.mode(
+                          AppColors.white, BlendMode.srcIn)),
                   onTap: () => _showEditMember(context),
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.danger,
-                  icon: Assets.icons.trash
-                      .svg(height: 16, width: 16, color: AppColors.white),
+                  icon: Assets.icons.trash.svg(
+                      height: 16,
+                      width: 16,
+                      colorFilter: const ColorFilter.mode(
+                          AppColors.white, BlendMode.srcIn)),
                   onTap: onDeleteTap,
                 ),
               ],
