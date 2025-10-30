@@ -30,7 +30,7 @@ jobs:
       # === Prepare signing ===
       - name: Decode keystore
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/app/my-release-key.jks
+          echo "$KEYSTORE_BASE64" | base64 -d > android/my-release-key.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
@@ -40,7 +40,7 @@ jobs:
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=app/my-release-key.jks
+          storeFile=../my-release-key.jks
           EOF
 
       - name: Build RELEASE APK
