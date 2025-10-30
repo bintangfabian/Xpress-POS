@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "868698690519",
+    "project_id": "xpress-pos-magercoding",
+    "storage_bucket": "xpress-pos-magercoding.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868698690519:android:7a64afa0181e301cb8b192",
+        "android_client_info": {
+          "package_name": "com.example.xpress"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxsyRnWRVcx7W8RAVzG1ZcR7Vf-tTzUT4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

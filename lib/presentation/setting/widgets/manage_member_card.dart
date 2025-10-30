@@ -25,10 +25,10 @@ class ManageMemberCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withAlpha((0.06 * 255).round())),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha((0.04 * 255).round()),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -42,8 +42,7 @@ class ManageMemberCard extends StatelessWidget {
               icon: Assets.icons.user.svg(
                 height: 24,
                 width: 24,
-                colorFilter:
-                    ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+                color: AppColors.primary,
               ),
               text: data.name ?? '-',
             ),
@@ -92,34 +91,22 @@ class ManageMemberCard extends StatelessWidget {
               children: [
                 _ActionButton(
                   color: AppColors.primaryLightActive,
-                  icon: Assets.icons.eye.svg(
-                    height: 16,
-                    width: 16,
-                    colorFilter:
-                        ColorFilter.mode(AppColors.black, BlendMode.srcIn),
-                  ),
+                  icon: Assets.icons.eye
+                      .svg(height: 16, width: 16, color: AppColors.black),
                   onTap: () => _showMemberDetail(context),
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.primary,
-                  icon: Assets.icons.editUnderline.svg(
-                    height: 16,
-                    width: 16,
-                    colorFilter:
-                        ColorFilter.mode(AppColors.white, BlendMode.srcIn),
-                  ),
+                  icon: Assets.icons.editUnderline
+                      .svg(height: 16, width: 16, color: AppColors.white),
                   onTap: () => _showEditMember(context),
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
                   color: AppColors.danger,
-                  icon: Assets.icons.trash.svg(
-                    height: 16,
-                    width: 16,
-                    colorFilter:
-                        ColorFilter.mode(AppColors.white, BlendMode.srcIn),
-                  ),
+                  icon: Assets.icons.trash
+                      .svg(height: 16, width: 16, color: AppColors.white),
                   onTap: onDeleteTap,
                 ),
               ],
@@ -193,7 +180,7 @@ class _CellContent extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.primary.withAlpha((0.1 * 255).round()),
+            color: AppColors.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: icon,

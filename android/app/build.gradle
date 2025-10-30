@@ -2,8 +2,6 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    // Add the Google services Gradle plugin
-    id 'com.google.gms.google-services'
 }
 
 def localProperties = new Properties()
@@ -30,10 +28,24 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def googleServicesFiles = [
+        file("google-services.json"),
+        file("src/google-services.json"),
+        file("src/debug/google-services.json"),
+        file("src/release/google-services.json")
+]
+def hasGoogleServices = googleServicesFiles.any { it.exists() }
+
+if (hasGoogleServices) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle("google-services.json not found; skipping Google Services plugin.")
+}
+
 android {
     namespace "com.example.xpress"
     compileSdkVersion 34
-    ndkVersion flutter.ndkVersion
+    ndkVersion "26.1.10909125"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -74,7 +86,7 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig signingConfigs.release
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
             shrinkResources false
             minifyEnabled false
         }
@@ -86,6 +98,6 @@ flutter {
 }
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:34.4.0')
+    implementation platform('com.google.firebase:firebase-bom:33.5.1')
     implementation 'com.google.firebase:firebase-analytics'
 }

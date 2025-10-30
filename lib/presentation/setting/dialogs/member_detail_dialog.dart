@@ -88,11 +88,8 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
               ),
             ),
             IconButton(
-              icon: Assets.icons.cancel.svg(
-                colorFilter: ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
-                height: 32,
-                width: 32,
-              ),
+              icon: Assets.icons.cancel
+                  .svg(color: AppColors.grey, height: 32, width: 32),
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -182,14 +179,14 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
       margin: const EdgeInsets.symmetric(horizontal: 5),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withAlpha((0.8 * 255).round())],
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withAlpha((0.3 * 255).round()),
+            color: AppColors.primary.withOpacity(0.3),
             blurRadius: 5,
             offset: const Offset(0, 4),
           ),
@@ -209,7 +206,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   child: Container(
                     width: 15,
                     height: 150,
-                    color: AppColors.white.withAlpha((0.15 * 255).round()),
+                    color: AppColors.white.withOpacity(0.15),
                   ),
                 ),
                 // Second diagonal line (/)
@@ -218,7 +215,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   child: Container(
                     width: 15,
                     height: 150,
-                    color: AppColors.white.withAlpha((0.15 * 255).round()),
+                    color: AppColors.white.withOpacity(0.15),
                   ),
                 ),
               ],
@@ -235,7 +232,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   child: Container(
                     width: 20,
                     height: 200,
-                    color: AppColors.white.withAlpha((0.12 * 255).round()),
+                    color: AppColors.white.withOpacity(0.12),
                   ),
                 ),
                 // Second diagonal line (/)
@@ -244,7 +241,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   child: Container(
                     width: 20,
                     height: 200,
-                    color: AppColors.white.withAlpha((0.12 * 255).round()),
+                    color: AppColors.white.withOpacity(0.12),
                   ),
                 ),
               ],
@@ -261,7 +258,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   child: Container(
                     width: 4,
                     height: 50,
-                    color: AppColors.white.withAlpha((0.1 * 255).round()),
+                    color: AppColors.white.withOpacity(0.1),
                   ),
                 ),
                 // Second diagonal line (/)
@@ -270,7 +267,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   child: Container(
                     width: 4,
                     height: 50,
-                    color: AppColors.white.withAlpha((0.1 * 255).round()),
+                    color: AppColors.white.withOpacity(0.1),
                   ),
                 ),
               ],
@@ -293,7 +290,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                         borderRadius: BorderRadius.circular(40),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha((0.1 * 255).round()),
+                            color: Colors.black.withOpacity(0.1),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -352,8 +349,8 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? AppColors.success.withAlpha((0.2 * 255).round())
-                                  : AppColors.danger.withAlpha((0.2 * 255).round()),
+                                  ? AppColors.success.withOpacity(0.2)
+                                  : AppColors.danger.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isActive
@@ -383,7 +380,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.white.withAlpha((0.2 * 255).round()),
+                              color: AppColors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -391,7 +388,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.white.withAlpha((0.9 * 255).round()),
+                                color: AppColors.white.withOpacity(0.9),
                               ),
                             ),
                           ),
@@ -407,7 +404,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.white.withAlpha((0.9 * 255).round()),
+                              color: AppColors.white.withOpacity(0.9),
                             ),
                           ),
                         ],
@@ -415,79 +412,70 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                       const SizedBox(height: 12),
 
                       // Contact Info with improved styling
-                      IntrinsicWidth(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.white.withAlpha((0.1 * 255).round()),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment
-                                .start, // ✅ agar teks rata kiri
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize
-                                    .min, // ✅ biar row ikut ukuran teks
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.white.withAlpha((0.2 * 255).round()),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Icon(
-                                      Icons.email_outlined,
-                                      size: 14,
-                                      color: AppColors.white,
-                                    ),
+                      Container(
+                        width: 250,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      member.email ?? '-',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.white.withAlpha((0.9 * 255).round()),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      softWrap: false,
-                                    ),
+                                  child: Icon(
+                                    Icons.email_outlined,
+                                    size: 14,
+                                    color: AppColors.white,
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.white.withAlpha((0.2 * 255).round()),
-                                      borderRadius: BorderRadius.circular(4),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    member.email ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.white.withOpacity(0.9),
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    child: Icon(
-                                      Icons.phone_outlined,
-                                      size: 14,
-                                      color: AppColors.white,
-                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      member.phone ?? '-',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.white.withAlpha((0.9 * 255).round()),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      softWrap: false,
-                                    ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
+                                  child: Icon(
+                                    Icons.phone_outlined,
+                                    size: 14,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  member.phone ?? '-',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.white.withOpacity(0.9),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -547,7 +535,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: tierColor.withAlpha((0.3 * 255).round()),
+                      color: tierColor.withOpacity(0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -621,7 +609,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                       gradient: LinearGradient(
                         colors: [
                           AppColors.primary,
-                          AppColors.primary.withAlpha((0.8 * 255).round())
+                          AppColors.primary.withOpacity(0.8)
                         ],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
@@ -629,7 +617,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                       borderRadius: BorderRadius.circular(6),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha((0.3 * 255).round()),
+                          color: AppColors.primary.withOpacity(0.3),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),
@@ -658,15 +646,15 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primaryLight,
+                color: AppColors.successLight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
+                border: Border.all(color: AppColors.success.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.local_offer,
-                    color: AppColors.primary,
+                    color: AppColors.success,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -674,7 +662,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                     'Diskon ${member.tierDiscountPercentage}% untuk setiap transaksi',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.primary,
+                      color: AppColors.success,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -695,7 +683,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
             'Total Pengeluaran',
             'Rp ${member.formattedTotalSpent ?? '0'}',
             Icons.account_balance_wallet,
-            AppColors.primary,
+            AppColors.success,
           ),
         ),
         const SizedBox(width: 12),
@@ -704,7 +692,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
             'Jumlah Kunjungan',
             '${member.visitCount ?? 0}x',
             Icons.store,
-            AppColors.primary,
+            AppColors.warning,
           ),
         ),
         const SizedBox(width: 12),
@@ -727,10 +715,10 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha((0.2 * 255).round())),
+        border: Border.all(color: color.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha((0.05 * 255).round()),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -744,7 +732,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withAlpha((0.1 * 255).round()),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -787,7 +775,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
         border: Border.all(color: AppColors.greyLightActive),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha((0.05 * 255).round()),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
