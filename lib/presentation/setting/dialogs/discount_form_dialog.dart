@@ -142,7 +142,8 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
                     Expanded(
                       flex: 4,
                       child: DropdownButtonFormField<String>(
-                        initialValue: _selectedType,
+                        // ignore: deprecated_member_use
+                        value: _selectedType,
                         items: _typeOptions
                             .map(
                               (type) => DropdownMenuItem<String>(

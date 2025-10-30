@@ -1022,9 +1022,9 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: EdgeInsetsGeometry.only(bottom: 8),
-                          child: const Text(
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Text(
                             'Detail Pesanan',
                             style: TextStyle(
                               fontSize: 20,
