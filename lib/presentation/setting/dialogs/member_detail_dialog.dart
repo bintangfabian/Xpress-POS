@@ -412,70 +412,79 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                       const SizedBox(height: 12),
 
                       // Contact Info with improved styling
-                      Container(
-                        width: 250,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Icon(
-                                    Icons.email_outlined,
-                                    size: 14,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    member.email ?? '-',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.white.withOpacity(0.9),
-                                      fontWeight: FontWeight.w500,
+                      IntrinsicWidth(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment
+                                .start, // ✅ agar teks rata kiri
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize
+                                    .min, // ✅ biar row ikut ukuran teks
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
-                                    overflow: TextOverflow.ellipsis,
+                                    child: Icon(
+                                      Icons.email_outlined,
+                                      size: 14,
+                                      color: AppColors.white,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(4),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      member.email ?? '-',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.white.withOpacity(0.9),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      softWrap: false,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.phone_outlined,
-                                    size: 14,
-                                    color: AppColors.white,
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Icon(
+                                      Icons.phone_outlined,
+                                      size: 14,
+                                      color: AppColors.white,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  member.phone ?? '-',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.white.withOpacity(0.9),
-                                    fontWeight: FontWeight.w500,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      member.phone ?? '-',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.white.withOpacity(0.9),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      softWrap: false,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -646,15 +655,15 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.successLight,
+                color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.local_offer,
-                    color: AppColors.success,
+                    color: AppColors.primary,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -662,7 +671,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
                     'Diskon ${member.tierDiscountPercentage}% untuk setiap transaksi',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.success,
+                      color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -683,7 +692,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
             'Total Pengeluaran',
             'Rp ${member.formattedTotalSpent ?? '0'}',
             Icons.account_balance_wallet,
-            AppColors.success,
+            AppColors.primary,
           ),
         ),
         const SizedBox(width: 12),
@@ -692,7 +701,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
             'Jumlah Kunjungan',
             '${member.visitCount ?? 0}x',
             Icons.store,
-            AppColors.warning,
+            AppColors.primary,
           ),
         ),
         const SizedBox(width: 12),
