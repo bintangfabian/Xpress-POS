@@ -10,29 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # === STEP 1: Checkout Source ===
       - name: Checkout
         uses: actions/checkout@v4
 
-      # === STEP 2: Set up Flutter ===
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
 
-      # === STEP 3: Install dependencies ===
       - name: Flutter pub get
         run: flutter pub get
 
-      # === STEP 4: Lint & Test (optional but safe) ===
-      # Gunakan '|| true' agar CI tidak gagal karena warning print() dsb.
       - name: Analyze
         run: flutter analyze || true
 
       - name: Test
         run: flutter test || true
 
-      # === STEP 5: Prepare signing ===
+      # === Prepare signing ===
       - name: Decode keystore
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > android/my-release-key.jks
@@ -48,16 +43,19 @@ jobs:
           storeFile=../my-release-key.jks
           EOF
 
-      # === STEP 6: Build release APK ===
       - name: Build RELEASE APK
         run: flutter build apk --release
 
-      # === STEP 7: Upload to Firebase ===
+      # === Write Firebase Service Account JSON ===
+      - name: Decode Firebase Service Account JSON
+        run: echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" | base64 -d > firebase_service_account.json
+
+      # === Upload to Firebase ===
       - name: Upload to Firebase App Distribution (via Service Account)
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          serviceCredentialsFile: firebase_service_account.json
           groups: testers
           file: build/app/outputs/flutter-apk/app-release.apk
           releaseNotes: |
@@ -65,9 +63,6 @@ jobs:
             Branch: ${{ github.ref_name }}
           debug: true
 
-
-
-      # === STEP 8: Upload artifact (optional) ===
       - name: Upload artifact (optional)
         uses: actions/upload-artifact@v4
         with:
