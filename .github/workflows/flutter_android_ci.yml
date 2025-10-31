@@ -54,7 +54,7 @@ jobs:
 
       # === STEP 7: Upload to Firebase ===
       - name: Upload to Firebase App Distribution (via Service Account)
-        uses: wzieba/Firebase-Distribution-Github-Action@v1.7.2
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
