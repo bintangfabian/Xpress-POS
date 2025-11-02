@@ -7,6 +7,8 @@ import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
 import 'package:xpress/data/models/response/table_model.dart';
+import 'package:xpress/data/models/response/order_response_model.dart'
+    hide Product;
 import 'package:xpress/logic/bloc/sync/sync_bloc.dart';
 import 'package:xpress/presentation/home/bloc/local_product/local_product_bloc.dart';
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
@@ -23,11 +25,14 @@ import 'package:xpress/presentation/home/dialogs/variant_dialog.dart';
 import 'package:xpress/presentation/setting/bloc/get_categories/get_categories_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/sync_product/sync_product_bloc.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
-import 'package:xpress/presentation/home/dialogs/open_bill_dialog.dart';
+import 'package:xpress/presentation/home/dialogs/open_bill_list_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/clear_order_dialog.dart';
 import 'package:xpress/presentation/home/widgets/sort_dropdown.dart';
 import 'package:xpress/presentation/home/models/product_variant.dart';
+import 'package:xpress/presentation/home/pages/confirm_payment_page.dart';
+import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/presentation/widgets/offline_banner.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
 
 class HomePage extends StatefulWidget {
   final bool isTable;
@@ -52,6 +57,11 @@ class _HomePageState extends State<HomePage> {
   String _orderNumber = '#0001';
   String _searchQuery = '';
   SortOption? _sortOption;
+
+  // Open Bill tracking
+  bool _isEditingOpenBill = false;
+  String? _editingOpenBillId;
+  TableModel? _editingOpenBillTable;
 
   void _logHome(String message) {
     assert(() {
@@ -99,6 +109,506 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       setState(() => _orderNumber = next);
     } catch (_) {}
+  }
+
+  Future<void> _createOpenBillOrder(String orderType) async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final state = context.read<CheckoutBloc>().state;
+
+      await state.maybeWhen(
+        loaded: (
+          products,
+          discountModel,
+          discount,
+          discountAmount,
+          tax,
+          serviceCharge,
+          totalQuantity,
+          totalPrice,
+          draftName,
+          ordType,
+        ) async {
+          // Calculate amounts
+          final subtotal = products.map((e) {
+            final basePrice = e.product.price?.toIntegerFromText ?? 0;
+            final variantPrice =
+                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
+                    0;
+            return (basePrice + variantPrice) * e.quantity;
+          }).fold(0, (a, b) => a + b);
+
+          final discAmt = discountAmount;
+          final taxAmt = (subtotal * (tax / 100)).round();
+          final serviceAmt = (subtotal * (serviceCharge / 100)).round();
+          final totalAmt = subtotal - discAmt + taxAmt + serviceAmt;
+
+          // Build items
+          final items = products.map((e) {
+            final basePrice = e.product.price?.toIntegerFromText ?? 0;
+            final variantPrice =
+                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
+                    0;
+            final unitPrice = basePrice + variantPrice;
+            final totalPrice = unitPrice * e.quantity;
+
+            return {
+              'product_id': e.product.id,
+              'product_name': e.product.name,
+              'quantity': e.quantity,
+              'unit_price': unitPrice,
+              'total_price': totalPrice,
+            };
+          }).toList();
+
+          // Build order data
+          final orderData = <String, dynamic>{
+            'order_number': _orderNumber,
+            'order_type': orderType,
+            'subtotal': subtotal,
+            'total_amount': totalAmt,
+            'items': items,
+          };
+
+          // Add table_id if exists
+          if (widget.table?.id != null && widget.table!.id!.isNotEmpty) {
+            orderData['table_id'] = widget.table!.id;
+          }
+
+          // Add financial details
+          if (discAmt > 0) orderData['discount_amount'] = discAmt.toDouble();
+          if (serviceAmt > 0) {
+            orderData['service_charge'] = serviceAmt.toDouble();
+          }
+          if (taxAmt > 0) orderData['tax'] = taxAmt.toDouble();
+
+          // Create open bill order
+          final result = await OrderRemoteDatasource().createOpenBillOrder(
+            orderData: orderData,
+            totalAmount: totalAmt,
+          );
+
+          if (!mounted) return;
+
+          // Close loading dialog
+          Navigator.of(context).pop();
+
+          result.fold(
+            (error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Gagal membuat Open Bill: $error'),
+                  backgroundColor: AppColors.danger,
+                ),
+              );
+            },
+            (orderId) {
+              // Success - clear cart and show success message
+              context
+                  .read<CheckoutBloc>()
+                  .add(const CheckoutEvent.clearOrder());
+
+              // Navigate back to dashboard page (home)
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DashboardPage(
+                    initialIndex: 0, // HomePage
+                  ),
+                ),
+                (route) => false,
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Open Bill berhasil dibuat!'),
+                  backgroundColor: AppColors.success,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          );
+        },
+        orElse: () async {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        // Close loading if still showing
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  // Load open bill to checkout (Lanjutkan)
+  Future<void> _loadOpenBillToCheckout(ItemOrder order) async {
+    // Set editing state
+    setState(() {
+      _isEditingOpenBill = true;
+      _editingOpenBillId = order.id;
+      _orderNumber = order.orderNumber ?? _orderNumber;
+
+      // Set order type
+      if (order.operationMode != null) {
+        _orderType = order.operationMode == 'dine_in'
+            ? 'dinein'
+            : order.operationMode == 'takeaway'
+                ? 'takeaway'
+                : null;
+      }
+
+      // Set table if exists
+      if (order.table != null) {
+        final now = TimezoneHelper.now();
+        _editingOpenBillTable = TableModel(
+          id: order.table!.id,
+          tableNumber: order.table!.tableNumber,
+          name: order.table!.name,
+          startTime:
+              order.createdAt?.toIso8601String() ?? now.toIso8601String(),
+          status: 'occupied',
+          orderId: 0,
+          paymentAmount: int.tryParse(order.totalAmount ?? '0') ?? 0,
+        );
+      }
+    });
+
+    // Clear existing checkout first
+    context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
+
+    // Load items to checkout
+    if (order.items != null) {
+      for (var item in order.items!) {
+        if (item.productId != null) {
+          // Fetch the product from local DB to get proper Product model
+          final result = await ProductLocalDatasource.instance
+              .getProductById(item.productId!);
+          if (result != null) {
+            // Add to checkout with quantity
+            for (int i = 0; i < (item.quantity ?? 1); i++) {
+              if (mounted) {
+                context.read<CheckoutBloc>().add(
+                      CheckoutEvent.addItem(result),
+                    );
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Set order type in bloc if available
+    if (_orderType != null && mounted) {
+      context.read<CheckoutBloc>().add(
+            CheckoutEvent.setOrderType(_orderType!),
+          );
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Open Bill berhasil dimuat. Silakan lanjutkan pesanan.'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Update open bill order (Simpan)
+  Future<void> _updateOpenBillOrder(String orderType) async {
+    if (!_isEditingOpenBill || _editingOpenBillId == null) return;
+
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final state = context.read<CheckoutBloc>().state;
+
+      await state.maybeWhen(
+        loaded: (
+          products,
+          discountModel,
+          discount,
+          discountAmount,
+          tax,
+          serviceCharge,
+          totalQuantity,
+          totalPrice,
+          draftName,
+          ordType,
+        ) async {
+          // Calculate amounts
+          final subtotal = products.map((e) {
+            final basePrice = e.product.price?.toIntegerFromText ?? 0;
+            final variantPrice =
+                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
+                    0;
+            return (basePrice + variantPrice) * e.quantity;
+          }).fold(0, (a, b) => a + b);
+
+          final discAmt = discountAmount;
+          final taxAmt = (subtotal * (tax / 100)).round();
+          final serviceAmt = (subtotal * (serviceCharge / 100)).round();
+          final totalAmt = subtotal - discAmt + taxAmt + serviceAmt;
+
+          // Build items
+          final items = products.map((e) {
+            final basePrice = e.product.price?.toIntegerFromText ?? 0;
+            final variantPrice =
+                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
+                    0;
+            final unitPrice = basePrice + variantPrice;
+            final totalPrice = unitPrice * e.quantity;
+
+            return {
+              'product_id': e.product.id,
+              'product_name': e.product.name,
+              'quantity': e.quantity,
+              'unit_price': unitPrice,
+              'total_price': totalPrice,
+            };
+          }).toList();
+
+          // Build order data for update
+          final orderData = <String, dynamic>{
+            'order_number': _orderNumber,
+            'order_type': orderType,
+            'subtotal': subtotal,
+            'total_amount': totalAmt,
+            'items': items,
+          };
+
+          // Add table_id if exists
+          if (_editingOpenBillTable?.id != null &&
+              _editingOpenBillTable!.id!.isNotEmpty) {
+            orderData['table_id'] = _editingOpenBillTable!.id;
+          }
+
+          // Add financial details
+          if (discAmt > 0) orderData['discount_amount'] = discAmt.toDouble();
+          if (serviceAmt > 0) {
+            orderData['service_charge'] = serviceAmt.toDouble();
+          }
+          if (taxAmt > 0) orderData['tax'] = taxAmt.toDouble();
+
+          // Update open bill order
+          final result = await OrderRemoteDatasource().updateOpenBillOrder(
+            orderId: _editingOpenBillId!,
+            orderData: orderData,
+          );
+
+          if (!mounted) return;
+
+          // Close loading dialog
+          Navigator.of(context).pop();
+
+          result.fold(
+            (error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Gagal mengupdate Open Bill: $error'),
+                  backgroundColor: AppColors.danger,
+                ),
+              );
+            },
+            (success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Open Bill berhasil diupdate!'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            },
+          );
+        },
+        orElse: () async {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        // Close loading if still showing
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  // Cancel open bill order (Batalkan)
+  Future<void> _cancelOpenBillOrder() async {
+    if (!_isEditingOpenBill || _editingOpenBillId == null) return;
+
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Cancel open bill order
+      final result = await OrderRemoteDatasource().cancelOpenBillOrder(
+        orderId: _editingOpenBillId!,
+      );
+
+      if (!mounted) return;
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      result.fold(
+        (error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal membatalkan Open Bill: $error'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        },
+        (success) {
+          // Clear checkout
+          context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
+
+          // Reset editing state
+          setState(() {
+            _isEditingOpenBill = false;
+            _editingOpenBillId = null;
+            _editingOpenBillTable = null;
+          });
+
+          // Navigate back to dashboard
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DashboardPage(
+                initialIndex: 0, // HomePage
+              ),
+            ),
+            (route) => false,
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Open Bill berhasil dibatalkan!'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        // Close loading if still showing
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  // Navigate to payment page (Bayar)
+  Future<void> _navigateToPaymentFromOpenBill(ItemOrder order) async {
+    // Determine order type
+    final orderType = order.operationMode == 'dine_in'
+        ? 'dinein'
+        : order.operationMode == 'takeaway'
+            ? 'takeaway'
+            : 'dinein'; // default
+
+    // Convert Table from order to TableModel
+    TableModel? tableModel;
+    if (order.table != null) {
+      final now = TimezoneHelper.now();
+      tableModel = TableModel(
+        id: order.table!.id,
+        tableNumber: order.table!.tableNumber,
+        name: order.table!.name,
+        startTime: order.createdAt?.toIso8601String() ?? now.toIso8601String(),
+        status: 'occupied',
+        orderId: 0, // Will be updated after payment
+        paymentAmount: int.tryParse(order.totalAmount ?? '0') ?? 0,
+      );
+    }
+
+    // Clear existing checkout first
+    context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
+
+    // Convert OrderItem to Product for checkout
+    if (order.items != null) {
+      for (var item in order.items!) {
+        if (item.productId != null) {
+          // Fetch the product from local DB
+          final result = await ProductLocalDatasource.instance
+              .getProductById(item.productId!);
+          if (result != null) {
+            // Add to checkout with quantity
+            for (int i = 0; i < (item.quantity ?? 1); i++) {
+              if (mounted) {
+                context.read<CheckoutBloc>().add(
+                      CheckoutEvent.addItem(result),
+                    );
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Navigate to payment page
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ConfirmPaymentPage(
+            isTable: orderType == 'dinein',
+            table: tableModel,
+            orderType: orderType,
+            orderNumber: order.orderNumber ?? '',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -320,7 +830,7 @@ class _HomePageState extends State<HomePage> {
                                   ],
                                   const Spacer(),
 
-                                  // 🔹 Open Bill di header hanya kalau kosong
+                                  // 🔹 Open Bill di header hanya kalau kosong - Menampilkan List Open Bill
                                   BlocBuilder<CheckoutBloc, CheckoutState>(
                                     builder: (context, state) {
                                       return state.maybeWhen(
@@ -342,7 +852,18 @@ class _HomePageState extends State<HomePage> {
                                               height: 52,
                                               label: "Open Bill",
                                               svgIcon: Assets.icons.bill,
-                                              onPressed: () {},
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (_) =>
+                                                      OpenBillListDialog(
+                                                    onContinue:
+                                                        _loadOpenBillToCheckout,
+                                                    onPay:
+                                                        _navigateToPaymentFromOpenBill,
+                                                  ),
+                                                );
+                                              },
                                             );
                                           }
                                           return const SizedBox();
@@ -635,16 +1156,24 @@ class _HomePageState extends State<HomePage> {
                                               if (!context.mounted) return;
 
                                               if (confirm == true) {
-                                                context
-                                                    .read<CheckoutBloc>()
-                                                    .add(const CheckoutEvent
-                                                        .clearOrder());
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                      content: Text(
-                                                          "Pesanan berhasil dihapus")),
-                                                );
+                                                // If editing open bill, cancel the order
+                                                if (_isEditingOpenBill &&
+                                                    _editingOpenBillId !=
+                                                        null) {
+                                                  await _cancelOpenBillOrder();
+                                                } else {
+                                                  // Normal clear order
+                                                  context
+                                                      .read<CheckoutBloc>()
+                                                      .add(const CheckoutEvent
+                                                          .clearOrder());
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                        content: Text(
+                                                            "Pesanan berhasil dihapus")),
+                                                  );
+                                                }
                                               }
                                             },
                                           ),
@@ -688,46 +1217,50 @@ class _HomePageState extends State<HomePage> {
                                                   },
                                                   orElse: () {},
                                                 );
-                                                final isDisabled = total <= 0;
+                                                final isDisabled = total <= 0 ||
+                                                    orderType == null;
                                                 return CustomButton(
                                                   height: 64,
-                                                  svgIcon: Assets.icons.bill,
-                                                  label: 'Open Bill',
+                                                  svgIcon: _isEditingOpenBill
+                                                      ? Assets.icons.refresh
+                                                      : Assets.icons.bill,
+                                                  label: _isEditingOpenBill
+                                                      ? 'Simpan'
+                                                      : 'Open Bill',
                                                   disabled: isDisabled,
                                                   onPressed: isDisabled
-                                                      ? () {}
-                                                      : () async {
-                                                          // Parse table number from String to int
-                                                          int? tableNum;
-                                                          if (widget.table
-                                                                  ?.tableNumber !=
+                                                      ? () {
+                                                          if (orderType ==
                                                               null) {
-                                                            final numStr = widget
-                                                                .table!
-                                                                .tableNumber!
-                                                                .replaceAll(
-                                                                    RegExp(
-                                                                        r'[^0-9]'),
-                                                                    '');
-                                                            tableNum =
-                                                                int.tryParse(
-                                                                    numStr);
+                                                            ScaffoldMessenger
+                                                                    .of(context)
+                                                                .showSnackBar(
+                                                              const SnackBar(
+                                                                backgroundColor:
+                                                                    AppColors
+                                                                        .warning,
+                                                                content: Text(
+                                                                  "Pilih Dine In atau Take Away dulu",
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        16,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            );
                                                           }
-
-                                                          await showDialog(
-                                                            context: context,
-                                                            builder: (_) =>
-                                                                OpenBillDialog(
-                                                              totalPrice: total,
-                                                              orderNumber:
-                                                                  _orderNumber,
-                                                              tableNumber:
-                                                                  tableNum,
-                                                              orderType:
-                                                                  orderType,
-                                                            ),
-                                                          );
-                                                        },
+                                                        }
+                                                      : _isEditingOpenBill
+                                                          ? () =>
+                                                              _updateOpenBillOrder(
+                                                                  orderType!)
+                                                          : () =>
+                                                              _createOpenBillOrder(
+                                                                  orderType!),
                                                 );
                                               },
                                             ),

@@ -69,8 +69,8 @@ class _SalesPageState extends State<SalesPage> {
                         Assets.icons.calender.svg(
                           height: 32,
                           width: 32,
-                          colorFilter:
-                              ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                          colorFilter: ColorFilter.mode(
+                              AppColors.white, BlendMode.srcIn),
                         ),
                       ],
                     ),

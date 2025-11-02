@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/data/models/response/product_response_model.dart';
+import 'package:xpress/presentation/home/bloc/local_product/local_product_bloc.dart';
+import 'package:xpress/presentation/report/blocs/product_sales/product_sales_bloc.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -12,116 +17,270 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchCtrl = TextEditingController();
-  int _selectedTab = 0; // 0 semua, 1 paket, 2 ala carte, 3 minuman
+  String _selectedCategory = 'Semua';
+  Map<int, int> _soldQuantities = {}; // Map productId -> soldQuantity
 
-  final _tabs = const ['Semua', 'Paket', 'Ala Carte', 'Minuman'];
+  @override
+  void initState() {
+    super.initState();
+    // Load products
+    context
+        .read<LocalProductBloc>()
+        .add(const LocalProductEvent.getLocalProduct());
 
-  final List<_InvItem> _items = List.generate(
-    8,
-    (i) => _InvItem(
-      name: 'Ayam Goreng Paha',
-      price: 20000,
-      stock: 10,
-      sold: 56,
-      image: Assets.images.menu1,
-      status: i % 3 == 1 ? _InvStatus.low : _InvStatus.good,
-    ),
-  );
+    // Load sales data for today
+    final now = TimezoneHelper.now();
+    final startDate =
+        DateTime(now.year, now.month, now.day).toIso8601String().split('T')[0];
+    final endDate = now.toIso8601String().split('T')[0];
+    context.read<ProductSalesBloc>().add(
+          ProductSalesEvent.getProductSales(startDate, endDate),
+        );
+  }
+
+  Future<void> _refreshData() async {
+    // Reload products
+    context
+        .read<LocalProductBloc>()
+        .add(const LocalProductEvent.getLocalProduct());
+
+    // Reload sales data for today
+    final now = TimezoneHelper.now();
+    final startDate =
+        DateTime(now.year, now.month, now.day).toIso8601String().split('T')[0];
+    final endDate = now.toIso8601String().split('T')[0];
+    context.read<ProductSalesBloc>().add(
+          ProductSalesEvent.getProductSales(startDate, endDate),
+        );
+
+    // Wait a bit for the data to load
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  List<Product> _filterProducts(List<Product> products) {
+    var filtered = products;
+
+    // Filter by search text
+    if (_searchCtrl.text.isNotEmpty) {
+      filtered = filtered
+          .where((p) => (p.name ?? '')
+              .toLowerCase()
+              .contains(_searchCtrl.text.toLowerCase()))
+          .toList();
+    }
+
+    // Filter by category
+    if (_selectedCategory != 'Semua') {
+      filtered = filtered
+          .where((p) => (p.category?.name ?? 'Lainnya') == _selectedCategory)
+          .toList();
+    }
+
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final items = _items
-        .where((e) =>
-            e.name.toLowerCase().contains(_searchCtrl.text.toLowerCase()))
-        .toList();
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ContentTitle('Inventori'),
-          const SpaceHeight(16),
-
-          // Search + sort
-          Row(
-            children: [
-              Expanded(
-                child: SearchInput(
-                  controller: _searchCtrl,
-                  hintText: 'Search Menu',
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                height: 48,
-                width: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  border: Border.all(color: AppColors.primary),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha((0.06 * 255).round()),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Assets.icons.sort.svg(
-                    height: 20,
-                    width: 20,
-                    colorFilter:
-                        ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+    return BlocListener<ProductSalesBloc, ProductSalesState>(
+      listener: (context, state) {
+        state.maybeWhen(
+          success: (sales) {
+            // Convert sales list to map for quick lookup
+            setState(() {
+              _soldQuantities = {
+                for (var sale in sales)
+                  if (sale.productId != null)
+                    sale.productId!:
+                        int.tryParse(sale.totalQuantity ?? '0') ?? 0
+              };
+            });
+          },
+          orElse: () {},
+        );
+      },
+      child: BlocBuilder<LocalProductBloc, LocalProductState>(
+        builder: (context, state) {
+          return state.when(
+            initial: () => const Center(child: Text('Memuat data...')),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (message) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppColors.danger,
                   ),
-                ),
-              )
-            ],
-          ),
-
-          const SpaceHeight(16),
-
-          // Tabs
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: List.generate(
-              _tabs.length,
-              (i) => _TabChip(
-                label: _tabs[i],
-                isActive: _selectedTab == i,
-                onTap: () => setState(() => _selectedTab = i),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Gagal memuat data',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<LocalProductBloc>().add(
+                            const LocalProductEvent.getLocalProduct(),
+                          );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                    ),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
               ),
             ),
-          ),
+            loaded: (products) {
+              // Get unique categories
+              final categories = <String>{};
+              for (var product in products) {
+                final categoryName = product.category?.name ?? 'Lainnya';
+                categories.add(categoryName);
+              }
+              // Sort categories and ensure "Semua" is always first
+              final sortedCategories = categories.toList()..sort();
+              final categoryList = ['Semua', ...sortedCategories];
 
-          const SpaceHeight(16),
+              final filteredProducts = _filterProducts(products);
 
-          // Header row
-          Row(
-            children: const [
-              _HeaderCell('Gambar', flex: 2),
-              _HeaderCell('Menu', flex: 5),
-              _HeaderCell('Stok Tersisa', flex: 2),
-              _HeaderCell('Terjual', flex: 2),
-              _HeaderCell('Status', flex: 3),
-            ],
-          ),
+              return RefreshIndicator(
+                onRefresh: _refreshData,
+                color: AppColors.primary,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const ContentTitle('Inventori'),
+                      const SpaceHeight(16),
 
-          const SizedBox(height: 8),
+                      // Search + sort
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SearchInput(
+                              controller: _searchCtrl,
+                              hintText: 'Cari Produk...',
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              border: Border.all(color: AppColors.primary),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black
+                                      .withAlpha((0.06 * 255).round()),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Assets.icons.filter.svg(
+                                height: 20,
+                                width: 20,
+                                colorFilter: const ColorFilter.mode(
+                                  AppColors.primary,
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
 
-          // List
-          Column(
-            children: items
-                .map((e) => _InventoryRow(
-                      item: e,
-                    ))
-                .toList(),
-          ),
+                      const SpaceHeight(16),
 
-          const SizedBox(height: 16),
-        ],
+                      // Category Tabs
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: categoryList
+                            .map((category) => _TabChip(
+                                  label: category,
+                                  isActive: _selectedCategory == category,
+                                  onTap: () => setState(
+                                      () => _selectedCategory = category),
+                                ))
+                            .toList(),
+                      ),
+
+                      const SpaceHeight(16),
+
+                      // Header row
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          children: [
+                            _HeaderCell('Gambar', flex: 2),
+                            _HeaderCell('Menu', flex: 5),
+                            _HeaderCell('Stok', flex: 2),
+                            _HeaderCell('Terjual', flex: 2),
+                            _HeaderCell('Status', flex: 1),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // List
+                      filteredProducts.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: Text(
+                                  'Tidak ada produk ditemukan',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.grey,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Column(
+                              children: filteredProducts
+                                  .map((product) => _InventoryRow(
+                                        product: product,
+                                        soldQuantity: _soldQuantities[
+                                                product.productId] ??
+                                            0,
+                                      ))
+                                  .toList(),
+                            ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -168,44 +327,50 @@ class _HeaderCell extends StatelessWidget {
       flex: flex,
       child: Text(
         text,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
 }
 
-enum _InvStatus { good, low }
-
-class _InvItem {
-  final String name;
-  final int price;
-  final int stock;
-  final int sold;
-  final AssetGenImage image;
-  final _InvStatus status;
-  _InvItem({
-    required this.name,
-    required this.price,
-    required this.stock,
-    required this.sold,
-    required this.image,
-    required this.status,
-  });
-}
-
 class _InventoryRow extends StatelessWidget {
-  final _InvItem item;
-  const _InventoryRow({required this.item});
+  final Product product;
+  final int soldQuantity;
+
+  const _InventoryRow({
+    required this.product,
+    required this.soldQuantity,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bool isGood = item.status == _InvStatus.good;
+    final stock = product.stock ?? 0;
+    final minStockLevel = product.minStockLevel ?? 5;
+    final isLowStock = stock <= minStockLevel;
+    final price = int.tryParse(product.price ?? '0') ?? 0;
+    final categoryName = product.category?.name ?? 'Lainnya';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.greyLight,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.greyLight,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((0.04 * 255).round()),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -214,30 +379,85 @@ class _InventoryRow extends StatelessWidget {
             flex: 2,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: item.image.image(height: 52, width: 52, fit: BoxFit.cover),
+              child: _buildProductImage(),
             ),
           ),
-          // Menu
+          // Menu & Info
           Expanded(
             flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.name, style: const TextStyle(fontSize: 16)),
-                Text('@Rp${item.price.toStringAsFixed(0)}',
-                    style:
-                        const TextStyle(fontSize: 12, color: AppColors.grey)),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name ?? 'Produk',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Rp ${price.toString().replaceAllMapped(
+                          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                          (Match m) => '${m[1]}.',
+                        )}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      categoryName,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          // Stok
           Expanded(
             flex: 2,
-            child: Text('${item.stock}', textAlign: TextAlign.center),
+            child: Text(
+              '$stock',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isLowStock ? AppColors.danger : AppColors.black,
+              ),
+            ),
           ),
+          // Terjual
           Expanded(
             flex: 2,
-            child: Text('${item.sold}', textAlign: TextAlign.center),
+            child: Text(
+              '$soldQuantity',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.success,
+              ),
+            ),
           ),
+          // Status
           Expanded(
             flex: 3,
             child: Align(
@@ -246,21 +466,70 @@ class _InventoryRow extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color:
-                      isGood ? AppColors.successLight : AppColors.dangerLight,
+                  color: isLowStock
+                      ? AppColors.dangerLight
+                      : AppColors.successLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  isGood ? 'Good' : 'Low',
+                  isLowStock ? 'Stok Rendah' : 'Stok Aman',
                   style: TextStyle(
-                    color: isGood ? AppColors.success : AppColors.danger,
+                    color: isLowStock ? AppColors.danger : AppColors.success,
                     fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProductImage() {
+    final imageUrl = product.image;
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      // Try to load network image
+      if (imageUrl.startsWith('http')) {
+        return Image.network(
+          imageUrl,
+          height: 60,
+          width: 60,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _defaultImage(),
+        );
+      } else {
+        // Try to load asset image
+        return Image.asset(
+          imageUrl,
+          height: 60,
+          width: 60,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _defaultImage(),
+        );
+      }
+    }
+
+    return _defaultImage();
+  }
+
+  Widget _defaultImage() {
+    return Container(
+      height: 60,
+      width: 60,
+      decoration: BoxDecoration(
+        color: AppColors.greyLight,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Assets.icons.food.svg(
+        height: 30,
+        width: 30,
+        colorFilter: const ColorFilter.mode(
+          AppColors.grey,
+          BlendMode.srcIn,
+        ),
       ),
     );
   }

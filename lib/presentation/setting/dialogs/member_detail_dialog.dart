@@ -35,7 +35,13 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
     );
   }
 
-  Color _getTierColor(String? tierName) {
+  Color _getTierColor(MemberDetail member) {
+    final customColor = _parseHexColor(member.tier?.color);
+    if (customColor != null) return customColor;
+    return _getDefaultTierColor(member.currentTierName);
+  }
+
+  Color _getDefaultTierColor(String? tierName) {
     switch (tierName?.toLowerCase()) {
       case 'bronze':
         return const Color(0xFFCD7F32);
@@ -48,6 +54,23 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
       default:
         return AppColors.primary;
     }
+  }
+
+  Color? _parseHexColor(String? hexColor) {
+    if (hexColor == null || hexColor.isEmpty) return null;
+    var cleaned = hexColor.trim();
+    if (cleaned.startsWith('#')) {
+      cleaned = cleaned.substring(1);
+    } else if (cleaned.toLowerCase().startsWith('0x')) {
+      cleaned = cleaned.substring(2);
+    }
+    if (cleaned.length == 6) {
+      cleaned = 'FF$cleaned';
+    }
+    if (cleaned.length != 8) return null;
+    final value = int.tryParse(cleaned, radix: 16);
+    if (value == null) return null;
+    return Color(value);
   }
 
   String _formatDate(String? date) {
@@ -175,7 +198,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
 
   Widget _buildMemberHeaderCard(MemberDetail member) {
     final tierName = member.currentTierName ?? 'Bronze';
-    final tierColor = _getTierColor(tierName);
+    final tierColor = _getTierColor(member);
     final isActive = member.isActive ?? true;
 
     return Container(
@@ -494,7 +517,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> {
 
   Widget _buildTierCard(MemberDetail member) {
     final tierName = member.currentTierName ?? 'Bronze';
-    final tierColor = _getTierColor(tierName);
+    final tierColor = _getTierColor(member);
     final currentPoints = member.loyaltyPoints ?? 0;
     final pointsToNext = member.pointsToNextTier ?? 1000;
     final totalPointsForNext = currentPoints + pointsToNext;

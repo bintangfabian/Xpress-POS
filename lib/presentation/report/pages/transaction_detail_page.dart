@@ -109,11 +109,18 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
       _logDebug('Tax Amount: ${_order!.taxAmount}');
       _logDebug('Discount Amount: ${_order!.discountAmount}');
       _logDebug('Service Charge: ${_order!.serviceCharge}');
-      _logDebug('Payment Method: ${_order!.paymentMethod}');
+      _logDebug('Payment Method (old): ${_order!.paymentMethod}');
       _logDebug('Status: ${_order!.status}');
-      _logDebug('User: ${_order!.user?.name}');
+      _logDebug('User (Kasir): ${_order!.user?.name}');
+      _logDebug('Member (Konsumen): ${_order!.member?.name}');
       _logDebug('Table: ${_order!.table?.name}');
       _logDebug('Items: ${_order!.items?.length}');
+      _logDebug('Payments: ${_order!.payments?.length}');
+      if (_order!.payments != null && _order!.payments!.isNotEmpty) {
+        _logDebug(
+            'First Payment Method: ${_order!.payments!.first.paymentMethod}');
+        _logDebug('First Payment Status: ${_order!.payments!.first.status}');
+      }
       if (_order!.items != null) {
         for (var item in _order!.items!) {
           _logDebug(
@@ -147,8 +154,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 }
               },
               icon: Assets.icons.backArrow.svg(
-                colorFilter:
-                    ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                colorFilter: ColorFilter.mode(AppColors.white, BlendMode.srcIn),
                 height: 48,
                 width: 48,
               ),
@@ -201,8 +207,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 }
               },
               icon: Assets.icons.backArrow.svg(
-                colorFilter:
-                    ColorFilter.mode(AppColors.white, BlendMode.srcIn),
+                colorFilter: ColorFilter.mode(AppColors.white, BlendMode.srcIn),
                 height: 48,
                 width: 48,
               ),
@@ -327,14 +332,18 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                         }()
                       : 'N/A'),
               const SizedBox(height: 8),
+              _rowSpaceBetween('Metode Pembayaran', _getPaymentMethod()),
+              const SizedBox(height: 8),
+              _rowSpaceBetween('Konsumen', _order?.member?.name ?? '-'),
+              const SizedBox(height: 8),
+              _rowSpaceBetween('Kasir', _order?.user?.name ?? 'N/A'),
+              const SizedBox(height: 8),
+              _rowSpaceBetween('Meja', _order?.table?.name ?? '-'),
+              const SizedBox(height: 8),
               _rowSpaceBetween(
-                  'Metode Pembayaran', _order?.paymentMethod ?? 'N/A'),
+                  'Status Order', _formatOrderStatus(_order?.status)),
               const SizedBox(height: 8),
-              _rowSpaceBetween('Konsumen', _order?.user?.name ?? 'N/A'),
-              const SizedBox(height: 8),
-              _rowSpaceBetween('Meja', _order?.table?.name ?? ''),
-              const SizedBox(height: 8),
-              _rowSpaceBetween('Status Pembayaran', _order?.status ?? 'N/A'),
+              _rowSpaceBetween('Status Pembayaran', _getPaymentStatus()),
               const SizedBox(height: 16),
               // Refund button (outlined danger) using shared Button
               Button.outlined(
@@ -467,5 +476,119 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
         ),
       ],
     );
+  }
+
+  String _getPaymentMethod() {
+    _logDebug('=== Getting Payment Method ===');
+    _logDebug('Order payments: ${_order?.payments}');
+    _logDebug('Order payments length: ${_order?.payments?.length}');
+
+    // Try to get from payments array first
+    if (_order?.payments != null && _order!.payments!.isNotEmpty) {
+      final paymentMethod = _order!.payments!.first.paymentMethod;
+      _logDebug('Payment method from payments array: $paymentMethod');
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        return _formatPaymentMethod(paymentMethod);
+      }
+    }
+
+    // Fallback to old payment_method field
+    if (_order?.paymentMethod != null && _order!.paymentMethod!.isNotEmpty) {
+      _logDebug('Payment method from order field: ${_order!.paymentMethod}');
+      return _formatPaymentMethod(_order!.paymentMethod);
+    }
+
+    _logDebug('No payment method found, returning N/A');
+    return 'N/A';
+  }
+
+  String _getPaymentStatus() {
+    _logDebug('=== Getting Payment Status ===');
+
+    // Try to get from payments array first
+    if (_order?.payments != null && _order!.payments!.isNotEmpty) {
+      final paymentStatus = _order!.payments!.first.status;
+      _logDebug('Payment status from payments array: $paymentStatus');
+      if (paymentStatus != null && paymentStatus.isNotEmpty) {
+        return _formatPaymentStatus(paymentStatus);
+      }
+    }
+
+    // Fallback to order status
+    if (_order?.status != null && _order!.status!.isNotEmpty) {
+      _logDebug('Payment status from order status: ${_order!.status}');
+      return _formatPaymentStatus(_order!.status);
+    }
+
+    _logDebug('No payment status found, returning N/A');
+    return 'N/A';
+  }
+
+  String _formatPaymentMethod(String? method) {
+    if (method == null || method.isEmpty) return 'N/A';
+
+    switch (method.toLowerCase()) {
+      case 'cash':
+        return 'Tunai';
+      case 'qris':
+        return 'QRIS';
+      case 'debit':
+        return 'Kartu Debit';
+      case 'credit':
+        return 'Kartu Kredit';
+      case 'transfer':
+        return 'Transfer Bank';
+      case 'e-wallet':
+      case 'ewallet':
+        return 'E-Wallet';
+      default:
+        // Capitalize first letter
+        return method[0].toUpperCase() + method.substring(1);
+    }
+  }
+
+  String _formatOrderStatus(String? status) {
+    if (status == null || status.isEmpty) return 'N/A';
+
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Menunggu';
+      case 'processing':
+        return 'Diproses';
+      case 'completed':
+        return 'Selesai';
+      case 'cancelled':
+        return 'Dibatalkan';
+      case 'failed':
+        return 'Gagal';
+      default:
+        // Capitalize first letter
+        return status[0].toUpperCase() + status.substring(1);
+    }
+  }
+
+  String _formatPaymentStatus(String? status) {
+    if (status == null || status.isEmpty) return 'N/A';
+
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Menunggu Pembayaran';
+      case 'processing':
+        return 'Memproses Pembayaran';
+      case 'completed':
+      case 'paid':
+        return 'Lunas';
+      case 'partial':
+        return 'Sebagian';
+      case 'refunded':
+        return 'Dikembalikan';
+      case 'failed':
+        return 'Gagal';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        // Capitalize first letter
+        return status[0].toUpperCase() + status.substring(1);
+    }
   }
 }

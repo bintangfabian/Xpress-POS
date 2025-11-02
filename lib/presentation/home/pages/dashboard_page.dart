@@ -13,7 +13,6 @@ import 'package:xpress/presentation/home/pages/home_page.dart';
 import 'package:xpress/presentation/report/pages/report_page.dart';
 import 'package:xpress/presentation/report/pages/transaction_detail_page.dart';
 import 'package:xpress/presentation/sales/pages/sales_page.dart';
-import 'package:xpress/presentation/setting/bloc/sync_order/sync_order_bloc.dart';
 import 'package:xpress/presentation/setting/pages/settings_page.dart';
 import 'package:xpress/presentation/table/pages/table_page.dart';
 
@@ -156,12 +155,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       builder: (context, state) {
                         return state.maybeWhen(
                           orElse: () => _statusBox(false),
-                          online: () {
-                            context.read<SyncOrderBloc>().add(
-                                  const SyncOrderEvent.syncOrder(),
-                                );
-                            return _statusBox(true);
-                          },
+                          online: () => _statusBox(true),
                         );
                       },
                     ),

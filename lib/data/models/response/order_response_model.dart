@@ -29,7 +29,8 @@ class OrderResponseModel {
         'success: ${json["success"]} (type: ${json["success"].runtimeType})');
     _orderResponseLog(
         'status: ${json["status"]} (type: ${json["status"].runtimeType})');
-    _orderResponseLog('data: ${json["data"]} (type: ${json["data"].runtimeType})');
+    _orderResponseLog(
+        'data: ${json["data"]} (type: ${json["data"].runtimeType})');
     _orderResponseLog('data length: ${json["data"]?.length}');
     if (json["data"] != null &&
         json["data"] is List &&
@@ -118,8 +119,7 @@ class ItemOrder {
     _orderResponseLog('JSON keys: ${json.keys.toList()}');
     _orderResponseLog('id: ${json["id"]} (type: ${json["id"].runtimeType})');
     _orderResponseLog('id is null: ${json["id"] == null}');
-    _orderResponseLog(
-        'id is empty: ${json["id"]?.toString().isEmpty ?? true}');
+    _orderResponseLog('id is empty: ${json["id"]?.toString().isEmpty ?? true}');
     _orderResponseLog('id length: ${json["id"]?.toString().length}');
     _orderResponseLog(
         'order_number: ${json["order_number"]} (type: ${json["order_number"].runtimeType})');
@@ -479,15 +479,31 @@ class Product {
 class Payment {
   String? id;
   String? amount;
-  String? method;
+  String? paymentMethod;
+  String? status;
+  String? referenceNumber;
+  DateTime? processedAt;
   DateTime? createdAt;
 
-  Payment({this.id, this.amount, this.method, this.createdAt});
+  Payment({
+    this.id,
+    this.amount,
+    this.paymentMethod,
+    this.status,
+    this.referenceNumber,
+    this.processedAt,
+    this.createdAt,
+  });
 
   factory Payment.fromMap(Map<String, dynamic> json) => Payment(
         id: json["id"]?.toString(),
         amount: json["amount"]?.toString(),
-        method: json["method"]?.toString(),
+        paymentMethod: (json["payment_method"] ?? json["method"])?.toString(),
+        status: json["status"]?.toString(),
+        referenceNumber: json["reference_number"]?.toString(),
+        processedAt: json["processed_at"] == null
+            ? null
+            : DateTime.parse(json["processed_at"]),
         createdAt: json["created_at"] == null
             ? null
             : DateTime.parse(json["created_at"]),
@@ -496,7 +512,10 @@ class Payment {
   Map<String, dynamic> toMap() => {
         "id": id,
         "amount": amount,
-        "method": method,
+        "payment_method": paymentMethod,
+        "status": status,
+        "reference_number": referenceNumber,
+        "processed_at": processedAt?.toIso8601String(),
         "created_at": createdAt?.toIso8601String(),
       };
 }

@@ -539,4 +539,297 @@ class OrderRemoteDatasource {
       return Left("Failed to fetch order detail: $e");
     }
   }
+
+  // Get list of open bills (orders with status="open" and payment_status="pending")
+  Future<Either<String, List<ItemOrder>>> getOpenBills() async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      // Query for orders with status="open"
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/orders?status=open&per_page=100');
+
+      final headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      log("Fetching open bills: $uri");
+      var response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 403) {
+        // Retry without store header if forbidden
+        headers.remove('X-Store-Id');
+        response = await http.get(uri, headers: headers);
+      }
+
+      log("Open Bills Response: ${response.statusCode}");
+      log("Open Bills Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final responseModel = OrderResponseModel.fromJson(response.body);
+        final orders = responseModel.data ?? [];
+
+        log("Found ${orders.length} open bills");
+        return Right(orders);
+      } else {
+        return Left("Failed to load open bills: ${response.statusCode}");
+      }
+    } catch (e) {
+      log("Error fetching open bills: $e");
+      return Left("Failed to fetch open bills: $e");
+    }
+  }
+
+  // Create order with payment_mode="open_bill", status="open", payment status="pending"
+  Future<Either<String, String>> createOpenBillOrder({
+    required Map<String, dynamic> orderData,
+    required int totalAmount,
+  }) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      // Add open bill specific fields
+      final modifiedOrderData = Map<String, dynamic>.from(orderData);
+      modifiedOrderData['payment_mode'] = 'open_bill';
+      modifiedOrderData['status'] = 'open';
+
+      final uri =
+          Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
+
+      final headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      log("Creating open bill order...");
+      log("Request body: ${jsonEncode(modifiedOrderData)}");
+      log("Total amount for payment: $totalAmount");
+
+      var response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(modifiedOrderData),
+      );
+
+      if (response.statusCode == 403) {
+        // Retry without store header if forbidden
+        headers.remove('X-Store-Id');
+        response = await http.post(
+          uri,
+          headers: headers,
+          body: jsonEncode(modifiedOrderData),
+        );
+      }
+
+      log("Create Open Bill Response: ${response.statusCode}");
+      log("Create Open Bill Response Body: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Extract order_id from response
+        final orderId = extractOrderId(response.body);
+
+        if (orderId != null && orderId.isNotEmpty) {
+          log("Open bill order created successfully: $orderId");
+
+          // Create payment with status="pending" using the provided totalAmount
+          if (totalAmount > 0) {
+            log("Creating pending payment for order: $orderId with amount: $totalAmount");
+            final paymentCreated = await createPendingPayment(
+              orderId: orderId,
+              amount: totalAmount,
+            );
+
+            if (paymentCreated) {
+              log("✅ Pending payment created successfully");
+            } else {
+              log("❌ WARNING: Failed to create pending payment");
+            }
+          } else {
+            log("⚠️ WARNING: Total amount is 0, skipping payment creation");
+          }
+
+          return Right(orderId);
+        } else {
+          return Left("Failed to extract order ID from response");
+        }
+      } else {
+        return Left("Failed to create open bill order: ${response.statusCode}");
+      }
+    } catch (e) {
+      log("Error creating open bill order: $e");
+      return Left("Failed to create open bill order: $e");
+    }
+  }
+
+  // Create payment with status="pending" for open bill
+  Future<bool> createPendingPayment({
+    required String orderId,
+    required int amount,
+  }) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/payments');
+
+      final paymentPayload = {
+        'order_id': orderId,
+        'payment_method': 'pending',
+        'amount': amount,
+        'status': 'pending',
+        'notes': 'Open Bill - Menunggu Pembayaran',
+      };
+
+      final payload = jsonEncode(paymentPayload);
+      log('========================================');
+      log('Creating pending payment');
+      log('Order ID: $orderId');
+      log('Amount: $amount');
+      log('Payload: $paymentPayload');
+      log('========================================');
+
+      var headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      var response = await http.post(uri, headers: headers, body: payload);
+
+      if (response.statusCode == 403) {
+        log('⚠️ Got 403, retrying without X-Store-Id header');
+        headers.remove('X-Store-Id');
+        response = await http.post(uri, headers: headers, body: payload);
+      }
+
+      log('Pending Payment Response Status: ${response.statusCode}');
+      log('Pending Payment Response Body: ${response.body}');
+
+      final success = response.statusCode == 200 || response.statusCode == 201;
+      if (success) {
+        log('✅ Pending payment created successfully!');
+      } else {
+        log('❌ Failed to create pending payment: ${response.statusCode}');
+      }
+      log('========================================');
+
+      return success;
+    } catch (e) {
+      log('❌ Error creating pending payment: $e');
+      return false;
+    }
+  }
+
+  // Update open bill order
+  Future<Either<String, String>> updateOpenBillOrder({
+    required String orderId,
+    required Map<String, dynamic> orderData,
+  }) async {
+    try {
+      log('========================================');
+      log('📝 Updating Open Bill Order');
+      log('Order ID: $orderId');
+      log('Order Data: $orderData');
+      log('========================================');
+
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/orders/$orderId');
+
+      final payload = jsonEncode(orderData);
+
+      var headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      log('🔄 Sending PUT request to: $uri');
+      var response = await http.put(uri, headers: headers, body: payload);
+
+      if (response.statusCode == 403) {
+        log('⚠️ Got 403, retrying without X-Store-Id header');
+        headers.remove('X-Store-Id');
+        response = await http.put(uri, headers: headers, body: payload);
+      }
+
+      log('Response Status: ${response.statusCode}');
+      log('Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        log('✅ Open Bill updated successfully!');
+        log('========================================');
+        return Right(orderId);
+      } else {
+        log('❌ Failed to update open bill: ${response.statusCode}');
+        log('========================================');
+        return Left('Failed to update open bill: ${response.body}');
+      }
+    } catch (e) {
+      log('❌ Error updating open bill order: $e');
+      log('========================================');
+      return Left("Failed to update open bill order: $e");
+    }
+  }
+
+  // Cancel open bill order (update status to canceled)
+  Future<Either<String, String>> cancelOpenBillOrder({
+    required String orderId,
+  }) async {
+    try {
+      log('========================================');
+      log('🚫 Canceling Open Bill Order');
+      log('Order ID: $orderId');
+      log('========================================');
+
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/orders/$orderId');
+
+      final payload = jsonEncode({'status': 'canceled'});
+
+      var headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      log('🔄 Sending PUT request to: $uri');
+      var response = await http.put(uri, headers: headers, body: payload);
+
+      if (response.statusCode == 403) {
+        log('⚠️ Got 403, retrying without X-Store-Id header');
+        headers.remove('X-Store-Id');
+        response = await http.put(uri, headers: headers, body: payload);
+      }
+
+      log('Response Status: ${response.statusCode}');
+      log('Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        log('✅ Open Bill canceled successfully!');
+        log('========================================');
+        return Right(orderId);
+      } else {
+        log('❌ Failed to cancel open bill: ${response.statusCode}');
+        log('========================================');
+        return Left('Failed to cancel open bill: ${response.body}');
+      }
+    } catch (e) {
+      log('❌ Error canceling open bill order: $e');
+      log('========================================');
+      return Left("Failed to cancel open bill order: $e");
+    }
+  }
 }

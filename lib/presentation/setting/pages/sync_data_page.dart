@@ -15,13 +15,82 @@ class SyncDataPage extends StatefulWidget {
 }
 
 class _SyncDataPageState extends State<SyncDataPage> {
-  void _syncAll() {
-    // Trigger known syncs; others can be wired later
+  bool _isSyncing = false;
+  int _syncProgress =
+      0; // 0 = idle, 1 = product syncing, 2 = order syncing, 3 = done
+
+  Future<void> _syncAll() async {
+    if (_isSyncing) return;
+
+    setState(() {
+      _isSyncing = true;
+      _syncProgress = 0;
+    });
+
+    // Show initial snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Memulai sinkronisasi...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
+    // Sync products first
+    setState(() => _syncProgress = 1);
     context.read<SyncProductBloc>().add(const SyncProductEvent.syncProduct());
+
+    // Wait a bit for product sync to complete
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Then sync orders
+    setState(() => _syncProgress = 2);
     context.read<SyncOrderBloc>().add(const SyncOrderEvent.syncOrder());
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sinkronisasi dimulai...')),
-    );
+
+    // Wait a bit for order sync to complete
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Reset state
+    setState(() {
+      _syncProgress = 3;
+      _isSyncing = false;
+    });
+
+    // Auto reset progress after showing done
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _syncProgress = 0);
+      }
+    });
+  }
+
+  String _getSyncStatusText() {
+    switch (_syncProgress) {
+      case 0:
+        return 'Sinkronisasi Semua';
+      case 1:
+        return 'Menyinkronkan Produk...';
+      case 2:
+        return 'Menyinkronkan Order...';
+      case 3:
+        return 'Sinkronisasi Selesai!';
+      default:
+        return 'Sinkronisasi Semua';
+    }
+  }
+
+  double? _getProgressValue() {
+    switch (_syncProgress) {
+      case 1:
+        return 0.33;
+      case 2:
+        return 0.66;
+      case 3:
+        return 1.0;
+      default:
+        return null;
+    }
   }
 
   @override
@@ -148,12 +217,75 @@ class _SyncDataPageState extends State<SyncDataPage> {
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Button.filled(
-              onPressed: _syncAll,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               height: 52,
-              label: 'Sinkronisasi Semua',
+              decoration: BoxDecoration(
+                color: _isSyncing
+                    ? AppColors.primary.withOpacity(0.8)
+                    : AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _isSyncing ? null : _syncAll,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isSyncing) ...[
+                          const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Flexible(
+                          child: Text(
+                            _getSyncStatusText(),
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        if (_syncProgress == 3) ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.check_circle,
+                            color: AppColors.white,
+                            size: 20,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
+          if (_isSyncing)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: LinearProgressIndicator(
+                value: _getProgressValue(),
+                backgroundColor: AppColors.greyLight,
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                minHeight: 4,
+              ),
+            ),
           const SizedBox(height: 16),
         ],
       ),
