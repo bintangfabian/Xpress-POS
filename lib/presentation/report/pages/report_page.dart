@@ -46,6 +46,8 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   Future<void> _fetchOrders() async {
+    if (!mounted) return;
+
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -58,14 +60,18 @@ class _ReportPageState extends State<ReportPage> {
         DateFormat('yyyy-MM-dd').format(toDate),
       );
 
+      if (!mounted) return;
+
       result.fold(
         (error) {
+          if (!mounted) return;
           setState(() {
             errorMessage = error;
             orders = [];
           });
         },
         (orderResponse) {
+          if (!mounted) return;
           setState(() {
             orders = orderResponse.data ?? [];
             errorMessage = null;
@@ -85,11 +91,13 @@ class _ReportPageState extends State<ReportPage> {
         },
       );
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = 'Error: $e';
         orders = [];
       });
     } finally {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });

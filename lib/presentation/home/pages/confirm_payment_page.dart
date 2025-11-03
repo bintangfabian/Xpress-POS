@@ -4,6 +4,7 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
+import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/models/response/table_model.dart';
 import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 import 'package:xpress/presentation/home/dialogs/cash_success_dialog.dart';
@@ -15,6 +16,8 @@ import 'package:xpress/presentation/home/dialogs/service_dialog.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart';
 import 'package:xpress/presentation/home/dialogs/qris_confirm_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/qris_success_dialog.dart';
+import 'package:xpress/presentation/home/models/order_model.dart';
+import 'package:xpress/presentation/home/models/product_quantity.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/presentation/home/widgets/custom_button.dart';
 import 'package:xpress/presentation/home/widgets/order_menu.dart';
@@ -25,13 +28,40 @@ import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
-import 'package:xpress/presentation/home/models/order_model.dart';
+
+class _CheckoutAmounts {
+  final int subtotal;
+  final int discount;
+  final int tax;
+  final int service;
+  final int total;
+
+  const _CheckoutAmounts({
+    required this.subtotal,
+    required this.discount,
+    required this.tax,
+    required this.service,
+    required this.total,
+  });
+}
+
+class _OrderSubmissionData {
+  final Map<String, dynamic> body;
+  final _CheckoutAmounts amounts;
+
+  const _OrderSubmissionData({
+    required this.body,
+    required this.amounts,
+  });
+}
 
 class ConfirmPaymentPage extends StatefulWidget {
   final bool isTable;
   final TableModel? table;
   final String orderType; // dinein / takeaway
   final String orderNumber; // order number
+  final String? existingOrderId;
+  final ItemOrder? openBillOrder;
 
   const ConfirmPaymentPage({
     super.key,
@@ -39,6 +69,8 @@ class ConfirmPaymentPage extends StatefulWidget {
     this.table,
     required this.orderType,
     required this.orderNumber,
+    this.existingOrderId,
+    this.openBillOrder,
   });
 
   @override
@@ -53,6 +85,9 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   int? _selectedTableNumber;
   String? _selectedMemberId;
 
+  bool get _isOpenBillPayment => widget.existingOrderId != null;
+  ItemOrder? get _openBill => widget.openBillOrder;
+
   // Helper method to parse table number from String to int
   int? _parseTableNumber(String? tableNumber) {
     if (tableNumber == null || tableNumber.isEmpty) return null;
@@ -65,10 +100,22 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   void initState() {
     super.initState();
     _selectedTableNumber = _parseTableNumber(widget.table?.tableNumber);
+    _selectedMemberId = _openBill?.member?.id;
+    if (_openBill?.notes != null && _openBill!.notes!.isNotEmpty) {
+      noteController.text = _openBill!.notes!;
+    }
     // Rebuild when total pay changes to update Pay button enabled state and change value
     totalPayController.addListener(() {
       if (mounted) setState(() {});
     });
+    if (_isOpenBillPayment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final due = _calculateDueTotal();
+        if (due > 0 && totalPayController.text.toIntegerFromText == 0) {
+          totalPayController.text = due.toString();
+        }
+      });
+    }
   }
 
   @override
@@ -157,166 +204,63 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   // Submit order to server
   Future<bool> _submitOrder() async {
     try {
-      // print('========================================');
-      // print('SUBMIT ORDER: Starting...');
-
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
 
-      // print('SUBMIT ORDER: User ID = ${auth.user?.id}');
-      // print('SUBMIT ORDER: Store UUID = $storeUuid');
-      // print('SUBMIT ORDER: Table ID = ${widget.table?.id}');
-
-      if (!mounted) return false;
-      final state = context.read<CheckoutBloc>().state;
-
-      final orderData = await state.maybeWhen(
-        loaded: (
-          products,
-          discountModel,
-          discount,
-          discountAmount,
-          tax,
-          serviceCharge,
-          totalQuantity,
-          totalPrice,
-          draftName,
-          orderType,
-        ) async {
-          // Calculate amounts
-          final subtotal = products.map((e) {
-            final basePrice = e.product.price?.toIntegerFromText ?? 0;
-            final variantPrice =
-                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
-                    0;
-            return (basePrice + variantPrice) * e.quantity;
-          }).fold(0, (a, b) => a + b);
-
-          final discAmt = _computeDiscountAmount(subtotal, discountModel);
-          final taxAmt = _computeTaxAmount(subtotal, tax);
-          final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
-
-          // Debug print untuk melihat nilai diskon
-          // print('=== DEBUG DISCOUNT ===');
-          // print('Subtotal: $subtotal');
-          // print('Discount Model: $discountModel');
-          // print('Discount Amount: $discAmt');
-          // print('Tax Amount: $taxAmt');
-          // print('Service Amount: $serviceAmt');
-          // print('====================');
-
-          final rawOrderType = orderType ?? widget.orderType;
-          final operationMode = normalizeOperationMode(rawOrderType);
-          // print('Order Type (raw): $rawOrderType');
-          // print('Operation Mode (normalized): $operationMode');
-
-          // Build items array
-          final items = products.map((p) {
-            final item = <String, dynamic>{
-              'product_id': p.product.productId ?? p.product.id,
-              'quantity': p.quantity,
-            };
-
-            // Add product_options if variants exist and have IDs
-            if (p.variants != null && p.variants!.isNotEmpty) {
-              final variantIds = p.variants!
-                  .where((v) => v.id != null && v.id!.isNotEmpty)
-                  .map((v) => v.id!)
-                  .toList();
-              if (variantIds.isNotEmpty) {
-                item['product_options'] = variantIds;
-              }
-            }
-
-            // Add notes if any (currently not implemented in UI, but placeholder)
-            // item['notes'] = 'Some notes';
-
-            return item;
-          }).toList();
-
-          // print('SUBMIT ORDER: Items = ${items.length}');
-          for (var i = 0; i < items.length; i++) {
-            // print('  Item $i: ${jsonEncode(items[i])}');
-          }
-
-          // Build request body
-          final body = <String, dynamic>{
-            'user_id': auth.user?.id,
-            'status': 'completed',
-            'payment_method': isCash ? 'cash' : 'qris',
-            'operation_mode': operationMode,
-          };
-
-          // Add store_id if available
-          if (storeUuid != null && storeUuid.isNotEmpty) {
-            body['store_id'] = storeUuid;
-          }
-
-          // Add table_id if available
-          // Priority: selected table number > widget table id
-          String? tableId;
-          if (_selectedTableNumber != null) {
-            // Find table by number from the table list
-            final tableBloc = context.read<GetTableBloc>();
-            final tableState = tableBloc.state;
-            if (tableState.maybeWhen(
-              success: (tables) {
-                TableModel? selectedTable;
-                try {
-                  selectedTable = tables.firstWhere(
-                    (t) =>
-                        int.tryParse(t.tableNumber ?? '0') ==
-                        _selectedTableNumber,
-                  );
-                } catch (e) {
-                  selectedTable = null;
-                }
-                if (selectedTable != null) {
-                  tableId = selectedTable.id;
-                }
-                return true;
-              },
-              orElse: () => false,
-            )) {
-              // tableId already set above
-            }
-          } else if (widget.table?.id != null && widget.table!.id!.isNotEmpty) {
-            tableId = widget.table!.id;
-          }
-
-          if (tableId != null && tableId!.isNotEmpty) {
-            body['table_id'] = tableId;
-          }
-
-          // Add member_id if customer is a member
-          if (_selectedMemberId != null) {
-            body['member_id'] = _selectedMemberId;
-          }
-
-          // Add financial details
-          if (discAmt > 0) body['discount_amount'] = discAmt.toDouble();
-          if (serviceAmt > 0) body['service_charge'] = serviceAmt.toDouble();
-          if (taxAmt > 0) body['tax'] = taxAmt.toDouble();
-
-          // Add notes if any
-          if (noteController.text.isNotEmpty) {
-            body['notes'] = noteController.text;
-          }
-
-          // Add items
-          body['items'] = items;
-
-          return body;
-        },
-        orElse: () => null,
+      final submissionData = await _prepareOrderSubmissionData(
+        userId: auth.user?.id,
+        storeUuid: storeUuid,
       );
 
-      if (orderData == null) {
-        // print('SUBMIT ORDER: Failed - no order data');
+      if (submissionData == null) {
         return false;
       }
 
-      // print('SUBMIT ORDER: Request body = ${jsonEncode(orderData)}');
+      final orderRemoteDatasource = OrderRemoteDatasource();
+
+      if (_isOpenBillPayment && widget.existingOrderId != null) {
+        final orderId = widget.existingOrderId!;
+        final payload = Map<String, dynamic>.from(submissionData.body);
+
+        payload['payment_mode'] = 'open_bill';
+        payload['status'] = 'completed';
+        payload['subtotal'] = submissionData.amounts.subtotal;
+        payload['total_amount'] = submissionData.amounts.total;
+        payload['discount_amount'] = submissionData.amounts.discount.toDouble();
+        payload['service_charge'] = submissionData.amounts.service.toDouble();
+        payload['tax'] = submissionData.amounts.tax.toDouble();
+        if (widget.orderNumber.isNotEmpty) {
+          payload['order_number'] = widget.orderNumber;
+        }
+
+        final updateResult = await orderRemoteDatasource.updateOpenBillOrder(
+          orderId: orderId,
+          orderData: payload,
+        );
+
+        return await updateResult.fold(
+          (_) async => false,
+          (_) async {
+            final paymentMethod = isCash ? 'cash' : 'qris';
+            final paymentNotes =
+                'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
+
+            // Get the actual amount paid by user
+            final receivedAmount = _currentTotalPay();
+            final dueAmount = submissionData.amounts.total;
+
+            await orderRemoteDatasource.createPayment(
+              orderId: orderId,
+              paymentMethod: paymentMethod,
+              amount: dueAmount,
+              receivedAmount: receivedAmount > 0 ? receivedAmount : dueAmount,
+              notes: paymentNotes,
+            );
+
+            return true;
+          },
+        );
+      }
 
       // Make API request
       final uri =
@@ -333,126 +277,59 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       var res = await http.post(
         uri,
         headers: headers,
-        body: jsonEncode(orderData),
+        body: jsonEncode(submissionData.body),
       );
 
-      // print('SUBMIT ORDER: Response status = ${res.statusCode}');
-      // print('SUBMIT ORDER: Response body = ${res.body}');
-
       if (res.statusCode == 403) {
-        // Retry without store header if forbidden
         headers.remove('X-Store-Id');
         res = await http.post(
           uri,
           headers: headers,
-          body: jsonEncode(orderData),
+          body: jsonEncode(submissionData.body),
         );
-        // print('SUBMIT ORDER: Retry response status = ${res.statusCode}');
-        // print('SUBMIT ORDER: Retry response body = ${res.body}');
       }
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        // print('SUBMIT ORDER: Success!');
-
-        // Extract order_id from response
-        final orderRemoteDatasource = OrderRemoteDatasource();
         final orderId = orderRemoteDatasource.extractOrderId(res.body);
 
         if (orderId != null && orderId.isNotEmpty) {
-          // print('SUBMIT ORDER: Order ID = $orderId');
-
-          // Calculate total amount for payment
-          if (!mounted) return false;
-          final state = context.read<CheckoutBloc>().state;
-          final total = state.maybeWhen(
-            loaded: (
-              products,
-              discountModel,
-              discount,
-              discountAmount,
-              tax,
-              serviceCharge,
-              totalQuantity,
-              totalPrice,
-              draftName,
-              orderType,
-            ) {
-              final subtotal = products
-                  .map((e) =>
-                      (e.product.price?.toIntegerFromText ?? 0) * e.quantity)
-                  .fold(0, (a, b) => a + b);
-              final discAmt = _computeDiscountAmount(subtotal, discountModel);
-              final taxAmt = _computeTaxAmount(subtotal, tax);
-              final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
-              return subtotal - discAmt + taxAmt + serviceAmt;
-            },
-            orElse: () => 0,
-          );
-
-          // Create payment
           final paymentMethod = isCash ? 'cash' : 'qris';
           final paymentNotes =
               'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
 
-          // print('SUBMIT ORDER: Creating payment...');
-          // print('SUBMIT ORDER: Payment Method = $paymentMethod');
-          // Extract total_amount from API response instead of recalculating
           int apiTotal = 0;
           try {
             final decoded = jsonDecode(res.body);
-            final orderData = decoded['data'];
-            if (orderData != null && orderData['total_amount'] != null) {
-              final totalStr = orderData['total_amount'].toString();
-              apiTotal = (double.tryParse(totalStr) ?? 0.0).round();
-              if (apiTotal > 0) {
-                // print('SUBMIT ORDER: Using API total amount = $apiTotal');
-                // print('SUBMIT ORDER: Calculated total = $total');
-              }
+            final data = decoded['data'];
+            if (data != null && data['total_amount'] != null) {
+              apiTotal =
+                  (double.tryParse(data['total_amount'].toString()) ?? 0.0)
+                      .round();
             }
-          } catch (e) {
-            // Ignore error
-          }
+          } catch (_) {}
 
-          // Use API total if available, otherwise use calculated total
-          final finalAmount = apiTotal > 0 ? apiTotal : total;
-          // print('SUBMIT ORDER: Amount = $finalAmount');
+          final finalAmount =
+              apiTotal > 0 ? apiTotal : submissionData.amounts.total;
 
-          final paymentCreated = await orderRemoteDatasource.createPayment(
+          // Get the actual amount paid by user
+          final receivedAmount = _currentTotalPay();
+
+          await orderRemoteDatasource.createPayment(
             orderId: orderId,
             paymentMethod: paymentMethod,
             amount: finalAmount,
-            receivedAmount: finalAmount,
+            receivedAmount: receivedAmount > 0 ? receivedAmount : finalAmount,
             notes: paymentNotes,
           );
 
-          if (paymentCreated) {
-            // print('SUBMIT ORDER: Payment created successfully!');
-          } else {
-            // print('SUBMIT ORDER: Failed to create payment');
-            // print('SUBMIT ORDER: Response body for debugging: ${res.body}');
-          }
-        } else {
-          // print('ERROR: Could not extract order_id from response');
-          // print('SUBMIT ORDER: Response body: ${res.body}');
-          try {
-            // final decoded = jsonDecode(res.body);
-            // print('SUBMIT ORDER: Decoded response: $decoded');
-            // print('SUBMIT ORDER: Response keys: ${decoded is Map ? decoded.keys.toList() : 'not a map'}');
-          } catch (e) {
-            // print('SUBMIT ORDER: Error parsing response: $e');
-          }
+          return true;
         }
 
-        // print('========================================');
         return true;
       }
 
-      // print('SUBMIT ORDER: Failed with status ${res.statusCode}');
-      // print('========================================');
       return false;
     } catch (e) {
-      // print('SUBMIT ORDER: Exception = $e');
-      // print('========================================');
       return false;
     }
   }
@@ -468,31 +345,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   }
 
   int _calculateDueTotal() {
-    final state = context.read<CheckoutBloc>().state;
-    return state.maybeWhen(
-      loaded: (
-        products,
-        discountModel,
-        discount,
-        discountAmount,
-        tax,
-        serviceCharge,
-        totalQuantity,
-        totalPrice,
-        draftName,
-        orderType,
-      ) {
-        final subtotal = products
-            .map((e) => (e.product.price?.toIntegerFromText ?? 0) * e.quantity)
-            .fold(0, (a, b) => a + b);
-        final discAmt = _computeDiscountAmount(subtotal, discountModel);
-        final taxAmt = _computeTaxAmount(subtotal, tax);
-        final serviceAmt = _computeServiceAmount(subtotal, serviceCharge);
-        final total = subtotal - discAmt + taxAmt + serviceAmt;
-        return total.ceil();
-      },
-      orElse: () => 0,
-    );
+    final amounts = _computeCheckoutAmounts();
+    return amounts.total;
   }
 
   int _calculateChange() {
@@ -551,6 +405,200 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   int _computeServiceAmount(int subtotal, int servicePercent) {
     if (servicePercent <= 0) return 0;
     return (subtotal * (servicePercent / 100)).floor();
+  }
+
+  int _parseAmount(String? raw) {
+    if (raw == null || raw.isEmpty) return 0;
+    return raw.toIntegerFromText;
+  }
+
+  _CheckoutAmounts _resolveAmounts(
+    List<ProductQuantity> products,
+    Discount? discountModel,
+    int taxPercent,
+    int servicePercent,
+  ) {
+    int subtotal = products.map((e) {
+      final basePrice = e.product.price?.toIntegerFromText ?? 0;
+      final variantPrice =
+          e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ?? 0;
+      return (basePrice + variantPrice) * e.quantity;
+    }).fold(0, (a, b) => a + b);
+
+    if (subtotal <= 0 && _isOpenBillPayment) {
+      subtotal = _parseAmount(_openBill?.subtotal);
+      if (subtotal <= 0 && (_openBill?.items?.isNotEmpty ?? false)) {
+        subtotal = _openBill!.items!.fold<int>(
+          0,
+          (sum, item) => sum + _parseAmount(item.totalPrice),
+        );
+      }
+    }
+
+    int discountAmount = _computeDiscountAmount(subtotal, discountModel);
+    if (discountAmount <= 0 && _isOpenBillPayment) {
+      discountAmount = _parseAmount(_openBill?.discountAmount);
+      if (discountAmount > subtotal) {
+        discountAmount = subtotal;
+      }
+    }
+
+    int taxAmount = _computeTaxAmount(subtotal, taxPercent);
+    if (taxAmount <= 0 && _isOpenBillPayment) {
+      taxAmount = _parseAmount(_openBill?.taxAmount);
+    }
+
+    int serviceAmount = _computeServiceAmount(subtotal, servicePercent);
+    if (serviceAmount <= 0 && _isOpenBillPayment) {
+      serviceAmount = _parseAmount(_openBill?.serviceCharge);
+    }
+
+    int total = subtotal - discountAmount + taxAmount + serviceAmount;
+    if (total <= 0 && _isOpenBillPayment) {
+      total = _parseAmount(_openBill?.totalAmount);
+    }
+    if (total < 0) total = 0;
+
+    return _CheckoutAmounts(
+      subtotal: subtotal,
+      discount: discountAmount,
+      tax: taxAmount,
+      service: serviceAmount,
+      total: total,
+    );
+  }
+
+  _CheckoutAmounts _computeCheckoutAmounts() {
+    final state = context.read<CheckoutBloc>().state;
+    return state.maybeWhen(
+      loaded: (
+        products,
+        discountModel,
+        discount,
+        discountAmount,
+        tax,
+        serviceCharge,
+        totalQuantity,
+        totalPrice,
+        draftName,
+        orderType,
+      ) =>
+          _resolveAmounts(products, discountModel, tax, serviceCharge),
+      orElse: () => _resolveAmounts(const [], null, 0, 0),
+    );
+  }
+
+  Future<_OrderSubmissionData?> _prepareOrderSubmissionData({
+    required int? userId,
+    required String? storeUuid,
+  }) async {
+    if (!mounted) return null;
+    final state = context.read<CheckoutBloc>().state;
+
+    return await state.maybeWhen(
+      loaded: (
+        products,
+        discountModel,
+        discount,
+        discountAmount,
+        tax,
+        serviceCharge,
+        totalQuantity,
+        totalPrice,
+        draftName,
+        orderType,
+      ) async {
+        final amounts =
+            _resolveAmounts(products, discountModel, tax, serviceCharge);
+
+        final rawOrderType = orderType ?? widget.orderType;
+        final operationMode = normalizeOperationMode(rawOrderType);
+
+        final items = products.map((p) {
+          final item = <String, dynamic>{
+            'product_id': p.product.productId ?? p.product.id,
+            'quantity': p.quantity,
+          };
+
+          if (p.variants != null && p.variants!.isNotEmpty) {
+            final variantIds = p.variants!
+                .where((v) => v.id != null && v.id!.isNotEmpty)
+                .map((v) => v.id!)
+                .toList();
+            if (variantIds.isNotEmpty) {
+              item['product_options'] = variantIds;
+            }
+          }
+
+          return item;
+        }).toList();
+
+        final body = <String, dynamic>{
+          'user_id': userId,
+          'status': 'completed',
+          'payment_method': isCash ? 'cash' : 'qris',
+          'operation_mode': operationMode,
+          'items': items,
+        };
+
+        if (storeUuid != null && storeUuid.isNotEmpty) {
+          body['store_id'] = storeUuid;
+        }
+
+        String? tableId;
+        if (_selectedTableNumber != null) {
+          final tableState = context.read<GetTableBloc>().state;
+          tableState.maybeWhen(
+            success: (tables) {
+              try {
+                tableId = tables
+                    .firstWhere(
+                      (t) =>
+                          int.tryParse(t.tableNumber ?? '0') ==
+                          _selectedTableNumber,
+                    )
+                    .id;
+              } catch (_) {
+                tableId = null;
+              }
+              return true;
+            },
+            orElse: () => false,
+          );
+        } else if (widget.table?.id != null && widget.table!.id!.isNotEmpty) {
+          tableId = widget.table!.id;
+        }
+
+        if (tableId != null && tableId!.isNotEmpty) {
+          body['table_id'] = tableId;
+        }
+
+        if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
+          body['member_id'] = _selectedMemberId;
+        }
+
+        if (noteController.text.isNotEmpty) {
+          body['notes'] = noteController.text;
+        }
+
+        if (amounts.discount > 0 || _isOpenBillPayment) {
+          body['discount_amount'] = amounts.discount.toDouble();
+        }
+        if (amounts.service > 0 || _isOpenBillPayment) {
+          body['service_charge'] = amounts.service.toDouble();
+        }
+        if (amounts.tax > 0 || _isOpenBillPayment) {
+          body['tax'] = amounts.tax.toDouble();
+        }
+
+        if (_isOpenBillPayment && widget.orderNumber.isNotEmpty) {
+          body['order_number'] = widget.orderNumber;
+        }
+
+        return _OrderSubmissionData(body: body, amounts: amounts);
+      },
+      orElse: () => null,
+    );
   }
 
   @override
@@ -1431,52 +1479,17 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             builder: (context, state) {
               return state.maybeWhen(
                 orElse: () {
-                  // Calculate totals even in orElse state
-                  final state = context.read<CheckoutBloc>().state;
-                  return state.maybeWhen(
-                    loaded: (products,
-                        discountModel,
-                        discount,
-                        discountAmount,
-                        tax,
-                        serviceCharge,
-                        totalQuantity,
-                        totalPrice,
-                        draftName,
-                        orderType) {
-                      final subtotal = products
-                          .map((e) =>
-                              (e.product.price?.toIntegerFromText ?? 0) *
-                              e.quantity)
-                          .fold(0, (a, b) => a + b);
-                      final discAmt =
-                          _computeDiscountAmount(subtotal, discountModel);
-                      final taxAmt = _computeTaxAmount(subtotal, tax);
-                      final serviceAmt =
-                          _computeServiceAmount(subtotal, serviceCharge);
-                      final total = subtotal - discAmt + taxAmt + serviceAmt;
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _priceRow("Subtotal", subtotal.currencyFormatRp),
-                          _priceRow("Diskon", "-${discAmt.currencyFormatRp}"),
-                          _priceRow("Layanan", serviceAmt.currencyFormatRp),
-                          _priceRow("Pajak", taxAmt.currencyFormatRp),
-                          _totalPriceRow("Total", total.currencyFormatRp),
-                        ],
-                      );
-                    },
-                    orElse: () => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _priceRow("Subtotal", "Rp0"),
-                        _priceRow("Diskon", "-Rp0"),
-                        _priceRow("Layanan", "Rp0"),
-                        _priceRow("Pajak", "Rp0"),
-                        _totalPriceRow("Total", "Rp0"),
-                      ],
-                    ),
+                  final amounts = _computeCheckoutAmounts();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _priceRow("Subtotal", amounts.subtotal.currencyFormatRp),
+                      _priceRow(
+                          "Diskon", "-${amounts.discount.currencyFormatRp}"),
+                      _priceRow("Layanan", amounts.service.currencyFormatRp),
+                      _priceRow("Pajak", amounts.tax.currencyFormatRp),
+                      _totalPriceRow("Total", amounts.total.currencyFormatRp),
+                    ],
                   );
                 },
                 loaded: (products,
@@ -1489,29 +1502,20 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                     totalPrice,
                     draftName,
                     orderType) {
-                  final subtotal = products
-                      .map((e) =>
-                          (e.product.price?.toIntegerFromText ?? 0) *
-                          e.quantity)
-                      .fold(0, (a, b) => a + b);
-                  final discAmt =
-                      _computeDiscountAmount(subtotal, discountModel);
-                  final taxAmt = _computeTaxAmount(subtotal, tax);
-                  final serviceAmt =
-                      _computeServiceAmount(subtotal, serviceCharge);
-                  final total = subtotal - discAmt + taxAmt + serviceAmt;
-
+                  final amounts = _resolveAmounts(
+                      products, discountModel, tax, serviceCharge);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _priceRow("Subtotal", subtotal.currencyFormatRp),
-                      _priceRow("Diskon", "-${discAmt.currencyFormatRp}"),
-                      _priceRow("Layanan", serviceAmt.currencyFormatRp),
-                      _priceRow("Pajak", taxAmt.currencyFormatRp),
+                      _priceRow("Subtotal", amounts.subtotal.currencyFormatRp),
+                      _priceRow(
+                          "Diskon", "-${amounts.discount.currencyFormatRp}"),
+                      _priceRow("Layanan", amounts.service.currencyFormatRp),
+                      _priceRow("Pajak", amounts.tax.currencyFormatRp),
                       const SizedBox(
                         height: 8,
                       ),
-                      _totalPriceRow("Total", total.currencyFormatRp),
+                      _totalPriceRow("Total", amounts.total.currencyFormatRp),
                     ],
                   );
                 },

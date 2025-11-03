@@ -37,7 +37,8 @@ import 'package:xpress/core/utils/timezone_helper.dart';
 class HomePage extends StatefulWidget {
   final bool isTable;
   final TableModel? table;
-  final void Function(String orderType, String orderNumber)? onGoToPayment;
+  final void Function(String orderType, String orderNumber,
+      {String? existingOrderId, ItemOrder? openBillOrder})? onGoToPayment;
 
   const HomePage({
     super.key,
@@ -62,6 +63,7 @@ class _HomePageState extends State<HomePage> {
   bool _isEditingOpenBill = false;
   String? _editingOpenBillId;
   TableModel? _editingOpenBillTable;
+  ItemOrder? _editingOpenBillOrder; // Store full order object
 
   void _logHome(String message) {
     assert(() {
@@ -264,6 +266,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _isEditingOpenBill = true;
       _editingOpenBillId = order.id;
+      _editingOpenBillOrder = order; // Store full order object
       _orderNumber = order.orderNumber ?? _orderNumber;
 
       // Set order type
@@ -510,6 +513,7 @@ class _HomePageState extends State<HomePage> {
             _isEditingOpenBill = false;
             _editingOpenBillId = null;
             _editingOpenBillTable = null;
+            _editingOpenBillOrder = null; // Clear full order object
           });
 
           // Navigate back to dashboard
@@ -605,6 +609,8 @@ class _HomePageState extends State<HomePage> {
             table: tableModel,
             orderType: orderType,
             orderNumber: order.orderNumber ?? '',
+            existingOrderId: order.id,
+            openBillOrder: order,
           ),
         ),
       );
@@ -1316,9 +1322,20 @@ class _HomePageState extends State<HomePage> {
                                                           );
                                                         }
                                                       : () {
+                                                          // Pass open bill context if in editing mode
                                                           widget.onGoToPayment
-                                                              ?.call(orderType,
-                                                                  _orderNumber);
+                                                              ?.call(
+                                                            orderType,
+                                                            _orderNumber,
+                                                            existingOrderId:
+                                                                _isEditingOpenBill
+                                                                    ? _editingOpenBillId
+                                                                    : null,
+                                                            openBillOrder:
+                                                                _isEditingOpenBill
+                                                                    ? _editingOpenBillOrder
+                                                                    : null,
+                                                          );
                                                         },
                                                 );
                                               },
