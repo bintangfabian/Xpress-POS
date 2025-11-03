@@ -175,9 +175,14 @@ class _HomePageState extends State<HomePage> {
           final orderData = <String, dynamic>{
             'order_number': _orderNumber,
             'order_type': orderType,
+            'operation_mode': orderType == 'dinein'
+                ? 'dine_in'
+                : 'takeaway', // ✅ Add operation_mode
             'subtotal': subtotal,
             'total_amount': totalAmt,
             'items': items,
+            'deduct_inventory':
+                true, // ✅ Tambahkan flag untuk kurangi stok saat create open bill
           };
 
           // Add table_id if exists
@@ -402,9 +407,14 @@ class _HomePageState extends State<HomePage> {
           final orderData = <String, dynamic>{
             'order_number': _orderNumber,
             'order_type': orderType,
+            'operation_mode': orderType == 'dinein'
+                ? 'dine_in'
+                : 'takeaway', // ✅ Add operation_mode
             'subtotal': subtotal,
             'total_amount': totalAmt,
             'items': items,
+            'update_inventory':
+                true, // ✅ Update stok saat edit open bill (jika ada perubahan items)
           };
 
           // Add table_id if exists
