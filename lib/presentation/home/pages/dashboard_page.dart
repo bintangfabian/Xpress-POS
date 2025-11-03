@@ -15,6 +15,7 @@ import 'package:xpress/presentation/report/pages/transaction_detail_page.dart';
 import 'package:xpress/presentation/sales/pages/sales_page.dart';
 import 'package:xpress/presentation/setting/pages/settings_page.dart';
 import 'package:xpress/presentation/table/pages/table_page.dart';
+import 'package:xpress/data/models/response/order_response_model.dart';
 
 import '../../../core/assets/assets.gen.dart';
 import '../bloc/online_checker/online_checker_bloc.dart';
@@ -41,6 +42,8 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _selectedOrderId; // ✅ simpan order id yang dipilih
   String _orderType = 'dinein';
   String _orderNumber = '#0001'; // ✅ simpan order number
+  String? _existingOrderId; // ✅ simpan existing order id untuk open bill
+  ItemOrder? _openBillOrder; // ✅ simpan full open bill order
 
   @override
   void initState() {
@@ -56,10 +59,13 @@ class _DashboardPageState extends State<DashboardPage> {
       HomePage(
         isTable: _selectedTable != null,
         table: _selectedTable,
-        onGoToPayment: (orderType, orderNumber) {
+        onGoToPayment: (orderType, orderNumber,
+            {existingOrderId, openBillOrder}) {
           setState(() {
             _orderType = orderType;
             _orderNumber = orderNumber;
+            _existingOrderId = existingOrderId; // Store existing order id
+            _openBillOrder = openBillOrder; // Store full open bill order
             _contentIndex = 5; // tampilkan halaman konfirmasi
             _selectedIndex = 0; // navbar tetap aktif di Home
           });
@@ -83,6 +89,8 @@ class _DashboardPageState extends State<DashboardPage> {
         table: _selectedTable,
         orderType: _orderType,
         orderNumber: _orderNumber,
+        existingOrderId: _existingOrderId, // Pass existing order id
+        openBillOrder: _openBillOrder, // Pass full open bill order
       ),
       // Index 6 = TransactionDetailPage
       TransactionDetailPage(
