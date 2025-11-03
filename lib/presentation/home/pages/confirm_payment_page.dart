@@ -229,6 +229,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         payload['discount_amount'] = submissionData.amounts.discount.toDouble();
         payload['service_charge'] = submissionData.amounts.service.toDouble();
         payload['tax'] = submissionData.amounts.tax.toDouble();
+        payload['skip_inventory_deduction'] =
+            true; // ✅ Skip deduct stok saat bayar (sudah di-deduct saat create open bill)
         if (widget.orderNumber.isNotEmpty) {
           payload['order_number'] = widget.orderNumber;
         }
@@ -239,8 +241,13 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         );
 
         return await updateResult.fold(
-          (_) async => false,
+          (error) async {
+            // Log error untuk debugging
+            print('❌ ERROR updating open bill: $error');
+            return false;
+          },
           (_) async {
+            print('✅ Open bill updated successfully, completing payment...');
             final paymentMethod = isCash ? 'cash' : 'qris';
             final paymentNotes =
                 'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
@@ -249,7 +256,16 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             final receivedAmount = _currentTotalPay();
             final dueAmount = submissionData.amounts.total;
 
-            await orderRemoteDatasource.createPayment(
+            print('💰 Completing payment for open bill:');
+            print('   Order ID: $orderId');
+            print('   Payment Method: $paymentMethod');
+            print('   Amount: $dueAmount');
+            print('   Received: $receivedAmount');
+
+            // Use completeOpenBillPayment instead of createPayment
+            // This will update the existing pending payment instead of creating a new one
+            final paymentCompleted =
+                await orderRemoteDatasource.completeOpenBillPayment(
               orderId: orderId,
               paymentMethod: paymentMethod,
               amount: dueAmount,
@@ -257,6 +273,14 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
               notes: paymentNotes,
             );
 
+            if (paymentCompleted) {
+              print('✅ Open bill payment completed successfully!');
+            } else {
+              print('❌ WARNING: Failed to complete open bill payment');
+            }
+
+            // Return true because order update was successful
+            // even if payment completion failed (user can retry payment)
             return true;
           },
         );
@@ -314,13 +338,25 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           // Get the actual amount paid by user
           final receivedAmount = _currentTotalPay();
 
-          await orderRemoteDatasource.createPayment(
+          print('💰 Creating payment for new order:');
+          print('   Order ID: $orderId');
+          print('   Payment Method: $paymentMethod');
+          print('   Amount: $finalAmount');
+          print('   Received: $receivedAmount');
+
+          final paymentCreated = await orderRemoteDatasource.createPayment(
             orderId: orderId,
             paymentMethod: paymentMethod,
             amount: finalAmount,
             receivedAmount: receivedAmount > 0 ? receivedAmount : finalAmount,
             notes: paymentNotes,
           );
+
+          if (paymentCreated) {
+            print('✅ Payment created successfully!');
+          } else {
+            print('❌ WARNING: Failed to create payment');
+          }
 
           return true;
         }

@@ -727,6 +727,72 @@ class OrderRemoteDatasource {
     }
   }
 
+  // Complete open bill payment (update existing pending payment)
+  Future<bool> completeOpenBillPayment({
+    required String orderId,
+    required String paymentMethod,
+    required int amount,
+    required int receivedAmount,
+    String? notes,
+  }) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/payments/complete-open-bill');
+
+      final paymentPayload = {
+        'order_id': orderId,
+        'payment_method': paymentMethod,
+        'amount': amount,
+        'received_amount': receivedAmount,
+        'status': 'completed',
+        'notes': notes ?? 'Open Bill - Pembayaran Lunas',
+      };
+
+      final payload = jsonEncode(paymentPayload);
+      log('========================================');
+      log('💰 Completing open bill payment');
+      log('Order ID: $orderId');
+      log('Payment Method: $paymentMethod');
+      log('Amount: $amount');
+      log('Received Amount: $receivedAmount');
+      log('Payload: $paymentPayload');
+      log('========================================');
+
+      var headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      var response = await http.post(uri, headers: headers, body: payload);
+
+      if (response.statusCode == 403) {
+        log('⚠️ Got 403, retrying without X-Store-Id header');
+        headers.remove('X-Store-Id');
+        response = await http.post(uri, headers: headers, body: payload);
+      }
+
+      log('Complete Payment Response Status: ${response.statusCode}');
+      log('Complete Payment Response Body: ${response.body}');
+
+      final success = response.statusCode == 200 || response.statusCode == 201;
+      if (success) {
+        log('✅ Open bill payment completed successfully!');
+      } else {
+        log('❌ Failed to complete open bill payment: ${response.statusCode}');
+      }
+      log('========================================');
+
+      return success;
+    } catch (e) {
+      log('❌ Error completing open bill payment: $e');
+      return false;
+    }
+  }
+
   // Update open bill order
   Future<Either<String, String>> updateOpenBillOrder({
     required String orderId,
@@ -781,7 +847,7 @@ class OrderRemoteDatasource {
     }
   }
 
-  // Cancel open bill order (update status to canceled)
+  // Cancel open bill order (update status to cancelled)
   Future<Either<String, String>> cancelOpenBillOrder({
     required String orderId,
   }) async {
@@ -796,7 +862,11 @@ class OrderRemoteDatasource {
       final uri = Uri.parse(
           '${Variables.baseUrl}/api/${Variables.apiVersion}/orders/$orderId');
 
-      final payload = jsonEncode({'status': 'canceled'});
+      final payload = jsonEncode({
+        'status':
+            'cancelled', // ✅ Changed from 'canceled' to 'cancelled' (double-l)
+        'restore_inventory': true, // ✅ Restore stock saat cancel
+      });
 
       var headers = {
         'Authorization': 'Bearer ${authData.token}',
