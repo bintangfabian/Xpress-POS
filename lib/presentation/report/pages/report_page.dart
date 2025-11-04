@@ -81,10 +81,18 @@ class _ReportPageState extends State<ReportPage> {
           _logDebug('=== DEBUG ORDERS ===');
           for (var order in orders) {
             _logDebug('Order ID: ${order.id}');
+            _logDebug('Order Number: ${order.orderNumber}');
             _logDebug('Total Amount: ${order.totalAmount}');
             _logDebug('Table Number: ${order.table?.tableNumber}');
             _logDebug('Table Name: ${order.table?.name}');
             _logDebug('Status: ${order.status}');
+            _logDebug('Payment Method (order level): ${order.paymentMethod}');
+            _logDebug('Payments Array Length: ${order.payments?.length}');
+            if (order.payments != null && order.payments!.isNotEmpty) {
+              _logDebug(
+                  'First Payment Method: ${order.payments!.first.paymentMethod}');
+            }
+            _logDebug('Operation Mode: ${order.operationMode}');
             _logDebug('---');
           }
           _logDebug('Total orders: ${orders.length}');
@@ -369,13 +377,32 @@ class _ReportPageState extends State<ReportPage> {
       timeStr = DateFormat('HH.mm').format(dateTime);
     }
 
+    // Get payment method from order or from payments array
+    String paymentMethod = order.paymentMethod ?? '';
+    if (paymentMethod.isEmpty &&
+        order.payments != null &&
+        order.payments!.isNotEmpty) {
+      // Get payment method from the first payment in the payments array
+      paymentMethod = order.payments!.first.paymentMethod ?? '';
+    }
+
+    // Debug logging
+    _logDebug(
+        'Order ${order.orderNumber}: paymentMethod=${order.paymentMethod}, paymentsArray=${order.payments?.length}, finalPaymentMethod=$paymentMethod, operationMode=${order.operationMode}');
+
     // Tentukan icon berdasarkan payment method
     Widget paymentIcon = Assets.icons.tunai.svg(
       colorFilter: ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
       height: 46,
       width: 46,
     );
-    if (order.paymentMethod?.toLowerCase() == 'qris') {
+    final paymentMethodLower = paymentMethod.toLowerCase();
+    if (paymentMethodLower == 'qris' ||
+        paymentMethodLower == 'qr' ||
+        paymentMethodLower == 'digital' ||
+        paymentMethodLower == 'transfer' ||
+        paymentMethodLower == 'debit' ||
+        paymentMethodLower == 'credit') {
       paymentIcon = Assets.icons.nonTunai.svg(
         colorFilter: ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
         height: 46,
@@ -388,7 +415,8 @@ class _ReportPageState extends State<ReportPage> {
     Color statusBgColor = AppColors.successLight;
     String statusText = 'Lunas';
 
-    if (order.status?.toLowerCase() == 'pending') {
+    if (order.status?.toLowerCase() == 'pending' ||
+        order.status?.toLowerCase() == 'open') {
       statusColor = AppColors.warning;
       statusBgColor = AppColors.warningLight;
       statusText = 'Pending';
@@ -457,7 +485,7 @@ class _ReportPageState extends State<ReportPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -509,22 +537,40 @@ class _ReportPageState extends State<ReportPage> {
             ),
             Expanded(
               flex: 2,
-              child: Text(
-                operationModeLabel(order.operationMode),
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
+              child: Align(
+                alignment: Alignment.centerLeft, // area tetap nempel kiri
+                child: FractionallySizedBox(
+                  widthFactor: 0.75, // sesuaikan jika mau lebih/kurang lebar
+                  alignment: Alignment.center, // teks dipusatkan dalam area tsb
+                  child: Text(
+                    operationModeLabel(order.operationMode),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ),
             ),
             Expanded(
               flex: 2,
-              child: Text(
-                order.paymentMethod?.toUpperCase() ?? "TUNAI",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: 0.75,
+                  alignment: Alignment.center,
+                  child: Text(
+                    paymentMethod.isNotEmpty
+                        ? paymentMethod.toUpperCase()
+                        : 'TUNAI',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ),
