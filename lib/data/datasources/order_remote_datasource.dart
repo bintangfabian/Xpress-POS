@@ -866,6 +866,8 @@ class OrderRemoteDatasource {
         'status':
             'cancelled', // ✅ Changed from 'canceled' to 'cancelled' (double-l)
         'restore_inventory': true, // ✅ Restore stock saat cancel
+        'cancel_payment':
+            true, // ✅ Cancel pending payment saat order dibatalkan
       });
 
       var headers = {

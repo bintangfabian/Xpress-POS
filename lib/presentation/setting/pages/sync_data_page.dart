@@ -16,8 +16,110 @@ class SyncDataPage extends StatefulWidget {
 
 class _SyncDataPageState extends State<SyncDataPage> {
   bool _isSyncing = false;
+  bool _isForceSyncing = false;
   int _syncProgress =
       0; // 0 = idle, 1 = product syncing, 2 = order syncing, 3 = done
+
+  // ✅ NEW: Force clear and re-sync products
+  Future<void> _forceClearAndSyncProducts() async {
+    if (_isForceSyncing || _isSyncing) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Force Clear Database'),
+        content: const Text(
+          'Ini akan MENGHAPUS semua data produk lokal dan mengunduh ulang dari server.\n\n'
+          'Gunakan ini jika produk tidak sinkron dengan server.\n\n'
+          'Lanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Ya, Hapus & Sync'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isForceSyncing = true;
+    });
+
+    try {
+      // Step 1: Delete all local products
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🗑️ Menghapus database lokal...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      await ProductLocalDatasource.instance.deleteAllProducts();
+      print('✅ Local products deleted');
+
+      // Wait a bit
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Step 2: Sync products from server
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📥 Mengunduh produk dari server...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      if (mounted) {
+        context
+            .read<SyncProductBloc>()
+            .add(const SyncProductEvent.syncProduct());
+      }
+
+      // Wait for sync to complete
+      await Future.delayed(const Duration(seconds: 3));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Force sync berhasil! Silakan coba lagi.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Force sync error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Gagal force sync: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isForceSyncing = false;
+        });
+      }
+    }
+  }
 
   Future<void> _syncAll() async {
     if (_isSyncing) return;
@@ -101,6 +203,94 @@ class _SyncDataPageState extends State<SyncDataPage> {
         children: [
           const ContentTitle('Sinkronisasi Data'),
           const SizedBox(height: 16),
+
+          // ⚠️ FORCE CLEAR & RE-SYNC (untuk fix product mismatch)
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade300, width: 2),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: Colors.red.shade700, size: 28),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Force Clear & Re-sync Database',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Gunakan ini jika produk tidak sinkron dengan server (produk berubah-ubah saat load open bill)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isForceSyncing || _isSyncing
+                          ? null
+                          : _forceClearAndSyncProducts,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: _isForceSyncing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.delete_forever),
+                      label: Text(
+                        _isForceSyncing
+                            ? 'Memproses...'
+                            : 'Force Clear & Re-sync Products',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Divider(),
+          ),
+          const SizedBox(height: 8),
 
           // Produk
           BlocConsumer<SyncProductBloc, SyncProductState>(

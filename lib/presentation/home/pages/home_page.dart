@@ -33,6 +33,7 @@ import 'package:xpress/presentation/home/pages/confirm_payment_page.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/presentation/widgets/offline_banner.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 
 class HomePage extends StatefulWidget {
   final bool isTable;
@@ -65,6 +66,9 @@ class _HomePageState extends State<HomePage> {
   TableModel? _editingOpenBillTable;
   ItemOrder? _editingOpenBillOrder; // Store full order object
 
+  // ✅ FIX: Prevent concurrent force resync
+  bool _isResyncInProgress = false;
+
   void _logHome(String message) {
     assert(() {
       developer.log(message, name: 'HomePage');
@@ -83,6 +87,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _forceResyncProducts() async {
+    // ✅ FIX: Prevent concurrent resync operations
+    if (_isResyncInProgress) {
+      _logHome('⚠️ FORCE RESYNC: Already in progress, skipping...');
+      return;
+    }
+
+    _isResyncInProgress = true;
     _logHome('========================================');
     _logHome('FORCE RESYNC: Deleting all products...');
 
@@ -91,18 +102,19 @@ class _HomePageState extends State<HomePage> {
 
     _logHome('FORCE RESYNC: Products deleted, starting sync...');
 
-    if (!mounted) return;
+    if (!mounted) {
+      _isResyncInProgress = false;
+      return;
+    }
 
     // Sync from server
+    // ✅ FIX: Don't load products here - let BlocListener handle it after sync completes
+    // This prevents race condition that causes duplicate products
     context.read<SyncProductBloc>().add(const SyncProductEvent.syncProduct());
 
-    // Load local products
-    context
-        .read<LocalProductBloc>()
-        .add(const LocalProductEvent.getLocalProduct());
-
-    _logHome('FORCE RESYNC: Complete');
+    _logHome('FORCE RESYNC: Triggered, waiting for sync to complete...');
     _logHome('========================================');
+    // Note: _isResyncInProgress will be reset in BlocListener after sync completes
   }
 
   Future<void> _loadNextOrderNumber() async {
@@ -163,7 +175,7 @@ class _HomePageState extends State<HomePage> {
             final totalPrice = unitPrice * e.quantity;
 
             return {
-              'product_id': e.product.id,
+              'product_id': e.product.productId ?? e.product.id,
               'product_name': e.product.name,
               'quantity': e.quantity,
               'unit_price': unitPrice,
@@ -198,6 +210,9 @@ class _HomePageState extends State<HomePage> {
           if (taxAmt > 0) orderData['tax'] = taxAmt.toDouble();
 
           // Create open bill order
+          _logHome('📤 Creating open bill order...');
+          _logHome('Order data: $orderData');
+
           final result = await OrderRemoteDatasource().createOpenBillOrder(
             orderData: orderData,
             totalAmount: totalAmt,
@@ -210,10 +225,12 @@ class _HomePageState extends State<HomePage> {
 
           result.fold(
             (error) {
+              _logHome('❌ Failed to create open bill: $error');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Gagal membuat Open Bill: $error'),
                   backgroundColor: AppColors.danger,
+                  duration: const Duration(seconds: 5),
                 ),
               );
             },
@@ -267,6 +284,9 @@ class _HomePageState extends State<HomePage> {
 
   // Load open bill to checkout (Lanjutkan)
   Future<void> _loadOpenBillToCheckout(ItemOrder order) async {
+    _logHome('🔄 Loading open bill to checkout: ${order.id}');
+    _logHome('Order items count: ${order.items?.length ?? 0}');
+
     // Set editing state
     setState(() {
       _isEditingOpenBill = true;
@@ -294,33 +314,64 @@ class _HomePageState extends State<HomePage> {
               order.createdAt?.toIso8601String() ?? now.toIso8601String(),
           status: 'occupied',
           orderId: 0,
-          paymentAmount: int.tryParse(order.totalAmount ?? '0') ?? 0,
+          paymentAmount: AmountParser.parse(order.totalAmount),
         );
       }
     });
 
-    // Clear existing checkout first
+    // ✅ Clear existing checkout first
+    _logHome('🧹 Clearing existing checkout...');
     context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
 
-    // Load items to checkout
-    if (order.items != null) {
+    // ✅ Wait for clear to complete
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    // Load items to checkout one by one
+    if (order.items != null && order.items!.isNotEmpty) {
+      _logHome('📦 Loading ${order.items!.length} items...');
+
       for (var item in order.items!) {
         if (item.productId != null) {
+          _logHome(
+              '  - Loading product: ${item.productName} (ID: ${item.productId}) x${item.quantity}');
+
           // Fetch the product from local DB to get proper Product model
           final result = await ProductLocalDatasource.instance
               .getProductById(item.productId!);
+
           if (result != null) {
-            // Add to checkout with quantity
-            for (int i = 0; i < (item.quantity ?? 1); i++) {
+            _logHome(
+                '    ✓ Product found in local DB: ${result.name} (ID: ${result.id})');
+
+            // 🔍 CRITICAL: Check if product name matches
+            if (result.name != item.productName) {
+              _logHome('    ⚠️ WARNING: Product name mismatch!');
+              _logHome('       Server says: ${item.productName}');
+              _logHome('       Local DB has: ${result.name}');
+              _logHome('       → Local database NOT synced with server!');
+            }
+
+            // ✅ Add item with the exact quantity from order
+            final quantity = item.quantity ?? 1;
+            for (int i = 0; i < quantity; i++) {
               if (mounted) {
                 context.read<CheckoutBloc>().add(
                       CheckoutEvent.addItem(result),
                     );
               }
+              // Small delay between each add to prevent race condition
+              await Future.delayed(const Duration(milliseconds: 30));
             }
+          } else {
+            _logHome(
+                '    ✗ Product NOT found in local DB with ID: ${item.productId}');
+            _logHome('       Server product name: ${item.productName}');
+            _logHome('       → Need to sync database!');
           }
         }
       }
+
+      _logHome('✅ All items loaded');
     }
 
     // Set order type in bloc if available
@@ -395,7 +446,7 @@ class _HomePageState extends State<HomePage> {
             final totalPrice = unitPrice * e.quantity;
 
             return {
-              'product_id': e.product.id,
+              'product_id': e.product.productId ?? e.product.id,
               'product_name': e.product.name,
               'quantity': e.quantity,
               'unit_price': unitPrice,
@@ -451,6 +502,20 @@ class _HomePageState extends State<HomePage> {
               );
             },
             (success) {
+              // ✅ Clear checkout dan reset state setelah update berhasil
+              context
+                  .read<CheckoutBloc>()
+                  .add(const CheckoutEvent.clearOrder());
+              setState(() {
+                _isEditingOpenBill = false;
+                _editingOpenBillId = null;
+                _editingOpenBillTable = null;
+                _editingOpenBillOrder = null;
+              });
+
+              // ✅ Resync products to update stock after order update
+              _forceResyncProducts();
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Open Bill berhasil diupdate!'),
@@ -581,7 +646,7 @@ class _HomePageState extends State<HomePage> {
         startTime: order.createdAt?.toIso8601String() ?? now.toIso8601String(),
         status: 'occupied',
         orderId: 0, // Will be updated after payment
-        paymentAmount: int.tryParse(order.totalAmount ?? '0') ?? 0,
+        paymentAmount: AmountParser.parse(order.totalAmount),
       );
     }
 
@@ -634,6 +699,13 @@ class _HomePageState extends State<HomePage> {
         state.maybeWhen(
           orElse: () {},
           error: (message) {
+            _logHome('❌ Sync failed: $message');
+            // ✅ FIX: Check mounted before setState to prevent crash after dispose
+            if (!mounted) return;
+            // ✅ Reset resync flag on error
+            setState(() {
+              _isResyncInProgress = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(message),
@@ -642,11 +714,40 @@ class _HomePageState extends State<HomePage> {
             );
           },
           loaded: (productResponseModel) async {
+            _logHome('✅ Sync completed, updating local database...');
+            _logHome(
+                '   Received ${productResponseModel.data?.length ?? 0} products from server');
+
+            // ✅ FIX: Prevent race condition by proper sequencing
             // Replace local products with server data then refresh LocalProductBloc
+            _logHome('   Deleting all local products...');
             await ProductLocalDatasource.instance.deleteAllProducts();
+
+            _logHome(
+                '   Inserting ${productResponseModel.data?.length ?? 0} products...');
             await ProductLocalDatasource.instance
                 .insertProducts(productResponseModel.data!);
-            if (!context.mounted) return;
+
+            _logHome(
+                '✅ Local database updated with ${productResponseModel.data?.length ?? 0} products');
+
+            // ✅ FIX: Check mounted before setState to prevent crash after dispose
+            if (!mounted) {
+              _logHome('⚠️ Widget not mounted, skipping state update');
+              return;
+            }
+
+            // ✅ Reset resync flag before loading products
+            setState(() {
+              _isResyncInProgress = false;
+            });
+
+            if (!context.mounted) {
+              _logHome('⚠️ Context not mounted, skipping bloc event');
+              return;
+            }
+
+            _logHome('📤 Triggering LocalProductBloc to reload products...');
             context
                 .read<LocalProductBloc>()
                 .add(const LocalProductEvent.getLocalProduct());
@@ -822,8 +923,10 @@ class _HomePageState extends State<HomePage> {
                                               fontWeight: FontWeight.w600)),
                                     ),
                                   ),
-                                  if (widget.isTable &&
-                                      widget.table != null) ...[
+                                  // ✅ Tampilkan table dari widget.table atau _editingOpenBillTable
+                                  if ((widget.isTable &&
+                                          widget.table != null) ||
+                                      _editingOpenBillTable != null) ...[
                                     const SizedBox(width: 12),
                                     Container(
                                       height: 37,
@@ -834,8 +937,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       child: Center(
                                         child: Text(
-                                          widget.table!.name ??
-                                              "Meja ${widget.table!.tableNumber ?? ''}",
+                                          _editingOpenBillTable?.name ??
+                                              widget.table?.name ??
+                                              "Meja ${_editingOpenBillTable?.tableNumber ?? widget.table?.tableNumber ?? ''}",
                                           style: const TextStyle(
                                             color: AppColors.success,
                                             fontWeight: FontWeight.w600,
