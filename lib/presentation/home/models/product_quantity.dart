@@ -61,11 +61,12 @@ class ProductQuantity {
   }
 
   Map<String, dynamic> toServerMap(int? orderId) {
-    log("toServerMap: ${product.id}");
+    final remoteProductId = product.productId ?? product.id;
+    log("toServerMap: localId=${product.id} remoteId=$remoteProductId");
 
     return {
       'id_order': orderId ?? 0,
-      'id_product': product.id,
+      'id_product': remoteProductId,
       'quantity': quantity,
       'price': product.price,
     };

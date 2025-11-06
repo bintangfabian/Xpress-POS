@@ -3,6 +3,7 @@ import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/core/components/buttons.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 
 class OpenBillDetailDialog extends StatelessWidget {
   final ItemOrder order;
@@ -19,15 +20,15 @@ class OpenBillDetailDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Calculate total from items if totalAmount is 0
-    int totalAmount = int.tryParse(order.totalAmount ?? '0') ?? 0;
+    int totalAmount = AmountParser.parse(order.totalAmount);
     if (totalAmount == 0 && order.items != null && order.items!.isNotEmpty) {
       totalAmount = order.items!.fold<int>(
         0,
         (sum, item) {
           // Calculate from unit_price * quantity if total_price is 0
-          int itemTotal = int.tryParse(item.totalPrice ?? '0') ?? 0;
+          int itemTotal = AmountParser.parse(item.totalPrice);
           if (itemTotal == 0) {
-            final unitPrice = int.tryParse(item.unitPrice ?? '0') ?? 0;
+            final unitPrice = AmountParser.parse(item.unitPrice);
             final quantity = item.quantity ?? 0;
             itemTotal = unitPrice * quantity;
           }
@@ -164,11 +165,9 @@ class OpenBillDetailDialog extends StatelessWidget {
                     if (order.items != null && order.items!.isNotEmpty) ...[
                       ...order.items!.map((item) {
                         // Calculate from unit_price * quantity if total_price is 0
-                        int itemTotal =
-                            int.tryParse(item.totalPrice ?? '0') ?? 0;
+                        int itemTotal = AmountParser.parse(item.totalPrice);
                         if (itemTotal == 0) {
-                          final unitPrice =
-                              int.tryParse(item.unitPrice ?? '0') ?? 0;
+                          final unitPrice = AmountParser.parse(item.unitPrice);
                           final quantity = item.quantity ?? 0;
                           itemTotal = unitPrice * quantity;
                         }

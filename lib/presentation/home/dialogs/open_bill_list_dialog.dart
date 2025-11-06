@@ -4,6 +4,7 @@ import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/presentation/home/dialogs/open_bill_detail_dialog.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 
 class OpenBillListDialog extends StatefulWidget {
   final Function(ItemOrder)? onContinue;
@@ -41,12 +42,27 @@ class _OpenBillListDialogState extends State<OpenBillListDialog> {
 
       result.fold(
         (error) {
+          print('❌ Error loading open bills: $error');
           setState(() {
             _errorMessage = error;
             _isLoading = false;
           });
         },
         (orders) {
+          print('✅ Loaded ${orders.length} open bills');
+          // Debug each order
+          for (var order in orders) {
+            print('  Order ${order.orderNumber}:');
+            print('    - Total Amount: ${order.totalAmount}');
+            print('    - Items count: ${order.items?.length ?? 0}');
+            if (order.items != null && order.items!.isNotEmpty) {
+              for (var item in order.items!) {
+                print(
+                    '      * ${item.productName} x${item.quantity} = ${item.totalPrice}');
+              }
+            }
+          }
+
           setState(() {
             _openBills = orders;
             _isLoading = false;
@@ -54,6 +70,7 @@ class _OpenBillListDialogState extends State<OpenBillListDialog> {
         },
       );
     } catch (e) {
+      print('❌ Exception loading open bills: $e');
       setState(() {
         _errorMessage = 'Gagal memuat data: $e';
         _isLoading = false;
@@ -177,13 +194,24 @@ class _OpenBillListDialogState extends State<OpenBillListDialog> {
   }
 
   Widget _buildOpenBillCard(ItemOrder order, BuildContext context) {
-    // Calculate total from items if totalAmount is 0
-    int totalAmount = int.tryParse(order.totalAmount ?? '0') ?? 0;
+    // Calculate total from items if totalAmount is 0 or null
+    int totalAmount = AmountParser.parse(order.totalAmount);
+
+    print('🏷️ Building card for ${order.orderNumber}:');
+    print(
+        '   totalAmount from order: ${order.totalAmount} (parsed: $totalAmount)');
+    print('   items count: ${order.items?.length ?? 0}');
+
     if (totalAmount == 0 && order.items != null && order.items!.isNotEmpty) {
       totalAmount = order.items!.fold<int>(
         0,
-        (sum, item) => sum + (int.tryParse(item.totalPrice ?? '0') ?? 0),
+        (sum, item) {
+          final itemTotal = AmountParser.parse(item.totalPrice);
+          print('   + item: ${item.productName} = $itemTotal');
+          return sum + itemTotal;
+        },
       );
+      print('   Calculated total from items: $totalAmount');
     }
 
     final tableName = order.table?.name ??

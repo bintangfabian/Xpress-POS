@@ -28,6 +28,7 @@ import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 
 class _CheckoutAmounts {
   final int subtotal;
@@ -443,10 +444,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     return (subtotal * (servicePercent / 100)).floor();
   }
 
-  int _parseAmount(String? raw) {
-    if (raw == null || raw.isEmpty) return 0;
-    return raw.toIntegerFromText;
-  }
+  int _parseAmount(String? raw) => AmountParser.parse(raw);
 
   _CheckoutAmounts _resolveAmounts(
     List<ProductQuantity> products,
@@ -529,6 +527,113 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     required String? storeUuid,
   }) async {
     if (!mounted) return null;
+
+    // ✅ FIX: For open bill payment, use data from openBillOrder instead of checkout state
+    if (_isOpenBillPayment && _openBill != null) {
+      print('📦 Preparing open bill payment submission data...');
+      final openBill = _openBill!;
+      print('   Open Bill ID: ${openBill.id}');
+      print('   Order Number: ${openBill.orderNumber}');
+      print('   Items count: ${openBill.items?.length ?? 0}');
+
+      final subtotal = AmountParser.parse(openBill.subtotal);
+      final discountAmount = AmountParser.parse(openBill.discountAmount);
+      final taxAmount = AmountParser.parse(openBill.taxAmount);
+      final serviceAmount = AmountParser.parse(openBill.serviceCharge);
+      final total = AmountParser.parse(openBill.totalAmount);
+
+      print('   Subtotal: $subtotal');
+      print('   Discount: $discountAmount');
+      print('   Tax: $taxAmount');
+      print('   Service: $serviceAmount');
+      print('   Total: $total');
+
+      final amounts = _CheckoutAmounts(
+        subtotal: subtotal,
+        discount: discountAmount,
+        tax: taxAmount,
+        service: serviceAmount,
+        total: total,
+      );
+
+      final items = (openBill.items ?? []).map((item) {
+        // ✅ FIX: Server requires unit_price and total_price for each item
+        final unitPrice = AmountParser.parse(item.unitPrice);
+        final totalPrice = AmountParser.parse(item.totalPrice);
+        final quantity = item.quantity ?? 1;
+
+        print(
+            '   - Item: ${item.productName} (ID: ${item.productId}) x$quantity');
+        print('     Unit Price: $unitPrice, Total: $totalPrice');
+
+        // ✅ Validate that we have required data
+        if (item.productId == null || unitPrice == 0) {
+          print('     ⚠️ WARNING: Missing product_id or unit_price');
+        }
+
+        return <String, dynamic>{
+          'product_id': item.productId,
+          'product_name': item.productName ?? '',
+          'quantity': quantity,
+          'unit_price': unitPrice,
+          'total_price': totalPrice > 0 ? totalPrice : (unitPrice * quantity),
+        };
+      }).toList();
+
+      if (items.isEmpty) {
+        print('❌ ERROR: No items in open bill!');
+        return null;
+      }
+
+      print('   Total items prepared: ${items.length}');
+
+      final operationMode =
+          normalizeOperationMode(openBill.operationMode ?? widget.orderType);
+
+      final body = <String, dynamic>{
+        'user_id': userId,
+        'status': 'completed',
+        'payment_method': isCash ? 'cash' : 'qris',
+        'operation_mode': operationMode,
+        'items': items,
+      };
+
+      if (storeUuid != null && storeUuid.isNotEmpty) {
+        body['store_id'] = storeUuid;
+      }
+
+      if (openBill.table?.id != null && openBill.table!.id!.isNotEmpty) {
+        body['table_id'] = openBill.table!.id;
+      }
+
+      if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
+        body['member_id'] = _selectedMemberId;
+      }
+
+      if (noteController.text.isNotEmpty) {
+        body['notes'] = noteController.text;
+      }
+
+      if (amounts.discount > 0) {
+        body['discount_amount'] = amounts.discount.toDouble();
+      }
+      if (amounts.service > 0) {
+        body['service_charge'] = amounts.service.toDouble();
+      }
+      if (amounts.tax > 0) {
+        body['tax'] = amounts.tax.toDouble();
+      }
+
+      if (widget.orderNumber.isNotEmpty) {
+        body['order_number'] = widget.orderNumber;
+      }
+
+      print('✅ Open bill submission data prepared successfully');
+      print('========================================');
+      return _OrderSubmissionData(body: body, amounts: amounts);
+    }
+
+    // Normal order flow
     final state = context.read<CheckoutBloc>().state;
 
     return await state.maybeWhen(
