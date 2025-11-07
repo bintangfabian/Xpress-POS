@@ -65,9 +65,9 @@ class _SalesPageState extends State<SalesPage> {
     if (startDate.year == endDate.year &&
         startDate.month == endDate.month &&
         startDate.day == endDate.day) {
-      return startDate.toFormattedDate();
+      return startDate.toFormattedDateShort();
     }
-    return '${startDate.toFormattedDate()} - ${endDate.toFormattedDate()}';
+    return '${startDate.toFormattedDateShort()} - ${endDate.toFormattedDateShort()}';
   }
 
   @override
@@ -121,9 +121,11 @@ class _SalesPageState extends State<SalesPage> {
                                 dateText,
                                 style: const TextStyle(
                                   color: AppColors.white,
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
                             Assets.icons.calender.svg(

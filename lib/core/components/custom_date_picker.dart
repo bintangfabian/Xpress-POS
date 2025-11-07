@@ -17,8 +17,29 @@ const List<String> _monthNames = [
   'Desember',
 ];
 
+const List<String> _monthNamesShort = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agt',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+];
+
 String _formatDisplayDate(DateTime date) {
   final monthName = _monthNames[date.month - 1];
+  final day = date.day.toString().padLeft(2, '0');
+  return '$day $monthName ${date.year}';
+}
+
+String _formatCompactDate(DateTime date) {
+  final monthName = _monthNamesShort[date.month - 1];
   final day = date.day.toString().padLeft(2, '0');
   return '$day $monthName ${date.year}';
 }
@@ -189,7 +210,7 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
               Text(
                 selectedLabel,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
@@ -205,9 +226,10 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withAlpha((0.1 * 255).round())),
+            border:
+                Border.all(color: Colors.black.withAlpha((0.1 * 255).round())),
           ),
           child: Column(
             children: [
@@ -256,7 +278,8 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
+            border: Border.all(
+                color: AppColors.primary.withAlpha((0.3 * 255).round())),
           ),
           child: const Center(
             child: Text(
@@ -313,7 +336,8 @@ class _CustomDatePickerDialogState extends State<_CustomDatePickerDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
+            border: Border.all(
+                color: AppColors.primary.withAlpha((0.3 * 255).round())),
           ),
           child: Center(
             child: Text(
@@ -497,12 +521,12 @@ class _CustomDateRangePickerDialogState
   }
 
   String _startLabel() =>
-      _startDate != null ? _formatDisplayDate(_startDate!) : 'Belum dipilih';
+      _startDate != null ? _formatCompactDate(_startDate!) : 'Belum dipilih';
 
   String _endLabel() {
     final effectiveEnd = _endDate ?? _startDate;
     if (effectiveEnd == null) return 'Belum dipilih';
-    return _formatDisplayDate(effectiveEnd);
+    return _formatCompactDate(effectiveEnd);
   }
 
   String _rangeSummary() {
@@ -510,9 +534,9 @@ class _CustomDateRangePickerDialogState
       return 'Pilih rentang tanggal';
     }
     if (_endDate == null || _startDate!.isAtSameMomentAs(_endDate!)) {
-      return _formatDisplayDate(_startDate!);
+      return _formatCompactDate(_startDate!);
     }
-    return '${_formatDisplayDate(_startDate!)} - ${_formatDisplayDate(_endDate!)}';
+    return '${_formatCompactDate(_startDate!)} - ${_formatCompactDate(_endDate!)}';
   }
 
   @override
@@ -555,18 +579,9 @@ class _CustomDateRangePickerDialogState
             borderRadius: BorderRadius.all(Radius.circular(8)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Mulai',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
               Text(
                 _startLabel(),
                 style: const TextStyle(
@@ -575,16 +590,16 @@ class _CustomDateRangePickerDialogState
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(width: 12),
               Text(
-                'Selesai',
+                "-",
                 style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(width: 12),
               Text(
                 _endLabel(),
                 style: const TextStyle(
@@ -592,7 +607,7 @@ class _CustomDateRangePickerDialogState
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
-              ),
+              )
             ],
           ),
         ),
@@ -602,7 +617,8 @@ class _CustomDateRangePickerDialogState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withAlpha((0.1 * 255).round())),
+            border:
+                Border.all(color: Colors.black.withAlpha((0.1 * 255).round())),
           ),
           child: Column(
             children: [
@@ -648,7 +664,8 @@ class _CustomDateRangePickerDialogState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
+            border: Border.all(
+                color: AppColors.primary.withAlpha((0.3 * 255).round())),
           ),
           child: const Center(
             child: Text(
@@ -705,7 +722,8 @@ class _CustomDateRangePickerDialogState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withAlpha((0.3 * 255).round())),
+            border: Border.all(
+                color: AppColors.primary.withAlpha((0.3 * 255).round())),
           ),
           child: Center(
             child: Text(
