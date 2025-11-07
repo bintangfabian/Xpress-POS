@@ -158,7 +158,8 @@ class _SummaryPageState extends State<SummaryPage> {
                                 final percentage = maxValue > 0
                                     ? (stat.totalSales / maxValue)
                                     : 0.0;
-                                final barHeight = 100 * percentage;
+                                // Reduce max height to 85 to leave space for text and spacing
+                                final barHeight = 85 * percentage;
 
                                 return Expanded(
                                   child: Padding(
@@ -166,6 +167,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                         horizontal: 2.0),
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.end,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Container(
                                           height: barHeight.toDouble(),
