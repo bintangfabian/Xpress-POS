@@ -11,4 +11,3 @@ class Variables {
   // Dynamic base URL per platform
   static String get baseUrl => envBaseUrl;
 }
-//

@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_bloc.dart';
+import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_event.dart';
+import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_state.dart';
 
 class CashDailyPage extends StatefulWidget {
-  const CashDailyPage({super.key});
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const CashDailyPage({
+    super.key,
+    required this.startDate,
+    required this.endDate,
+  });
 
   @override
   State<CashDailyPage> createState() => _CashDailyPageState();
@@ -14,9 +26,24 @@ class _CashDailyPageState extends State<CashDailyPage> {
   final TextEditingController _pengeluaranCtrl = TextEditingController();
   final TextEditingController _keteranganCtrl = TextEditingController();
 
-  int _saldoAwal = 0;
-  int _totalPengeluaran = 0;
-  final int _penjualanTunai = 0; // placeholder, bisa dihitung dari data transaksi
+  @override
+  void initState() {
+    super.initState();
+    _loadCashSession();
+  }
+
+  @override
+  void didUpdateWidget(CashDailyPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.startDate != widget.startDate ||
+        oldWidget.endDate != widget.endDate) {
+      _loadCashSession();
+    }
+  }
+
+  void _loadCashSession() {
+    context.read<CashSessionBloc>().add(GetCurrentCashSession());
+  }
 
   @override
   void dispose() {
@@ -28,108 +55,236 @@ class _CashDailyPageState extends State<CashDailyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final saldoAkhir = _saldoAwal - _totalPengeluaran + _penjualanTunai;
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ContentTitle('Rekap Kas'),
-          const SpaceHeight(16),
-          _section(
-            title: 'Saldo awal',
-            child: Column(
-              children: [
-                CustomTextField(
-                  controller: _saldoAwalCtrl,
-                  label: 'Saldo awal (Rp)',
-                  keyboardType: TextInputType.number,
-                ),
-                const SpaceHeight(12),
-                Button.filled(
-                  onPressed: () {
-                    setState(() {
-                      _saldoAwal = int.tryParse(
-                              _saldoAwalCtrl.text.replaceAll('.', '')) ??
-                          0;
-                    });
-                  },
-                  height: 48,
-                  label: 'Simpan saldo awal',
-                ),
-              ],
-            ),
-          ),
-          _section(
-            title: 'Tambah pengeluaran',
-            child: Column(
-              children: [
-                CustomTextField(
-                  controller: _pengeluaranCtrl,
-                  label: 'Jumlah pengeluaran (Rp)',
-                  keyboardType: TextInputType.number,
-                ),
-                const SpaceHeight(12),
-                CustomTextField(
-                  controller: _keteranganCtrl,
-                  label: 'Tambah keterangan (Optional)',
-                ),
-                const SpaceHeight(12),
-                Button.filled(
-                  onPressed: () {
-                    setState(() {
-                      _totalPengeluaran += int.tryParse(
-                              _pengeluaranCtrl.text.replaceAll('.', '')) ??
-                          0;
-                      _pengeluaranCtrl.clear();
-                      _keteranganCtrl.clear();
-                    });
-                  },
-                  height: 48,
-                  label: 'Tambah pengeluaran',
-                ),
-              ],
-            ),
-          ),
-          _section(
-            title: 'Ringkasan kas harian',
+    return BlocBuilder<CashSessionBloc, CashSessionState>(
+      builder: (context, state) {
+        if (state is CashSessionInitial) {
+          return const Center(child: Text('Memuat data...'));
+        } else if (state is CashSessionLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is CashSessionError) {
+          return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _rowSummary('Saldo awal:', _saldoAwal),
-                const SpaceHeight(8),
-                _rowSummary('Pengeluaran:', _totalPengeluaran),
-                const SpaceHeight(8),
-                _rowSummary('Penjualan tunai:', _penjualanTunai),
-                const SpaceHeight(8),
-                const Divider(color: AppColors.primaryLightActive),
-                const SpaceHeight(8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Saldo akhir:',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    Text(
-                      'Rp $saldoAkhir',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                )
+                const ContentTitle('Rekap Kas'),
+                const SpaceHeight(16),
+                _buildNoSessionView(context),
               ],
             ),
+          );
+        } else if (state is CashSessionSuccess) {
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const ContentTitle('Rekap Kas'),
+                const SpaceHeight(16),
+                if (state.data.status == 'closed')
+                  _buildClosedSessionView(state.data, context)
+                else
+                  _buildActiveSessionView(state.data, context),
+              ],
+            ),
+          );
+        }
+        return const Center(child: Text('State tidak dikenali'));
+      },
+    );
+  }
+
+  Widget _buildNoSessionView(BuildContext context) {
+    return _section(
+      title: 'Buka Kas Harian',
+      child: Column(
+        children: [
+          const Text(
+            'Belum ada sesi kas aktif. Buka sesi kas untuk memulai.',
+            style: TextStyle(color: AppColors.grey),
+          ),
+          const SpaceHeight(12),
+          CustomTextField(
+            controller: _saldoAwalCtrl,
+            label: 'Saldo awal (Rp)',
+            keyboardType: TextInputType.number,
+          ),
+          const SpaceHeight(12),
+          Button.filled(
+            onPressed: () {
+              final openingBalance =
+                  int.tryParse(_saldoAwalCtrl.text.replaceAll('.', '')) ?? 0;
+              if (openingBalance > 0) {
+                context
+                    .read<CashSessionBloc>()
+                    .add(OpenCashSession(openingBalance));
+                _saldoAwalCtrl.clear();
+              }
+            },
+            height: 48,
+            label: 'Buka Sesi Kas',
           ),
         ],
       ),
     );
   }
 
-  Widget _rowSummary(String label, int value) {
+  Widget _buildActiveSessionView(dynamic data, BuildContext context) {
+    final expectedBalance =
+        data.openingBalance + data.cashSales - data.cashExpenses;
+
+    return Column(
+      children: [
+        _section(
+          title: 'Tambah pengeluaran',
+          child: Column(
+            children: [
+              CustomTextField(
+                controller: _pengeluaranCtrl,
+                label: 'Jumlah pengeluaran (Rp)',
+                keyboardType: TextInputType.number,
+              ),
+              const SpaceHeight(12),
+              CustomTextField(
+                controller: _keteranganCtrl,
+                label: 'Tambah keterangan (Optional)',
+              ),
+              const SpaceHeight(12),
+              Button.filled(
+                onPressed: () {
+                  final amount =
+                      int.tryParse(_pengeluaranCtrl.text.replaceAll('.', '')) ??
+                          0;
+                  if (amount > 0 && _keteranganCtrl.text.isNotEmpty) {
+                    context.read<CashSessionBloc>().add(
+                          AddCashExpense(
+                            sessionId: data.id ?? '',
+                            amount: amount,
+                            description: _keteranganCtrl.text,
+                          ),
+                        );
+                    _pengeluaranCtrl.clear();
+                    _keteranganCtrl.clear();
+                  }
+                },
+                height: 48,
+                label: 'Tambah pengeluaran',
+              ),
+            ],
+          ),
+        ),
+        _section(
+          title: 'Ringkasan kas harian',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _rowSummary('Saldo awal:', data.openingBalance),
+              const SpaceHeight(8),
+              _rowSummary('Penjualan tunai:', data.cashSales),
+              const SpaceHeight(8),
+              _rowSummary('Pengeluaran:', data.cashExpenses),
+              const SpaceHeight(8),
+              const Divider(color: AppColors.primaryLightActive),
+              const SpaceHeight(8),
+              _rowSummary('Saldo yang diharapkan:', expectedBalance),
+              const SpaceHeight(8),
+              if (data.closingBalance != null) ...[
+                _rowSummary('Saldo akhir (fisik):', data.closingBalance!),
+                const SpaceHeight(8),
+                _rowSummary('Selisih:', data.variance,
+                    color: data.variance == 0
+                        ? AppColors.primary
+                        : data.variance > 0
+                            ? Colors.green
+                            : AppColors.danger),
+              ],
+            ],
+          ),
+        ),
+        if (data.expenses != null && data.expenses!.isNotEmpty)
+          _section(
+            title: 'Daftar Pengeluaran',
+            child: Column(
+              children: data.expenses!
+                  .map<Widget>((expense) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    expense.description ?? '-',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  if (expense.category != null)
+                                    Text(
+                                      expense.category!,
+                                      style: const TextStyle(
+                                          fontSize: 12, color: AppColors.grey),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              expense.amount.currencyFormatRp,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.danger),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildClosedSessionView(dynamic data, BuildContext context) {
+    return _section(
+      title: 'Sesi Kas Ditutup',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Sesi kas telah ditutup.',
+            style: TextStyle(color: AppColors.grey),
+          ),
+          const SpaceHeight(12),
+          _rowSummary('Saldo awal:', data.openingBalance),
+          const SpaceHeight(8),
+          _rowSummary('Penjualan tunai:', data.cashSales),
+          const SpaceHeight(8),
+          _rowSummary('Pengeluaran:', data.cashExpenses),
+          const SpaceHeight(8),
+          _rowSummary('Saldo akhir:', data.closingBalance ?? 0),
+          const SpaceHeight(8),
+          _rowSummary('Selisih:', data.variance,
+              color: data.variance == 0
+                  ? AppColors.primary
+                  : data.variance > 0
+                      ? Colors.green
+                      : AppColors.danger),
+        ],
+      ),
+    );
+  }
+
+  Widget _rowSummary(String label, int value, {Color? color}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label),
-        Text('Rp $value'),
+        Text(
+          value.currencyFormatRp,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
       ],
     );
   }
