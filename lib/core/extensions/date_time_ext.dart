@@ -25,6 +25,21 @@ const List<String> _monthNames = [
   'Desember'
 ];
 
+const List<String> _monthNamesShort = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agt',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des'
+];
+
 extension DateTimeExt on DateTime {
   String toFormattedTime() {
     final wib = TimezoneHelper.toWib(this);
@@ -63,5 +78,14 @@ extension DateTimeExt on DateTime {
     String second = wib.second.toString().padLeft(2, '0');
 
     return '$day $month $year, $hour:$minute:$second';
+  }
+
+  String toFormattedDateShort() {
+    final wib = TimezoneHelper.toWib(this);
+    String day = wib.day.toString().padLeft(2, '0');
+    String month = _monthNamesShort[wib.month - 1];
+    String year = wib.year.toString();
+
+    return '$day $month $year';
   }
 }
