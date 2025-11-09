@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
@@ -24,7 +26,6 @@ import 'package:xpress/presentation/home/widgets/order_menu.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 import '../../../core/components/components.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
@@ -202,9 +203,11 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     return [];
   }
 
-  // Submit order to server
+  // Submit order to server (2-step flow: draft order → payment)
   Future<bool> _submitOrder() async {
     try {
+      print('========================================');
+      print('🚀 Starting 2-step payment flow...');
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
 
@@ -214,6 +217,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       );
 
       if (submissionData == null) {
+        print('❌ Failed to prepare submission data');
         return false;
       }
 
@@ -223,8 +227,12 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         final orderId = widget.existingOrderId!;
         final payload = Map<String, dynamic>.from(submissionData.body);
 
+        print('💳 Open Bill Payment (2-Step Flow)...');
+
+        // Step 1: Update order to open status
+        print('📝 Step 1: Updating open bill order (set to open)...');
         payload['payment_mode'] = 'open_bill';
-        payload['status'] = 'completed';
+        payload['status'] = 'open'; // ✅ Set to open - payment will complete it
         payload['subtotal'] = submissionData.amounts.subtotal;
         payload['total_amount'] = submissionData.amounts.total;
         payload['discount_amount'] = submissionData.amounts.discount.toDouble();
@@ -243,30 +251,28 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
         return await updateResult.fold(
           (error) async {
-            // Log error untuk debugging
             print('❌ ERROR updating open bill: $error');
             return false;
           },
           (_) async {
-            print('✅ Open bill updated successfully, completing payment...');
+            print('✅ Open bill order updated (status: open)');
+
+            // Step 2: Create payment (will auto-complete order & trigger loyalty)
+            print('💰 Step 2: Creating payment...');
             final paymentMethod = isCash ? 'cash' : 'qris';
             final paymentNotes =
                 'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
 
-            // Get the actual amount paid by user
             final receivedAmount = _currentTotalPay();
             final dueAmount = submissionData.amounts.total;
 
-            print('💰 Completing payment for open bill:');
             print('   Order ID: $orderId');
             print('   Payment Method: $paymentMethod');
             print('   Amount: $dueAmount');
             print('   Received: $receivedAmount');
 
-            // Use completeOpenBillPayment instead of createPayment
-            // This will update the existing pending payment instead of creating a new one
-            final paymentCompleted =
-                await orderRemoteDatasource.completeOpenBillPayment(
+            // ✅ Create payment → Backend auto-completes order → Loyalty points added
+            final paymentCreated = await orderRemoteDatasource.createPayment(
               orderId: orderId,
               paymentMethod: paymentMethod,
               amount: dueAmount,
@@ -274,20 +280,28 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
               notes: paymentNotes,
             );
 
-            if (paymentCompleted) {
-              print('✅ Open bill payment completed successfully!');
+            if (paymentCreated) {
+              print('✅ Payment created! Order auto-completed by backend.');
+              print('⭐ Loyalty points automatically added via OrderObserver');
+
+              // Show points earned notification if member selected
+              if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
+                _showPointsEarnedNotification(dueAmount);
+              }
             } else {
-              print('❌ WARNING: Failed to complete open bill payment');
+              print('❌ WARNING: Failed to create payment');
             }
 
-            // Return true because order update was successful
-            // even if payment completion failed (user can retry payment)
-            return true;
+            return paymentCreated;
           },
         );
       }
 
-      // Make API request
+      // Regular Order (2-Step Flow)
+      print('📦 Regular Order Payment (2-Step Flow)...');
+
+      // Step 1: Create open order
+      print('📝 Step 1: Creating open order...');
       final uri =
           Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
       final headers = {
@@ -297,7 +311,8 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      // print('SUBMIT ORDER: POST $uri');
+      print('   Payload status: ${submissionData.body['status']}');
+      print('   Items count: ${submissionData.body['items']?.length ?? 0}');
 
       var res = await http.post(
         uri,
@@ -306,6 +321,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       );
 
       if (res.statusCode == 403) {
+        print('   Got 403, retrying without X-Store-Id...');
         headers.remove('X-Store-Id');
         res = await http.post(
           uri,
@@ -318,6 +334,10 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         final orderId = orderRemoteDatasource.extractOrderId(res.body);
 
         if (orderId != null && orderId.isNotEmpty) {
+          print('✅ Open order created (ID: $orderId)');
+
+          // Step 2: Create payment (will auto-complete order & trigger loyalty)
+          print('💰 Step 2: Creating payment...');
           final paymentMethod = isCash ? 'cash' : 'qris';
           final paymentNotes =
               'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
@@ -336,15 +356,14 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           final finalAmount =
               apiTotal > 0 ? apiTotal : submissionData.amounts.total;
 
-          // Get the actual amount paid by user
           final receivedAmount = _currentTotalPay();
 
-          print('💰 Creating payment for new order:');
           print('   Order ID: $orderId');
           print('   Payment Method: $paymentMethod');
           print('   Amount: $finalAmount');
           print('   Received: $receivedAmount');
 
+          // ✅ Create payment → Backend auto-completes order → Loyalty points added
           final paymentCreated = await orderRemoteDatasource.createPayment(
             orderId: orderId,
             paymentMethod: paymentMethod,
@@ -354,12 +373,18 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           );
 
           if (paymentCreated) {
-            print('✅ Payment created successfully!');
+            print('✅ Payment created! Order auto-completed by backend.');
+            print('⭐ Loyalty points automatically added via OrderObserver');
+
+            // Show points earned notification if member selected
+            if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
+              _showPointsEarnedNotification(finalAmount);
+            }
           } else {
             print('❌ WARNING: Failed to create payment');
           }
 
-          return true;
+          return paymentCreated;
         }
 
         return true;
@@ -522,6 +547,37 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     );
   }
 
+  // Helper: Show loyalty points earned notification
+  void _showPointsEarnedNotification(int amount) {
+    // Calculate points (1 point per Rp 1.000)
+    final pointsEarned = (amount / 1000).floor();
+
+    if (pointsEarned > 0 && mounted) {
+      print('🎉 Member earned $pointsEarned loyalty points!');
+
+      // Show snackbar notification
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.stars, color: Colors.amber),
+              const SizedBox(width: 12),
+              Text(
+                '⭐ Earned $pointsEarned loyalty points!',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Future<_OrderSubmissionData?> _prepareOrderSubmissionData({
     required int? userId,
     required String? storeUuid,
@@ -676,7 +732,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
         final body = <String, dynamic>{
           'user_id': userId,
-          'status': 'completed',
+          'status': 'open', // ✅ Start as open - payment will complete it
           'payment_method': isCash ? 'cash' : 'qris',
           'operation_mode': operationMode,
           'items': items,
