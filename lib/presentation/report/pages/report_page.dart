@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -31,6 +32,10 @@ class _ReportPageState extends State<ReportPage> {
   List<ItemOrder> orders = [];
   bool isLoading = false;
   String? errorMessage;
+  static const int _ordersBatchSize = 10;
+  static const int _dateFetchBatchSize = 3;
+  List<_DailyOrderSection> _dailySections = [];
+  late final OrderRemoteDatasource _orderDatasource;
 
   void _logDebug(String message) {
     assert(() {
@@ -42,6 +47,7 @@ class _ReportPageState extends State<ReportPage> {
   @override
   void initState() {
     super.initState();
+    _orderDatasource = OrderRemoteDatasource();
     _fetchOrders();
   }
 
@@ -51,58 +57,79 @@ class _ReportPageState extends State<ReportPage> {
     setState(() {
       isLoading = true;
       errorMessage = null;
+      _dailySections = [];
     });
 
     try {
-      final orderDatasource = OrderRemoteDatasource();
-      final result = await orderDatasource.getOrderByRangeDate(
-        DateFormat('yyyy-MM-dd').format(fromDate),
-        DateFormat('yyyy-MM-dd').format(toDate),
-      );
+      final dateKeys = _generateDateKeys();
+      final List<_DailyOrderSection> sections = [];
+      String? fetchError;
+
+      for (var i = 0; i < dateKeys.length; i += _dateFetchBatchSize) {
+        final batch = dateKeys.skip(i).take(_dateFetchBatchSize).toList();
+        final batchResults = await Future.wait(
+          batch.map((dateKey) => _fetchSectionForDate(dateKey)),
+        );
+
+        if (!mounted) return;
+
+        for (final result in batchResults) {
+          if (result.error != null) {
+            fetchError = result.error;
+            break;
+          }
+          if (result.section != null) {
+            sections.add(result.section!);
+          }
+        }
+
+        if (fetchError != null) break;
+      }
 
       if (!mounted) return;
 
-      result.fold(
-        (error) {
-          if (!mounted) return;
-          setState(() {
-            errorMessage = error;
-            orders = [];
-          });
-        },
-        (orderResponse) {
-          if (!mounted) return;
-          setState(() {
-            orders = orderResponse.data ?? [];
-            errorMessage = null;
-          });
+      if (fetchError != null) {
+        setState(() {
+          errorMessage = fetchError;
+          orders = [];
+          _dailySections = [];
+        });
+        return;
+      }
 
-          // Debug print untuk melihat data
-          _logDebug('=== DEBUG ORDERS ===');
-          for (var order in orders) {
-            _logDebug('Order ID: ${order.id}');
-            _logDebug('Order Number: ${order.orderNumber}');
-            _logDebug('Total Amount: ${order.totalAmount}');
-            _logDebug('Table Number: ${order.table?.tableNumber}');
-            _logDebug('Table Name: ${order.table?.name}');
-            _logDebug('Status: ${order.status}');
-            _logDebug('Payment Method (order level): ${order.paymentMethod}');
-            _logDebug('Payments Array Length: ${order.payments?.length}');
-            if (order.payments != null && order.payments!.isNotEmpty) {
-              _logDebug(
-                  'First Payment Method: ${order.payments!.first.paymentMethod}');
-            }
-            _logDebug('Operation Mode: ${order.operationMode}');
-            _logDebug('---');
-          }
-          _logDebug('Total orders: ${orders.length}');
-        },
-      );
+      final flattenedOrders =
+          sections.expand((section) => section.orders).toList();
+
+      setState(() {
+        orders = flattenedOrders;
+        errorMessage = null;
+        _dailySections = sections;
+      });
+
+      _logDebug('=== DEBUG ORDERS ===');
+      for (var order in flattenedOrders) {
+        _logDebug('Order ID: ${order.id}');
+        _logDebug('Order Number: ${order.orderNumber}');
+        _logDebug('Total Amount: ${order.totalAmount}');
+        _logDebug('Table Number: ${order.table?.tableNumber}');
+        _logDebug('Table Name: ${order.table?.name}');
+        _logDebug('Status: ${order.status}');
+        _logDebug('Payment Method (order level): ${order.paymentMethod}');
+        _logDebug('Payments Array Length: ${order.payments?.length}');
+        if (order.payments != null && order.payments!.isNotEmpty) {
+          _logDebug(
+              'First Payment Method: ${order.payments!.first.paymentMethod}');
+        }
+        _logDebug('Operation Mode: ${order.operationMode}');
+        _logDebug('---');
+      }
+      _logDebug('Total orders: ${flattenedOrders.length}');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         errorMessage = 'Error: $e';
         orders = [];
+        _dailySections = [];
       });
     } finally {
       if (!mounted) return;
@@ -112,29 +139,113 @@ class _ReportPageState extends State<ReportPage> {
     }
   }
 
-  Map<String, List<ItemOrder>> _groupOrdersByDate() {
-    Map<String, List<ItemOrder>> groupedOrders = {};
+  List<String> _generateDateKeys() {
+    final List<String> keys = [];
+    final DateTime startDate =
+        DateTime(fromDate.year, fromDate.month, fromDate.day);
+    DateTime cursor = DateTime(toDate.year, toDate.month, toDate.day);
 
-    for (var order in orders) {
-      if (order.createdAt != null) {
-        final date = TimezoneHelper.toWib(order.createdAt!);
-        final dateKey = DateFormat('yyyy-MM-dd').format(date);
-
-        if (!groupedOrders.containsKey(dateKey)) {
-          groupedOrders[dateKey] = [];
-        }
-        groupedOrders[dateKey]!.add(order);
-      }
+    while (!cursor.isBefore(startDate)) {
+      keys.add(DateFormat('yyyy-MM-dd').format(cursor));
+      cursor = cursor.subtract(const Duration(days: 1));
     }
 
-    return groupedOrders;
+    return keys;
   }
 
-  double _calculateDailyTotal(List<ItemOrder> dayOrders) {
-    return dayOrders.fold(
-        0.0,
-        (sum, order) =>
-            sum + (double.tryParse(order.totalAmount ?? '0') ?? 0.0));
+  Future<_DailyFetchResult> _fetchSectionForDate(String dateKey) async {
+    final result = await _orderDatasource.getOrderByRangeDate(
+      dateKey,
+      dateKey,
+      perPage: _ordersBatchSize,
+      page: 1,
+    );
+
+    return result.fold(
+      (error) => _DailyFetchResult(dateKey, error: error),
+      (orderResponse) {
+        final dayOrders = orderResponse.data ?? [];
+        if (dayOrders.isEmpty) {
+          return _DailyFetchResult(dateKey);
+        }
+        return _DailyFetchResult(
+          dateKey,
+          section: _DailyOrderSection(
+            dateKey: dateKey,
+            orders: dayOrders,
+            visibleCount: math.min(_ordersBatchSize, dayOrders.length),
+            currentPage: 1,
+            hasMore: dayOrders.length == _ordersBatchSize,
+          ),
+        );
+      },
+    );
+  }
+
+  List<ItemOrder> _rebuildOrdersCache() {
+    return _dailySections.expand((section) => section.orders).toList();
+  }
+
+  Future<void> _loadMoreOrdersForDate(String dateKey) async {
+    if (!mounted) return;
+
+    final sectionIndex =
+        _dailySections.indexWhere((section) => section.dateKey == dateKey);
+    if (sectionIndex == -1) return;
+
+    final section = _dailySections[sectionIndex];
+
+    final hasHiddenLocal = section.visibleCount < section.orders.length;
+    if (hasHiddenLocal) {
+      setState(() {
+        section.visibleCount = math.min(
+          section.visibleCount + _ordersBatchSize,
+          section.orders.length,
+        );
+      });
+      return;
+    }
+
+    if (!section.hasMore || section.isLoadingMore) return;
+
+    setState(() {
+      section.isLoadingMore = true;
+    });
+
+    final nextPage = section.currentPage + 1;
+    final result = await _orderDatasource.getOrderByRangeDate(
+      dateKey,
+      dateKey,
+      perPage: _ordersBatchSize,
+      page: nextPage,
+    );
+
+    if (!mounted) return;
+
+    result.fold(
+      (error) {
+        setState(() {
+          section.isLoadingMore = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      },
+      (orderResponse) {
+        final newOrders = orderResponse.data ?? [];
+        setState(() {
+          section.orders.addAll(newOrders);
+          section.currentPage = nextPage;
+          section.hasMore = newOrders.length == _ordersBatchSize;
+          section.visibleCount = math.min(
+            section.visibleCount + newOrders.length,
+            section.orders.length,
+          );
+          section.isLoadingMore = false;
+          orders = _rebuildOrdersCache();
+        });
+      },
+    );
   }
 
   String _formatDateForDisplay(String dateKey) {
@@ -296,26 +407,26 @@ class _ReportPageState extends State<ReportPage> {
       return _emptyOnlineState();
     }
 
-    final groupedOrders = _groupOrdersByDate();
-    final sortedDates = groupedOrders.keys.toList()
-      ..sort((a, b) {
-        // Parse dates from the formatted strings (yyyy-MM-dd)
-        final dateA = DateTime.parse(a);
-        final dateB = DateTime.parse(b);
-        return dateB.compareTo(dateA);
-      });
+    if (_dailySections.isEmpty) {
+      return _emptyOnlineState();
+    }
 
     return ListView.builder(
-      itemCount: groupedOrders.length,
+      itemCount: _dailySections.length,
       itemBuilder: (context, index) {
-        final date = sortedDates[index];
-        final dayOrders = groupedOrders[date]!;
-        final dailyTotal = _calculateDailyTotal(dayOrders);
+        final section = _dailySections[index];
+        final dayOrders = section.orders;
+        final visibleOrders =
+            dayOrders.take(section.visibleCount).toList();
+        final canLoadMore =
+            section.visibleCount < dayOrders.length || section.hasMore;
 
         return _getProductByDate(
-          _formatDateForDisplay(date),
-          'Rp ${NumberFormat('#,###').format(dailyTotal.toInt())}',
-          dayOrders,
+          dateLabel: _formatDateForDisplay(section.dateKey),
+          visibleOrders: visibleOrders,
+          showLoadMore: canLoadMore,
+          isLoadingMore: section.isLoadingMore,
+          onLoadMore: () => _loadMoreOrdersForDate(section.dateKey),
         );
       },
     );
@@ -333,8 +444,13 @@ class _ReportPageState extends State<ReportPage> {
         icon: Assets.icons.bill, message: "Tidak Ada Data Transaksi");
   }
 
-  Widget _getProductByDate(
-      String date, String income, List<ItemOrder> dayOrders) {
+  Widget _getProductByDate({
+    required String dateLabel,
+    required List<ItemOrder> visibleOrders,
+    required bool showLoadMore,
+    required bool isLoadingMore,
+    required VoidCallback onLoadMore,
+  }) {
     return Column(
       children: [
         Container(
@@ -344,27 +460,28 @@ class _ReportPageState extends State<ReportPage> {
           decoration: BoxDecoration(
               color: AppColors.greyLight,
               borderRadius: BorderRadius.all(Radius.circular(8))),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                date,
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold),
-              ),
-              Text(
-                income,
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold),
-              ),
-            ],
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              dateLabel,
+              style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
+            ),
           ),
         ),
-        ...dayOrders.map((order) => _getProductListByDate(order)),
+        ...visibleOrders.map((order) => _getProductListByDate(order)),
+        if (showLoadMore)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Button.outlined(
+              height: 44,
+              onPressed: onLoadMore,
+              disabled: isLoadingMore,
+              label: isLoadingMore ? 'Loading...' : 'Load More',
+            ),
+          ),
       ],
     );
   }
@@ -597,4 +714,30 @@ class _ReportPageState extends State<ReportPage> {
       ),
     );
   }
+}
+
+class _DailyOrderSection {
+  final String dateKey;
+  final List<ItemOrder> orders;
+  int visibleCount;
+  int currentPage;
+  bool hasMore;
+  bool isLoadingMore;
+
+  _DailyOrderSection({
+    required this.dateKey,
+    required this.orders,
+    required this.visibleCount,
+    required this.currentPage,
+    required this.hasMore,
+    this.isLoadingMore = false,
+  });
+}
+
+class _DailyFetchResult {
+  final String dateKey;
+  final _DailyOrderSection? section;
+  final String? error;
+
+  _DailyFetchResult(this.dateKey, {this.section, this.error});
 }

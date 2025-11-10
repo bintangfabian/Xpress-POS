@@ -331,18 +331,22 @@ class OrderRemoteDatasource {
 
   Future<Either<String, OrderResponseModel>> getOrderByRangeDate(
     String startDate,
-    String endDate,
-  ) async {
+    String endDate, {
+    int perPage = 1000,
+    int page = 1,
+  }) async {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
 
       // Try multiple possible endpoints
+      final queryParams =
+          'start_date=$startDate&end_date=$endDate&per_page=$perPage&page=$page';
       final endpoints = [
-        '${Variables.baseUrl}/api/${Variables.apiVersion}/transactions?start_date=$startDate&end_date=$endDate&per_page=1000',
-        '${Variables.baseUrl}/api/${Variables.apiVersion}/orders?start_date=$startDate&end_date=$endDate&per_page=1000',
-        '${Variables.baseUrl}/api/${Variables.apiVersion}/sales?start_date=$startDate&end_date=$endDate&per_page=1000',
-        '${Variables.baseUrl}/api/${Variables.apiVersion}/reports/transactions?start_date=$startDate&end_date=$endDate&per_page=1000',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/transactions?$queryParams',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/orders?$queryParams',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/sales?$queryParams',
+        '${Variables.baseUrl}/api/${Variables.apiVersion}/reports/transactions?$queryParams',
       ];
 
       for (int i = 0; i < endpoints.length; i++) {
