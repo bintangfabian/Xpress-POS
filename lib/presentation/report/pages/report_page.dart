@@ -22,7 +22,8 @@ class ReportPage extends StatefulWidget {
   State<ReportPage> createState() => _ReportPageState();
 }
 
-class _ReportPageState extends State<ReportPage> {
+class _ReportPageState extends State<ReportPage>
+    with AutomaticKeepAliveClientMixin {
   int selectedMenu = 0;
   String title = 'Summary Sales Report';
   DateTime fromDate = TimezoneHelper.now().subtract(const Duration(days: 30));
@@ -33,9 +34,15 @@ class _ReportPageState extends State<ReportPage> {
   bool isLoading = false;
   String? errorMessage;
   static const int _ordersBatchSize = 10;
-  static const int _dateFetchBatchSize = 3;
+  static const int _maxDateDays = 7; // show last 7 dates only
   List<_DailyOrderSection> _dailySections = [];
   late final OrderRemoteDatasource _orderDatasource;
+  final PageStorageKey<String> _listViewKey =
+      const PageStorageKey<String>('report-list-key');
+  late final ScrollController _scrollController;
+
+  @override
+  bool get wantKeepAlive => true;
 
   void _logDebug(String message) {
     assert(() {
@@ -48,7 +55,14 @@ class _ReportPageState extends State<ReportPage> {
   void initState() {
     super.initState();
     _orderDatasource = OrderRemoteDatasource();
+    _scrollController = ScrollController();
     _fetchOrders();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchOrders() async {
@@ -65,25 +79,18 @@ class _ReportPageState extends State<ReportPage> {
       final List<_DailyOrderSection> sections = [];
       String? fetchError;
 
-      for (var i = 0; i < dateKeys.length; i += _dateFetchBatchSize) {
-        final batch = dateKeys.skip(i).take(_dateFetchBatchSize).toList();
-        final batchResults = await Future.wait(
-          batch.map((dateKey) => _fetchSectionForDate(dateKey)),
-        );
-
+      for (final dateKey in dateKeys) {
+        final result = await _fetchSectionForDate(dateKey);
         if (!mounted) return;
 
-        for (final result in batchResults) {
-          if (result.error != null) {
-            fetchError = result.error;
-            break;
-          }
-          if (result.section != null) {
-            sections.add(result.section!);
-          }
+        if (result.error != null) {
+          fetchError = result.error;
+          break;
         }
 
-        if (fetchError != null) break;
+        if (result.section != null) {
+          sections.add(result.section!);
+        }
       }
 
       if (!mounted) return;
@@ -145,12 +152,20 @@ class _ReportPageState extends State<ReportPage> {
         DateTime(fromDate.year, fromDate.month, fromDate.day);
     DateTime cursor = DateTime(toDate.year, toDate.month, toDate.day);
 
-    while (!cursor.isBefore(startDate)) {
+    while (!cursor.isBefore(startDate) && keys.length < _maxDateDays) {
       keys.add(DateFormat('yyyy-MM-dd').format(cursor));
       cursor = cursor.subtract(const Duration(days: 1));
     }
 
     return keys;
+  }
+
+  DateTime _orderLocalDateTime(ItemOrder order) {
+    final timestamp = order.completedAt ?? order.createdAt;
+    if (timestamp == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return TimezoneHelper.toWib(timestamp);
   }
 
   Future<_DailyFetchResult> _fetchSectionForDate(String dateKey) async {
@@ -159,23 +174,35 @@ class _ReportPageState extends State<ReportPage> {
       dateKey,
       perPage: _ordersBatchSize,
       page: 1,
+      enableLog: false,
+      exactDate: dateKey,
+      sortField: 'created_at',
+      sortDirection: 'desc',
     );
+
+    if (!mounted) return _DailyFetchResult(dateKey, error: 'Unmounted');
 
     return result.fold(
       (error) => _DailyFetchResult(dateKey, error: error),
       (orderResponse) {
-        final dayOrders = orderResponse.data ?? [];
-        if (dayOrders.isEmpty) {
-          return _DailyFetchResult(dateKey);
-        }
+        final orders = orderResponse.data ?? [];
+        orders.sort(
+          (a, b) => _orderLocalDateTime(b).compareTo(_orderLocalDateTime(a)),
+        );
+
+        final meta = orderResponse.meta;
+        final currentPage = meta?.currentPage ?? 1;
+        final hasMore =
+            meta?.hasMore ?? ((meta?.currentPage ?? 1) < (meta?.lastPage ?? 1));
+
         return _DailyFetchResult(
           dateKey,
           section: _DailyOrderSection(
             dateKey: dateKey,
-            orders: dayOrders,
-            visibleCount: math.min(_ordersBatchSize, dayOrders.length),
-            currentPage: 1,
-            hasMore: dayOrders.length == _ordersBatchSize,
+            orders: orders,
+            visibleCount: math.min(_ordersBatchSize, orders.length),
+            currentPage: currentPage,
+            hasMore: hasMore,
           ),
         );
       },
@@ -218,6 +245,10 @@ class _ReportPageState extends State<ReportPage> {
       dateKey,
       perPage: _ordersBatchSize,
       page: nextPage,
+      enableLog: false,
+      exactDate: dateKey,
+      sortField: 'created_at',
+      sortDirection: 'desc',
     );
 
     if (!mounted) return;
@@ -232,11 +263,27 @@ class _ReportPageState extends State<ReportPage> {
         );
       },
       (orderResponse) {
-        final newOrders = orderResponse.data ?? [];
+        final newOrders = (orderResponse.data ?? [])
+            ..sort(
+              (a, b) =>
+                  _orderLocalDateTime(b).compareTo(_orderLocalDateTime(a)),
+            );
+        final meta = orderResponse.meta;
+        final updatedCurrentPage = meta?.currentPage ?? nextPage;
+        final hasMore =
+            meta?.hasMore ?? ((meta?.currentPage ?? 1) < (meta?.lastPage ?? 1));
+
         setState(() {
           section.orders.addAll(newOrders);
-          section.currentPage = nextPage;
-          section.hasMore = newOrders.length == _ordersBatchSize;
+          section.orders.sort((a, b) {
+            final dateA =
+                a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB =
+                b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
+          section.currentPage = updatedCurrentPage;
+          section.hasMore = hasMore;
           section.visibleCount = math.min(
             section.visibleCount + newOrders.length,
             section.orders.length,
@@ -246,6 +293,15 @@ class _ReportPageState extends State<ReportPage> {
         });
       },
     );
+  }
+
+  void _restoreScrollPosition(double offset) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients || !mounted) return;
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      final target = offset.clamp(0.0, maxExtent);
+      _scrollController.jumpTo(target);
+    });
   }
 
   String _formatDateForDisplay(String dateKey) {
@@ -270,6 +326,7 @@ class _ReportPageState extends State<ReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 6, right: 6),
       child: Scaffold(
@@ -412,6 +469,8 @@ class _ReportPageState extends State<ReportPage> {
     }
 
     return ListView.builder(
+      key: _listViewKey,
+      controller: _scrollController,
       itemCount: _dailySections.length,
       itemBuilder: (context, index) {
         final section = _dailySections[index];
@@ -426,7 +485,9 @@ class _ReportPageState extends State<ReportPage> {
           visibleOrders: visibleOrders,
           showLoadMore: canLoadMore,
           isLoadingMore: section.isLoadingMore,
-          onLoadMore: () => _loadMoreOrdersForDate(section.dateKey),
+          onLoadMore: () {
+            _loadMoreOrdersForDate(section.dateKey);
+          },
         );
       },
     );
@@ -488,11 +549,8 @@ class _ReportPageState extends State<ReportPage> {
 
   Widget _getProductListByDate(ItemOrder order) {
     // Format waktu dari createdAt
-    String timeStr = '';
-    if (order.createdAt != null) {
-      final dateTime = TimezoneHelper.toWib(order.createdAt!);
-      timeStr = DateFormat('HH.mm').format(dateTime);
-    }
+    final completedDateTime = _orderLocalDateTime(order);
+    final timeStr = DateFormat('HH.mm').format(completedDateTime);
 
     // Get payment method from order or from payments array
     String paymentMethod = order.paymentMethod ?? '';
@@ -545,6 +603,8 @@ class _ReportPageState extends State<ReportPage> {
 
     return InkWell(
       onTap: () {
+        final savedOffset =
+            _scrollController.hasClients ? _scrollController.offset : null;
         _logDebug('=== DEBUG ORDER CLICK ===');
         _logDebug('Order: $order');
         _logDebug('Order ID: ${order.id}');
@@ -575,13 +635,19 @@ class _ReportPageState extends State<ReportPage> {
             _logDebug('Order ID length: ${order.id?.length}');
             _logDebug('=================================');
 
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => TransactionDetailPage(
-                  orderId: order.id, // Only pass orderId, fetch detail
-                ),
-              ),
-            );
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (context) => TransactionDetailPage(
+                      orderId: order.id, // Only pass orderId, fetch detail
+                    ),
+                  ),
+                )
+                .then((_) {
+              if (savedOffset != null && mounted) {
+                _restoreScrollPosition(savedOffset);
+              }
+            });
           } else {
             _logDebug(
                 'ERROR: Order ID is null or empty, cannot open detail page');

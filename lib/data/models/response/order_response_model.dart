@@ -3,7 +3,10 @@ import 'dart:developer' as developer;
 
 void _orderResponseLog(String message) {
   assert(() {
-    developer.log(message, name: 'OrderResponseModel');
+    const bool enableOrderResponseVerboseLog = false;
+    if (enableOrderResponseVerboseLog) {
+      developer.log(message, name: 'OrderResponseModel');
+    }
     return true;
   }());
 }
@@ -11,10 +14,12 @@ void _orderResponseLog(String message) {
 class OrderResponseModel {
   String? status;
   List<ItemOrder>? data;
+  OrderResponseMeta? meta;
 
   OrderResponseModel({
     this.status,
     this.data,
+    this.meta,
   });
 
   factory OrderResponseModel.fromJson(String str) =>
@@ -47,6 +52,7 @@ class OrderResponseModel {
           ? []
           : List<ItemOrder>.from(
               json["data"]!.map((x) => ItemOrder.fromMap(x))),
+      meta: json["meta"] == null ? null : OrderResponseMeta.fromMap(json["meta"]),
     );
   }
 
@@ -54,6 +60,60 @@ class OrderResponseModel {
         "status": status,
         "data":
             data == null ? [] : List<dynamic>.from(data!.map((x) => x.toMap())),
+        "meta": meta?.toMap(),
+      };
+}
+
+class OrderResponseMeta {
+  int? currentPage;
+  int? lastPage;
+  int? perPage;
+  int? total;
+  bool? hasMore;
+  Map<String, dynamic>? dateWindow;
+  String? timestamp;
+  String? version;
+
+  OrderResponseMeta({
+    this.currentPage,
+    this.lastPage,
+    this.perPage,
+    this.total,
+    this.hasMore,
+    this.dateWindow,
+    this.timestamp,
+    this.version,
+  });
+
+  factory OrderResponseMeta.fromMap(Map<String, dynamic> json) {
+    int? current = json["current_page"];
+    int? last = json["last_page"];
+    bool? hasMoreFlag = json["has_more"];
+    hasMoreFlag ??= (current != null && last != null) ? current < last : null;
+
+    return OrderResponseMeta(
+      currentPage: current,
+      lastPage: last,
+      perPage: json["per_page"],
+      total: json["total"],
+      hasMore: hasMoreFlag,
+      dateWindow: json["date_window"] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(json["date_window"])
+          : null,
+      timestamp: json["timestamp"]?.toString(),
+      version: json["version"]?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        "current_page": currentPage,
+        "last_page": lastPage,
+        "per_page": perPage,
+        "total": total,
+        "has_more": hasMore,
+        "date_window": dateWindow,
+        "timestamp": timestamp,
+        "version": version,
       };
 }
 
