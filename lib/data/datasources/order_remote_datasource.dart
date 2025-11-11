@@ -9,6 +9,10 @@ import 'package:xpress/data/models/response/summary_response_model.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
 import 'package:http/http.dart' as http;
 
+void _debugLog(bool enable, String message) {
+  if (enable) log(message);
+}
+
 class OrderRemoteDatasource {
   Future<String> getNextOrderNumber() async {
     try {
@@ -334,14 +338,38 @@ class OrderRemoteDatasource {
     String endDate, {
     int perPage = 1000,
     int page = 1,
+    bool enableLog = false,
+    String? exactDate,
+    String? sortField,
+    String? sortDirection,
   }) async {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
 
       // Try multiple possible endpoints
-      final queryParams =
-          'start_date=$startDate&end_date=$endDate&per_page=$perPage&page=$page';
+      final queryParamsMap = <String, String>{
+        'per_page': perPage.toString(),
+        'page': page.toString(),
+      };
+
+      if (exactDate != null && exactDate.isNotEmpty) {
+        queryParamsMap['date'] = exactDate;
+      } else {
+        queryParamsMap['start_date'] = startDate;
+        queryParamsMap['end_date'] = endDate;
+      }
+
+      if (sortField != null && sortField.isNotEmpty) {
+        queryParamsMap['sort'] = sortField;
+      }
+      if (sortDirection != null && sortDirection.isNotEmpty) {
+        queryParamsMap['direction'] = sortDirection;
+      }
+
+      final queryParams = queryParamsMap.entries
+          .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+          .join('&');
       final endpoints = [
         '${Variables.baseUrl}/api/${Variables.apiVersion}/transactions?$queryParams',
         '${Variables.baseUrl}/api/${Variables.apiVersion}/orders?$queryParams',
@@ -351,7 +379,8 @@ class OrderRemoteDatasource {
 
       for (int i = 0; i < endpoints.length; i++) {
         final uri = Uri.parse(endpoints[i]);
-        log("Trying endpoint ${i + 1}/${endpoints.length}: $uri");
+        _debugLog(
+            enableLog, "Trying endpoint ${i + 1}/${endpoints.length}: $uri");
 
         final headers = {
           'Authorization': 'Bearer ${authData.token}',
@@ -361,7 +390,7 @@ class OrderRemoteDatasource {
             'X-Store-Id': storeUuid,
         };
 
-        log("Fetching orders: $uri");
+        _debugLog(enableLog, "Fetching orders: $uri");
         var response = await http.get(uri, headers: headers);
 
         if (response.statusCode == 403) {
@@ -370,57 +399,76 @@ class OrderRemoteDatasource {
           response = await http.get(uri, headers: headers);
         }
 
-        log("Orders Response: ${response.statusCode}");
-        log("Orders Response Body: ${response.body}");
+        _debugLog(enableLog, "Orders Response: ${response.statusCode}");
+        _debugLog(enableLog, "Orders Response Body: ${response.body}");
 
         if (response.statusCode == 200) {
           try {
             final responseData = jsonDecode(response.body);
-            log("=== RAW API RESPONSE DEBUG ===");
-            log("Response type: ${responseData.runtimeType}");
-            log("Response keys: ${responseData.keys.toList()}");
-            log("Success: ${responseData['success']}");
-            log("Data type: ${responseData['data'].runtimeType}");
-            log("Data length: ${responseData['data']?.length}");
+            _debugLog(enableLog, "=== RAW API RESPONSE DEBUG ===");
+            _debugLog(
+                enableLog, "Response type: ${responseData.runtimeType}");
+            _debugLog(
+                enableLog, "Response keys: ${responseData.keys.toList()}");
+            _debugLog(enableLog, "Success: ${responseData['success']}");
+            _debugLog(enableLog,
+                "Data type: ${responseData['data'].runtimeType}");
+            _debugLog(
+                enableLog, "Data length: ${responseData['data']?.length}");
             if (responseData['data'] != null &&
                 responseData['data'] is List &&
                 responseData['data'].isNotEmpty) {
-              log("First data item: ${responseData['data'][0]}");
-              log("First data item keys: ${responseData['data'][0].keys.toList()}");
+              _debugLog(enableLog,
+                  "First data item: ${responseData['data'][0]}");
+              _debugLog(enableLog,
+                  "First data item keys: ${responseData['data'][0].keys.toList()}");
             }
-            log("=================================");
+            _debugLog(enableLog, "=================================");
           } catch (e) {
-            log("Error parsing response: $e");
+            _debugLog(enableLog, "Error parsing response: $e");
           }
 
           final orderResponse = OrderResponseModel.fromJson(response.body);
-          log("Parsed orders count: ${orderResponse.data?.length}");
+          _debugLog(
+              enableLog, "Parsed orders count: ${orderResponse.data?.length}");
           if (orderResponse.data != null && orderResponse.data!.isNotEmpty) {
             final firstOrder = orderResponse.data!.first;
-            log("=== FIRST ORDER DEBUG ===");
-            log("First order ID: ${firstOrder.id}");
-            log("First order orderNumber: ${firstOrder.orderNumber}");
-            log("First order totalAmount: ${firstOrder.totalAmount}");
-            log("First order subtotal: ${firstOrder.subtotal}");
-            log("First order taxAmount: ${firstOrder.taxAmount}");
-            log("First order discountAmount: ${firstOrder.discountAmount}");
-            log("First order serviceCharge: ${firstOrder.serviceCharge}");
-            log("First order paymentMethod: ${firstOrder.paymentMethod}");
-            log("First order status: ${firstOrder.status}");
-            log("First order user: ${firstOrder.user?.name}");
-            log("First order table: ${firstOrder.table?.name}");
-            log("First order items count: ${firstOrder.items?.length}");
+            _debugLog(enableLog, "=== FIRST ORDER DEBUG ===");
+            _debugLog(enableLog, "First order ID: ${firstOrder.id}");
+            _debugLog(
+                enableLog, "First order orderNumber: ${firstOrder.orderNumber}");
+            _debugLog(enableLog,
+                "First order totalAmount: ${firstOrder.totalAmount}");
+            _debugLog(
+                enableLog, "First order subtotal: ${firstOrder.subtotal}");
+            _debugLog(
+                enableLog, "First order taxAmount: ${firstOrder.taxAmount}");
+            _debugLog(enableLog,
+                "First order discountAmount: ${firstOrder.discountAmount}");
+            _debugLog(enableLog,
+                "First order serviceCharge: ${firstOrder.serviceCharge}");
+            _debugLog(enableLog,
+                "First order paymentMethod: ${firstOrder.paymentMethod}");
+            _debugLog(enableLog, "First order status: ${firstOrder.status}");
+            _debugLog(enableLog, "First order user: ${firstOrder.user?.name}");
+            _debugLog(
+                enableLog, "First order table: ${firstOrder.table?.name}");
+            _debugLog(
+                enableLog, "First order items count: ${firstOrder.items?.length}");
             if (firstOrder.items != null && firstOrder.items!.isNotEmpty) {
               final firstItem = firstOrder.items!.first;
-              log("First item productName: ${firstItem.productName}");
-              log("First item quantity: ${firstItem.quantity}");
-              log("First item totalPrice: ${firstItem.totalPrice}");
+              _debugLog(enableLog,
+                  "First item productName: ${firstItem.productName}");
+              _debugLog(enableLog, "First item quantity: ${firstItem.quantity}");
+              _debugLog(
+                  enableLog, "First item totalPrice: ${firstItem.totalPrice}");
             }
-            log("=========================");
+            _debugLog(enableLog, "=========================");
           }
           return Right(orderResponse);
         } else {
-          log("Endpoint ${i + 1} failed with status: ${response.statusCode}");
+          _debugLog(enableLog,
+              "Endpoint ${i + 1} failed with status: ${response.statusCode}");
           if (i == endpoints.length - 1) {
             return Left(
                 "All endpoints failed. Last error: ${response.statusCode}");
