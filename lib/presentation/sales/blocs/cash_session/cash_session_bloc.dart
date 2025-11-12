@@ -20,7 +20,13 @@ class CashSessionBloc extends Bloc<CashSessionEvent, CashSessionState> {
     emit(CashSessionLoading());
     final result = await _dataSource.getCurrentCashSession();
     result.fold(
-      (error) => emit(CashSessionError(error)),
+      (error) {
+        if (error == SalesRemoteDataSource.noActiveSessionMessage) {
+          emit(CashSessionEmpty());
+        } else {
+          emit(CashSessionError(error));
+        }
+      },
       (data) => emit(CashSessionSuccess(data)),
     );
   }
@@ -66,7 +72,13 @@ class CashSessionBloc extends Bloc<CashSessionEvent, CashSessionState> {
     );
 
     result.fold(
-      (error) => emit(CashSessionError(error)),
+      (error) {
+        if (error == SalesRemoteDataSource.noActiveSessionMessage) {
+          emit(CashSessionEmpty());
+        } else {
+          emit(CashSessionError(error));
+        }
+      },
       (_) {
         // Refresh current session after adding expense
         add(GetCurrentCashSession());

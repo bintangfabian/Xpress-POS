@@ -172,7 +172,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     // ✅ Nav Items
                     Expanded(
                       child: ListView(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         children: [
                           NavItem(
                             iconPath: Assets.icons.home.path,
@@ -323,6 +323,7 @@ class _DashboardPageState extends State<DashboardPage> {
       },
     );
   }
+
 
   Widget _statusBox(bool online) {
     return Container(

@@ -7,7 +7,6 @@ import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/datasources/sales_remote_datasource.dart';
 import 'package:xpress/presentation/sales/blocs/day_sales/day_sales_bloc.dart';
-import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_recap/sales_recap_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/best_sellers/best_sellers_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_summary/sales_summary_bloc.dart';
@@ -75,9 +74,6 @@ class _SalesPageState extends State<SalesPage> {
     final dateText = _getDateRangeText();
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (context) => CashSessionBloc(SalesRemoteDataSource()),
-        ),
         BlocProvider(
           create: (context) => SalesRecapBloc(SalesRemoteDataSource()),
         ),

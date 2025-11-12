@@ -10,6 +10,8 @@ import 'package:xpress/data/models/response/best_sellers_response_model.dart';
 import 'package:xpress/data/models/response/sales_summary_response_model.dart';
 
 class SalesRemoteDataSource {
+  static const String noActiveSessionMessage = 'NO_ACTIVE_CASH_SESSION';
+
   // ==================== CASH SESSION ====================
 
   /// Get current active cash session or create new one
@@ -24,16 +26,14 @@ class SalesRemoteDataSource {
       final headers = {
         'Authorization': 'Bearer ${authData.token}',
         'Accept': 'application/json',
-        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+        if (storeUuid != null && storeUuid.isNotEmpty) ...{
+          'X-Store-Id': storeUuid,
+          'Store-Id': storeUuid,
+        },
       };
 
       log('Fetching current cash session: $uri');
-      var response = await http.get(uri, headers: headers);
-
-      if (response.statusCode == 403) {
-        headers.remove('X-Store-Id');
-        response = await http.get(uri, headers: headers);
-      }
+      final response = await http.get(uri, headers: headers);
 
       log('Cash Session Response: ${response.statusCode}');
       log('Cash Session Response Body: ${response.body}');
@@ -43,10 +43,17 @@ class SalesRemoteDataSource {
         if (result.data != null) {
           return Right(result.data!);
         } else {
-          return const Left('No active cash session found');
+          return const Left(noActiveSessionMessage);
         }
+      } else if (response.statusCode == 404) {
+        log('No active cash session returned (404)');
+        return const Left(noActiveSessionMessage);
       } else {
-        return Left('Failed to get cash session: ${response.statusCode}');
+        final message = _extractErrorMessage(
+          response,
+          fallback: 'Failed to get cash session',
+        );
+        return Left(message);
       }
     } catch (e) {
       log('Error getting cash session: $e');
@@ -69,20 +76,18 @@ class SalesRemoteDataSource {
         'opening_balance': openingBalance,
       });
 
-      var headers = {
+      final headers = {
         'Authorization': 'Bearer ${authData.token}',
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+        if (storeUuid != null && storeUuid.isNotEmpty) ...{
+          'X-Store-Id': storeUuid,
+          'Store-Id': storeUuid,
+        },
       };
 
       log('Opening cash session with payload: $payload');
-      var response = await http.post(uri, headers: headers, body: payload);
-
-      if (response.statusCode == 403) {
-        headers.remove('X-Store-Id');
-        response = await http.post(uri, headers: headers, body: payload);
-      }
+      final response = await http.post(uri, headers: headers, body: payload);
 
       log('Open Cash Session Response: ${response.statusCode}');
       log('Open Cash Session Response Body: ${response.body}');
@@ -95,7 +100,11 @@ class SalesRemoteDataSource {
           return const Left('Failed to create cash session');
         }
       } else {
-        return Left('Failed to open cash session: ${response.statusCode}');
+        final message = _extractErrorMessage(
+          response,
+          fallback: 'Failed to open cash session',
+        );
+        return Left(message);
       }
     } catch (e) {
       log('Error opening cash session: $e');
@@ -119,20 +128,18 @@ class SalesRemoteDataSource {
         'closing_balance': closingBalance,
       });
 
-      var headers = {
+      final headers = {
         'Authorization': 'Bearer ${authData.token}',
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+        if (storeUuid != null && storeUuid.isNotEmpty) ...{
+          'X-Store-Id': storeUuid,
+          'Store-Id': storeUuid,
+        },
       };
 
       log('Closing cash session with payload: $payload');
-      var response = await http.post(uri, headers: headers, body: payload);
-
-      if (response.statusCode == 403) {
-        headers.remove('X-Store-Id');
-        response = await http.post(uri, headers: headers, body: payload);
-      }
+      final response = await http.post(uri, headers: headers, body: payload);
 
       log('Close Cash Session Response: ${response.statusCode}');
       log('Close Cash Session Response Body: ${response.body}');
@@ -145,7 +152,11 @@ class SalesRemoteDataSource {
           return const Left('Failed to close cash session');
         }
       } else {
-        return Left('Failed to close cash session: ${response.statusCode}');
+        final message = _extractErrorMessage(
+          response,
+          fallback: 'Failed to close cash session',
+        );
+        return Left(message);
       }
     } catch (e) {
       log('Error closing cash session: $e');
@@ -173,20 +184,18 @@ class SalesRemoteDataSource {
         if (category != null) 'category': category,
       });
 
-      var headers = {
+      final headers = {
         'Authorization': 'Bearer ${authData.token}',
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+        if (storeUuid != null && storeUuid.isNotEmpty) ...{
+          'X-Store-Id': storeUuid,
+          'Store-Id': storeUuid,
+        },
       };
 
       log('Adding expense with payload: $payload');
-      var response = await http.post(uri, headers: headers, body: payload);
-
-      if (response.statusCode == 403) {
-        headers.remove('X-Store-Id');
-        response = await http.post(uri, headers: headers, body: payload);
-      }
+      final response = await http.post(uri, headers: headers, body: payload);
 
       log('Add Expense Response: ${response.statusCode}');
       log('Add Expense Response Body: ${response.body}');
@@ -194,7 +203,11 @@ class SalesRemoteDataSource {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return const Right(true);
       } else {
-        return Left('Failed to add expense: ${response.statusCode}');
+        final message = _extractErrorMessage(
+          response,
+          fallback: 'Failed to add expense',
+        );
+        return Left(message);
       }
     } catch (e) {
       log('Error adding expense: $e');
@@ -343,4 +356,22 @@ class SalesRemoteDataSource {
       return Left('Failed to get sales summary: $e');
     }
   }
+}
+
+String _extractErrorMessage(
+  http.Response response, {
+  required String fallback,
+}) {
+  try {
+    final dynamic decoded = json.decode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      final message = decoded['message'];
+      if (message is String && message.isNotEmpty) {
+        return message;
+      }
+    }
+  } catch (_) {
+    // swallow JSON parsing errors and use generic fallback
+  }
+  return '$fallback: ${response.statusCode}';
 }

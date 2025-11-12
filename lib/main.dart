@@ -13,6 +13,7 @@ import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/data/datasources/product_remote_datasource.dart';
 import 'package:xpress/data/datasources/table_remote_datasource.dart';
+import 'package:xpress/data/datasources/sales_remote_datasource.dart';
 import 'package:xpress/data/repositories/sync_repository.dart';
 import 'package:xpress/data/services/api_service.dart';
 import 'package:xpress/logic/bloc/sync/sync_bloc.dart';
@@ -32,6 +33,8 @@ import 'package:xpress/presentation/report/blocs/summary/summary_bloc.dart';
 import 'package:xpress/presentation/report/blocs/transaction_report/transaction_report_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/bloc/last_order_table_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/day_sales/day_sales_bloc.dart';
+import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_bloc.dart';
+import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_event.dart';
 import 'package:xpress/presentation/setting/bloc/add_discount/add_discount_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/add_product/add_product_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/delete_discount/delete_discount_cubit.dart';
@@ -169,6 +172,10 @@ class MyApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (context) => DaySalesBloc(ProductLocalDatasource.instance),
+          ),
+          BlocProvider(
+            create: (context) =>
+                CashSessionBloc(SalesRemoteDataSource())..add(GetCurrentCashSession()),
           ),
           BlocProvider(
             create: (context) => QrisBloc(MidtransRemoteDatasource()),
