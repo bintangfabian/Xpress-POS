@@ -35,6 +35,7 @@ class CashSessionData {
   final String? id;
   final String? userId;
   final String? storeId;
+  final String? notes;
   final int openingBalance;
   final int? closingBalance;
   final int? expectedBalance;
@@ -52,6 +53,7 @@ class CashSessionData {
     this.id,
     this.userId,
     this.storeId,
+    this.notes,
     required this.openingBalance,
     this.closingBalance,
     this.expectedBalance,
@@ -70,6 +72,7 @@ class CashSessionData {
         id: json["id"]?.toString(),
         userId: json["user_id"]?.toString(),
         storeId: json["store_id"]?.toString(),
+        notes: json["notes"]?.toString(),
         openingBalance: _parseInt(json["opening_balance"]),
         closingBalance: _parseInt(json["closing_balance"]),
         expectedBalance: _parseInt(json["expected_balance"]),
@@ -99,6 +102,7 @@ class CashSessionData {
         "id": id,
         "user_id": userId,
         "store_id": storeId,
+        "notes": notes,
         "opening_balance": openingBalance,
         "closing_balance": closingBalance,
         "expected_balance": expectedBalance,
@@ -118,9 +122,30 @@ class CashSessionData {
   static int _parseInt(dynamic value) {
     if (value == null) return 0;
     if (value is int) return value;
-    if (value is double) return value.toInt();
+    if (value is double) return value.round();
+    if (value is num) return value.toInt();
     if (value is String) {
-      return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return 0;
+
+      final directInt = int.tryParse(trimmed);
+      if (directInt != null) return directInt;
+
+      final directDouble = double.tryParse(trimmed);
+      if (directDouble != null) return directDouble.round();
+
+      final withoutComma = trimmed.replaceAll(',', '');
+      final commaFreeDouble = double.tryParse(withoutComma);
+      if (commaFreeDouble != null) return commaFreeDouble.round();
+
+      final europeanFormatted =
+          trimmed.replaceAll('.', '').replaceAll(',', '.');
+      final euroDouble = double.tryParse(europeanFormatted);
+      if (euroDouble != null) return euroDouble.round();
+
+      final digitsOnly = trimmed.replaceAll(RegExp(r'[^0-9-]'), '');
+      if (digitsOnly.isEmpty) return 0;
+      return int.tryParse(digitsOnly) ?? 0;
     }
     return 0;
   }

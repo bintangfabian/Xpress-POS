@@ -38,6 +38,7 @@ class CashSessionBloc extends Bloc<CashSessionEvent, CashSessionState> {
     emit(CashSessionLoading());
     final result = await _dataSource.openCashSession(
       openingBalance: event.openingBalance,
+      notes: event.notes,
     );
     result.fold(
       (error) => emit(CashSessionError(error)),

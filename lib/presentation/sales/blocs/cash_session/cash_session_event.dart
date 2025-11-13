@@ -4,7 +4,11 @@ class GetCurrentCashSession extends CashSessionEvent {}
 
 class OpenCashSession extends CashSessionEvent {
   final int openingBalance;
-  OpenCashSession(this.openingBalance);
+  final String notes;
+  OpenCashSession({
+    required this.openingBalance,
+    required this.notes,
+  });
 }
 
 class CloseCashSession extends CashSessionEvent {
@@ -17,11 +21,11 @@ class AddCashExpense extends CashSessionEvent {
   final String sessionId;
   final int amount;
   final String description;
-  final String? category;
+  final String category;
   AddCashExpense({
     required this.sessionId,
     required this.amount,
     required this.description,
-    this.category,
+    required this.category,
   });
 }
