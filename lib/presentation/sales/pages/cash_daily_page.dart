@@ -224,8 +224,8 @@ class _CashDailyPageState extends State<CashDailyPage> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                backgroundColor: statusColor.withValues(alpha: 0.1),
-                side: BorderSide(color: statusColor.withValues(alpha: 0.4)),
+                backgroundColor: statusColor.withOpacity(0.1),
+                side: BorderSide(color: statusColor.withOpacity(0.4)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -256,7 +256,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
             Text(
               'Catatan Shift',
               style: TextStyle(
-                color: AppColors.grey.withValues(alpha: 0.9),
+                color: AppColors.grey.withOpacity(0.9),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -787,7 +787,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.greyLightActive.withValues(alpha: 0.4),
+          color: AppColors.greyLightActive.withOpacity(0.4),
         ),
       ),
       child: Column(
@@ -845,7 +845,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
