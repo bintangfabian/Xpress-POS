@@ -33,7 +33,19 @@ class SalesRemoteDataSource {
       };
 
       log('Fetching current cash session: $uri');
-      final response = await http.get(uri, headers: headers);
+      var response = await http.get(uri, headers: headers);
+
+      if (_shouldRetryWithoutStoreContext(
+        response: response,
+        storeUuid: storeUuid,
+      )) {
+        log(
+          'Cash session current request failed due to store context. Retrying without store headers.',
+        );
+        headers.remove('X-Store-Id');
+        headers.remove('Store-Id');
+        response = await http.get(uri, headers: headers);
+      }
 
       log('Cash Session Response: ${response.statusCode}');
       log('Cash Session Response Body: ${response.body}');
@@ -64,6 +76,7 @@ class SalesRemoteDataSource {
   /// Open new cash session
   Future<Either<String, CashSessionData>> openCashSession({
     required int openingBalance,
+    required String notes,
   }) async {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
@@ -74,6 +87,7 @@ class SalesRemoteDataSource {
 
       final payload = jsonEncode({
         'opening_balance': openingBalance,
+        'notes': notes,
       });
 
       final headers = {
@@ -87,7 +101,19 @@ class SalesRemoteDataSource {
       };
 
       log('Opening cash session with payload: $payload');
-      final response = await http.post(uri, headers: headers, body: payload);
+      var response = await http.post(uri, headers: headers, body: payload);
+
+      if (_shouldRetryWithoutStoreContext(
+        response: response,
+        storeUuid: storeUuid,
+      )) {
+        log(
+          'Open cash session request failed due to store context. Retrying without store headers.',
+        );
+        headers.remove('X-Store-Id');
+        headers.remove('Store-Id');
+        response = await http.post(uri, headers: headers, body: payload);
+      }
 
       log('Open Cash Session Response: ${response.statusCode}');
       log('Open Cash Session Response Body: ${response.body}');
@@ -139,7 +165,19 @@ class SalesRemoteDataSource {
       };
 
       log('Closing cash session with payload: $payload');
-      final response = await http.post(uri, headers: headers, body: payload);
+      var response = await http.post(uri, headers: headers, body: payload);
+
+      if (_shouldRetryWithoutStoreContext(
+        response: response,
+        storeUuid: storeUuid,
+      )) {
+        log(
+          'Close cash session request failed due to store context. Retrying without store headers.',
+        );
+        headers.remove('X-Store-Id');
+        headers.remove('Store-Id');
+        response = await http.post(uri, headers: headers, body: payload);
+      }
 
       log('Close Cash Session Response: ${response.statusCode}');
       log('Close Cash Session Response Body: ${response.body}');
@@ -169,7 +207,7 @@ class SalesRemoteDataSource {
     required String sessionId,
     required int amount,
     required String description,
-    String? category,
+    required String category,
   }) async {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
@@ -181,7 +219,7 @@ class SalesRemoteDataSource {
       final payload = jsonEncode({
         'amount': amount,
         'description': description,
-        if (category != null) 'category': category,
+        'category': category,
       });
 
       final headers = {
@@ -195,7 +233,19 @@ class SalesRemoteDataSource {
       };
 
       log('Adding expense with payload: $payload');
-      final response = await http.post(uri, headers: headers, body: payload);
+      var response = await http.post(uri, headers: headers, body: payload);
+
+      if (_shouldRetryWithoutStoreContext(
+        response: response,
+        storeUuid: storeUuid,
+      )) {
+        log(
+          'Add expense request failed due to store context. Retrying without store headers.',
+        );
+        headers.remove('X-Store-Id');
+        headers.remove('Store-Id');
+        response = await http.post(uri, headers: headers, body: payload);
+      }
 
       log('Add Expense Response: ${response.statusCode}');
       log('Add Expense Response Body: ${response.body}');
@@ -374,4 +424,33 @@ String _extractErrorMessage(
     // swallow JSON parsing errors and use generic fallback
   }
   return '$fallback: ${response.statusCode}';
+}
+
+bool _shouldRetryWithoutStoreContext({
+  required http.Response response,
+  required String? storeUuid,
+}) {
+  if (storeUuid == null || storeUuid.isEmpty) return false;
+  if (response.statusCode != 403) return false;
+
+  final message = _readResponseMessage(response.body);
+  if (message == null) return false;
+
+  final normalized = message.toLowerCase();
+  if (normalized.contains('request store context')) return true;
+  return normalized.contains('store context') &&
+      normalized.contains('not assigned');
+}
+
+String? _readResponseMessage(String body) {
+  try {
+    final dynamic decoded = json.decode(body);
+    if (decoded is Map<String, dynamic>) {
+      final message = decoded['message'] ?? decoded['error'];
+      if (message is String && message.isNotEmpty) {
+        return message;
+      }
+    }
+  } catch (_) {}
+  return null;
 }

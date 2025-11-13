@@ -28,7 +28,9 @@ class CashDailyPage extends StatefulWidget {
 class _CashDailyPageState extends State<CashDailyPage> {
   final TextEditingController _expenseAmountCtrl = TextEditingController();
   final TextEditingController _expenseNoteCtrl = TextEditingController();
+  final TextEditingController _expenseCategoryCtrl = TextEditingController();
   final TextEditingController _openShiftAmountCtrl = TextEditingController();
+  final TextEditingController _openShiftNotesCtrl = TextEditingController();
   final TextEditingController _closeShiftAmountCtrl = TextEditingController();
   CashSessionData? _session;
   bool _isSubmittingExpense = false;
@@ -62,7 +64,9 @@ class _CashDailyPageState extends State<CashDailyPage> {
   void dispose() {
     _expenseAmountCtrl.dispose();
     _expenseNoteCtrl.dispose();
+    _expenseCategoryCtrl.dispose();
     _openShiftAmountCtrl.dispose();
+    _openShiftNotesCtrl.dispose();
     _closeShiftAmountCtrl.dispose();
     super.dispose();
   }
@@ -247,34 +251,37 @@ class _CashDailyPageState extends State<CashDailyPage> {
               'Belum ada data shift. Tekan tombol "Buka Shift" untuk memulai pencatatan kas.',
               style: TextStyle(color: AppColors.grey),
             ),
+          if (session != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Catatan Shift',
+              style: TextStyle(
+                color: AppColors.grey.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              (session.notes ?? '-').isEmpty ? '-' : session.notes!,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Button.outlined(
-                  onPressed: _loadCashSession,
-                  label: 'Segarkan',
-                  disabled: isRefreshing,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Button.filled(
-                  onPressed: () {
-                    if (!isOpen) {
-                      _openShiftDialog();
-                      return;
-                    }
-                    if (session != null) {
-                      _closeShiftDialog(session);
-                    }
-                  },
-                  label: isOpen ? 'Tutup Shift' : 'Buka Shift',
-                  color: isOpen ? AppColors.danger : AppColors.primary,
-                  disabled: isOpen ? !canCloseShift : !canOpenShift,
-                ),
-              ),
-            ],
+          Button.filled(
+            onPressed: () {
+              if (!isOpen) {
+                _openShiftDialog();
+                return;
+              }
+              if (session != null) {
+                _closeShiftDialog(session);
+              }
+            },
+            label: isOpen ? 'Tutup Shift' : 'Buka Shift',
+            color: isOpen ? AppColors.danger : AppColors.primary,
+            disabled: isRefreshing || (isOpen ? !canCloseShift : !canOpenShift),
           ),
         ],
       ),
@@ -334,21 +341,13 @@ class _CashDailyPageState extends State<CashDailyPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomTextField(
-            controller: _expenseAmountCtrl,
-            label: 'Jumlah pengeluaran (Rp)',
-            keyboardType: TextInputType.number,
-            readOnly: !hasActiveSession,
+          const Text(
+            'Catat pengeluaran tunai melalui formulir pop-up agar histori shift tetap rapi.',
+            style: TextStyle(color: AppColors.grey),
           ),
-          const SpaceHeight(12),
-          CustomTextField(
-            controller: _expenseNoteCtrl,
-            label: 'Keterangan',
-            readOnly: !hasActiveSession,
-          ),
-          const SpaceHeight(12),
+          const SpaceHeight(16),
           Button.filled(
-            onPressed: _submitExpense,
+            onPressed: _showExpenseDialog,
             label: 'Tambah Pengeluaran',
             disabled: !hasActiveSession || _isSubmittingExpense,
           ),
@@ -360,8 +359,97 @@ class _CashDailyPageState extends State<CashDailyPage> {
                 style: TextStyle(color: AppColors.grey),
               ),
             ),
+          if (_isSubmittingExpense && hasActiveSession)
+            const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Menyimpan pengeluaran...',
+                    style: TextStyle(color: AppColors.grey),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showExpenseDialog() async {
+    final session = _session;
+    if (session == null || session.status != 'open') {
+      _showSnackBar(
+        'Belum ada shift aktif. Buka shift untuk mencatat pengeluaran.',
+      );
+      return;
+    }
+
+    _expenseAmountCtrl.clear();
+    _expenseNoteCtrl.clear();
+    _expenseCategoryCtrl.clear();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Pengeluaran Tunai',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CustomTextField(
+                  controller: _expenseAmountCtrl,
+                  label: 'Jumlah pengeluaran (Rp)',
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: _expenseCategoryCtrl,
+                  label: 'Kategori',
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: _expenseNoteCtrl,
+                  label: 'Deskripsi',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isSubmittingExpense
+                  ? null
+                  : () {
+                      Navigator.of(dialogContext).pop();
+                    },
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: _isSubmittingExpense
+                  ? null
+                  : () => _submitExpense(dialogContext),
+              child: _isSubmittingExpense
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Simpan'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -397,6 +485,16 @@ class _CashDailyPageState extends State<CashDailyPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if ((expense.category?.isNotEmpty ?? false)) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Kategori: ${expense.category}',
+                              style: const TextStyle(
+                                color: AppColors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Text(
                             _formatDateTime(expense.createdAt),
@@ -426,7 +524,8 @@ class _CashDailyPageState extends State<CashDailyPage> {
 
   void _openShiftDialog() async {
     _openShiftAmountCtrl.clear();
-    final result = await showModalBottomSheet<int>(
+    _openShiftNotesCtrl.clear();
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -456,6 +555,12 @@ class _CashDailyPageState extends State<CashDailyPage> {
                 label: 'Saldo awal (Rp)',
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _openShiftNotesCtrl,
+                label: 'Catatan shift',
+                textInputAction: TextInputAction.done,
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -470,14 +575,25 @@ class _CashDailyPageState extends State<CashDailyPage> {
                     child: Button.filled(
                       onPressed: () {
                         final amount = _parseCurrency(_openShiftAmountCtrl.text);
+                        final notes = _openShiftNotesCtrl.text.trim();
                         if (amount <= 0) {
                           _showSnackBar(
                             'Saldo awal harus lebih dari 0.',
                           );
                           return;
                         }
+                        if (notes.isEmpty) {
+                          _showSnackBar('Catatan shift wajib diisi.');
+                          return;
+                        }
                         FocusScope.of(context).unfocus();
-                        Navigator.pop(context, amount);
+                        Navigator.pop(
+                          context,
+                          {
+                            'amount': amount,
+                            'notes': notes,
+                          },
+                        );
                       },
                       label: 'Mulai Shift',
                     ),
@@ -491,9 +607,18 @@ class _CashDailyPageState extends State<CashDailyPage> {
     );
     if (!mounted) return;
 
-    if (result != null && result > 0) {
-      _lastAction = _CashSessionAction.open;
-      context.read<CashSessionBloc>().add(OpenCashSession(result));
+    if (result != null) {
+      final int amount = (result['amount'] as int?) ?? 0;
+      final String notes = (result['notes'] as String?)?.trim() ?? '';
+      if (amount > 0 && notes.isNotEmpty) {
+        _lastAction = _CashSessionAction.open;
+        context.read<CashSessionBloc>().add(
+              OpenCashSession(
+                openingBalance: amount,
+                notes: notes,
+              ),
+            );
+      }
     }
   }
 
@@ -578,19 +703,25 @@ class _CashDailyPageState extends State<CashDailyPage> {
     }
   }
 
-  void _submitExpense() {
+  void _submitExpense(BuildContext dialogContext) {
     final session = _session;
-    if (session == null || session.id == null) return;
+    if (session == null || session.id == null) {
+      _showSnackBar('Belum ada shift aktif.');
+      return;
+    }
 
     final amount = _parseCurrency(_expenseAmountCtrl.text);
     final description = _expenseNoteCtrl.text.trim();
+    final category = _expenseCategoryCtrl.text.trim();
 
-    if (amount <= 0 || description.isEmpty) {
+    if (amount <= 0 || description.isEmpty || category.isEmpty) {
       _showSnackBar(
-        'Nominal dan keterangan wajib diisi untuk mencatat pengeluaran.',
+        'Nominal, kategori, dan deskripsi wajib diisi untuk mencatat pengeluaran.',
       );
       return;
     }
+
+    FocusScope.of(dialogContext).unfocus();
 
     setState(() {
       _isSubmittingExpense = true;
@@ -602,11 +733,14 @@ class _CashDailyPageState extends State<CashDailyPage> {
             sessionId: session.id!,
             amount: amount,
             description: description,
+            category: category,
           ),
         );
 
+    Navigator.of(dialogContext).pop();
     _expenseAmountCtrl.clear();
     _expenseNoteCtrl.clear();
+    _expenseCategoryCtrl.clear();
   }
 
   String? _resolveErrorMessage(CashSessionState state) {
