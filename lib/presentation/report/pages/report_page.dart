@@ -75,11 +75,21 @@ class _ReportPageState extends State<ReportPage>
     });
 
     try {
-      final dateKeys = _generateDateKeys();
       final List<_DailyOrderSection> sections = [];
       String? fetchError;
 
-      for (final dateKey in dateKeys) {
+      // Start from today and go backwards to find dates with data
+      final DateTime startDate =
+          DateTime(fromDate.year, fromDate.month, fromDate.day);
+      DateTime cursor = DateTime(toDate.year, toDate.month, toDate.day);
+      int maxSearchDays = 30; // Maximum days to search backwards
+      int daysSearched = 0;
+
+      // Continue until we have 7 dates with data or reach the limit
+      while (sections.length < _maxDateDays &&
+          !cursor.isBefore(startDate) &&
+          daysSearched < maxSearchDays) {
+        final dateKey = DateFormat('yyyy-MM-dd').format(cursor);
         final result = await _fetchSectionForDate(dateKey);
         if (!mounted) return;
 
@@ -88,9 +98,14 @@ class _ReportPageState extends State<ReportPage>
           break;
         }
 
-        if (result.section != null) {
+        // Only add section if it has orders
+        if (result.section != null && result.section!.orders.isNotEmpty) {
           sections.add(result.section!);
         }
+
+        // Move to previous day
+        cursor = cursor.subtract(const Duration(days: 1));
+        daysSearched++;
       }
 
       if (!mounted) return;
@@ -144,20 +159,6 @@ class _ReportPageState extends State<ReportPage>
         isLoading = false;
       });
     }
-  }
-
-  List<String> _generateDateKeys() {
-    final List<String> keys = [];
-    final DateTime startDate =
-        DateTime(fromDate.year, fromDate.month, fromDate.day);
-    DateTime cursor = DateTime(toDate.year, toDate.month, toDate.day);
-
-    while (!cursor.isBefore(startDate) && keys.length < _maxDateDays) {
-      keys.add(DateFormat('yyyy-MM-dd').format(cursor));
-      cursor = cursor.subtract(const Duration(days: 1));
-    }
-
-    return keys;
   }
 
   DateTime _orderLocalDateTime(ItemOrder order) {
@@ -264,10 +265,9 @@ class _ReportPageState extends State<ReportPage>
       },
       (orderResponse) {
         final newOrders = (orderResponse.data ?? [])
-            ..sort(
-              (a, b) =>
-                  _orderLocalDateTime(b).compareTo(_orderLocalDateTime(a)),
-            );
+          ..sort(
+            (a, b) => _orderLocalDateTime(b).compareTo(_orderLocalDateTime(a)),
+          );
         final meta = orderResponse.meta;
         final updatedCurrentPage = meta?.currentPage ?? nextPage;
         final hasMore =
@@ -276,10 +276,8 @@ class _ReportPageState extends State<ReportPage>
         setState(() {
           section.orders.addAll(newOrders);
           section.orders.sort((a, b) {
-            final dateA =
-                a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final dateB =
-                b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
             return dateB.compareTo(dateA);
           });
           section.currentPage = updatedCurrentPage;
@@ -475,8 +473,7 @@ class _ReportPageState extends State<ReportPage>
       itemBuilder: (context, index) {
         final section = _dailySections[index];
         final dayOrders = section.orders;
-        final visibleOrders =
-            dayOrders.take(section.visibleCount).toList();
+        final visibleOrders = dayOrders.take(section.visibleCount).toList();
         final canLoadMore =
             section.visibleCount < dayOrders.length || section.hasMore;
 
@@ -637,12 +634,12 @@ class _ReportPageState extends State<ReportPage>
 
             Navigator.of(context)
                 .push(
-                  MaterialPageRoute(
-                    builder: (context) => TransactionDetailPage(
-                      orderId: order.id, // Only pass orderId, fetch detail
-                    ),
-                  ),
-                )
+              MaterialPageRoute(
+                builder: (context) => TransactionDetailPage(
+                  orderId: order.id, // Only pass orderId, fetch detail
+                ),
+              ),
+            )
                 .then((_) {
               if (savedOffset != null && mounted) {
                 _restoreScrollPosition(savedOffset);

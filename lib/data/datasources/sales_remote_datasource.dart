@@ -360,6 +360,174 @@ class SalesRemoteDataSource {
     }
   }
 
+  // ==================== CASH SESSIONS HISTORY ====================
+
+  /// Get list of cash sessions with date filter
+  Future<Either<String, List<CashSessionData>>> getCashSessions({
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      var uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/cash-sessions');
+
+      // Add query parameters if provided
+      final queryParams = <String, String>{};
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['end_date'] = endDate;
+      }
+      if (queryParams.isNotEmpty) {
+        uri = uri.replace(queryParameters: queryParams);
+      }
+
+      final headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) ...{
+          'X-Store-Id': storeUuid,
+          'Store-Id': storeUuid,
+        },
+      };
+
+      log('Fetching cash sessions: $uri');
+      var response = await http.get(uri, headers: headers);
+
+      if (_shouldRetryWithoutStoreContext(
+        response: response,
+        storeUuid: storeUuid,
+      )) {
+        log(
+          'Cash sessions request failed due to store context. Retrying without store headers.',
+        );
+        headers.remove('X-Store-Id');
+        headers.remove('Store-Id');
+        response = await http.get(uri, headers: headers);
+      }
+
+      log('Cash Sessions Response: ${response.statusCode}');
+      log('Cash Sessions Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        try {
+          final dynamic decoded = json.decode(response.body);
+          List<CashSessionData> sessions = [];
+
+          if (decoded is Map<String, dynamic>) {
+            // Handle paginated response: { success: true, data: { data: [...] } }
+            if (decoded['data'] != null) {
+              final dataValue = decoded['data'];
+
+              if (dataValue is Map<String, dynamic>) {
+                // Paginated response: data.data contains the array
+                if (dataValue['data'] != null && dataValue['data'] is List) {
+                  sessions = (dataValue['data'] as List)
+                      .map((item) =>
+                          CashSessionData.fromMap(item as Map<String, dynamic>))
+                      .toList();
+                } else {
+                  // Single item wrapped in data object
+                  sessions = [CashSessionData.fromMap(dataValue)];
+                }
+              } else if (dataValue is List) {
+                // Direct array in data key
+                sessions = dataValue
+                    .map((item) =>
+                        CashSessionData.fromMap(item as Map<String, dynamic>))
+                    .toList();
+              }
+            }
+          } else if (decoded is List) {
+            // Direct array response
+            sessions = decoded
+                .map((item) =>
+                    CashSessionData.fromMap(item as Map<String, dynamic>))
+                .toList();
+          }
+
+          return Right(sessions);
+        } catch (e) {
+          log('Error parsing cash sessions: $e');
+          return Left('Failed to parse cash sessions: $e');
+        }
+      } else {
+        final message = _extractErrorMessage(
+          response,
+          fallback: 'Failed to get cash sessions',
+        );
+        return Left(message);
+      }
+    } catch (e) {
+      log('Error getting cash sessions: $e');
+      return Left('Failed to get cash sessions: $e');
+    }
+  }
+
+  /// Get cash session detail by ID
+  Future<Either<String, CashSessionData>> getCashSessionDetail(
+    String sessionId,
+  ) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/cash-sessions/$sessionId');
+
+      final headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) ...{
+          'X-Store-Id': storeUuid,
+          'Store-Id': storeUuid,
+        },
+      };
+
+      log('Fetching cash session detail: $uri');
+      var response = await http.get(uri, headers: headers);
+
+      if (_shouldRetryWithoutStoreContext(
+        response: response,
+        storeUuid: storeUuid,
+      )) {
+        log(
+          'Cash session detail request failed due to store context. Retrying without store headers.',
+        );
+        headers.remove('X-Store-Id');
+        headers.remove('Store-Id');
+        response = await http.get(uri, headers: headers);
+      }
+
+      log('Cash Session Detail Response: ${response.statusCode}');
+      log('Cash Session Detail Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final result = CashSessionResponseModel.fromJson(response.body);
+        if (result.data != null) {
+          return Right(result.data!);
+        } else {
+          return const Left('No cash session data found');
+        }
+      } else if (response.statusCode == 404) {
+        return const Left('Cash session not found');
+      } else {
+        final message = _extractErrorMessage(
+          response,
+          fallback: 'Failed to get cash session detail',
+        );
+        return Left(message);
+      }
+    } catch (e) {
+      log('Error getting cash session detail: $e');
+      return Left('Failed to get cash session detail: $e');
+    }
+  }
+
   // ==================== SALES SUMMARY ====================
 
   /// Get sales summary with statistics

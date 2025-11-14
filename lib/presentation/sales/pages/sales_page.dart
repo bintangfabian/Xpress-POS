@@ -13,8 +13,10 @@ import 'package:xpress/presentation/sales/blocs/sales_summary/sales_summary_bloc
 import 'package:xpress/presentation/sales/pages/sales_recap_page.dart';
 import 'package:xpress/presentation/sales/pages/top_selling_page.dart';
 import 'package:xpress/presentation/sales/pages/cash_daily_page.dart';
+import 'package:xpress/presentation/sales/pages/cash_session_history_page.dart';
 import 'package:xpress/presentation/sales/pages/inventory_page.dart';
 import 'package:xpress/presentation/sales/pages/summary_page.dart';
+import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_bloc.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -82,6 +84,9 @@ class _SalesPageState extends State<SalesPage> {
         ),
         BlocProvider(
           create: (context) => SalesSummaryBloc(SalesRemoteDataSource()),
+        ),
+        BlocProvider(
+          create: (context) => CashSessionHistoryBloc(SalesRemoteDataSource()),
         ),
       ],
       child: Row(
@@ -158,32 +163,39 @@ class _SalesPageState extends State<SalesPage> {
                             onTap: () => setState(() => currentIndex = 0),
                           ),
                           MenuTile(
+                            icon: Assets.icons.database,
+                            title: 'Riwayat Kas Harian',
+                            subtitle: 'Daftar Sesi Kas Harian',
+                            active: currentIndex == 1,
+                            onTap: () => setState(() => currentIndex = 1),
+                          ),
+                          MenuTile(
                             icon: Assets.icons.cash,
                             title: 'Rekap Penjualan',
                             subtitle: 'Monitoring Uang Penjualan',
-                            active: currentIndex == 1,
-                            onTap: () => setState(() => currentIndex = 1),
+                            active: currentIndex == 2,
+                            onTap: () => setState(() => currentIndex = 2),
                           ),
                           MenuTile(
                             icon: Assets.icons.cart,
                             title: 'Terlaris',
                             subtitle: 'Ringkasan Produk Terlaris',
-                            active: currentIndex == 2,
-                            onTap: () => setState(() => currentIndex = 2),
+                            active: currentIndex == 3,
+                            onTap: () => setState(() => currentIndex = 3),
                           ),
                           MenuTile(
                             icon: Assets.icons.task,
                             title: 'Ringkasan',
                             subtitle: 'Kelola Pendapatan',
-                            active: currentIndex == 3,
-                            onTap: () => setState(() => currentIndex = 3),
+                            active: currentIndex == 4,
+                            onTap: () => setState(() => currentIndex = 4),
                           ),
                           MenuTile(
                             icon: Assets.icons.stock,
                             title: 'Inventori',
                             subtitle: 'Informasi Barang & Stock',
-                            active: currentIndex == 4,
-                            onTap: () => setState(() => currentIndex = 4),
+                            active: currentIndex == 5,
+                            onTap: () => setState(() => currentIndex = 5),
                           ),
                         ],
                       ),
@@ -208,6 +220,8 @@ class _SalesPageState extends State<SalesPage> {
                 index: currentIndex,
                 children: [
                   CashDailyPage(startDate: startDate, endDate: endDate),
+                  CashSessionHistoryPage(
+                      startDate: startDate, endDate: endDate),
                   SalesRecapPage(startDate: startDate, endDate: endDate),
                   TopSellingPage(startDate: startDate, endDate: endDate),
                   SummaryPage(startDate: startDate, endDate: endDate),

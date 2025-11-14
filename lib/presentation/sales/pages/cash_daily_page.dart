@@ -262,7 +262,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              (session.notes ?? '-').isEmpty ? '-' : session.notes!,
+              _formatNotes(session.notes),
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
               ),
@@ -765,6 +765,14 @@ class _CashDailyPageState extends State<CashDailyPage> {
 
   String _formatCurrency(int? value) =>
       value == null ? '-' : value.currencyFormatRp;
+
+  String _formatNotes(String? notes) {
+    final trimmed = notes?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return '-';
+    }
+    return trimmed;
+  }
 
   void _showSnackBar(String message, {bool isError = true}) {
     if (!mounted) return;

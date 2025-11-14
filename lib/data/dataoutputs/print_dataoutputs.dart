@@ -4,6 +4,7 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
+import 'package:xpress/data/models/response/cash_session_response_model.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
 import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
@@ -884,6 +885,278 @@ class PrintDataoutputs {
         styles: const PosStyles(bold: false, align: PosAlign.center));
     bytes += generator.feed(3);
     //cut
+    bytes += generator.cut();
+
+    return bytes;
+  }
+
+  Future<List<int>> printCashSessionReport({
+    required CashSessionData session,
+    required int paperSize,
+  }) async {
+    List<int> bytes = [];
+
+    final profile = await CapabilityProfile.load();
+    final generator =
+        Generator(paperSize == 58 ? PaperSize.mm58 : PaperSize.mm80, profile);
+
+    final ByteData data = await rootBundle.load('assets/logo/mylogo.png');
+    final Uint8List bytesData = data.buffer.asUint8List();
+    final img.Image? orginalImage = img.decodeImage(bytesData);
+    bytes += generator.reset();
+
+    if (orginalImage != null) {
+      final img.Image grayscalledImage = img.grayscale(orginalImage);
+      final img.Image resizedImage =
+          img.copyResize(grayscalledImage, width: 240);
+      bytes += generator.imageRaster(resizedImage, align: PosAlign.center);
+      bytes += generator.feed(2);
+    }
+
+    bytes += generator.text('LAPORAN KAS HARIAN',
+        styles: const PosStyles(
+          bold: true,
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ));
+
+    bytes += generator.text(
+        paperSize == 80
+            ? '------------------------------------------------'
+            : '--------------------------------',
+        styles: const PosStyles(bold: false, align: PosAlign.center));
+
+    // Status
+    final statusText = session.status == 'open' ? 'BUKA' : 'TUTUP';
+    bytes += generator.row([
+      PosColumn(
+        text: 'Status',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.left, bold: true),
+      ),
+      PosColumn(
+        text: statusText,
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
+    ]);
+
+    // Session ID
+    if (session.id != null) {
+      bytes += generator.row([
+        PosColumn(
+          text: 'ID Sesi',
+          width: 6,
+          styles: const PosStyles(align: PosAlign.left),
+        ),
+        PosColumn(
+          text: session.id!,
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+    }
+
+    // Dates
+    if (session.openedAt != null) {
+      bytes += generator.row([
+        PosColumn(
+          text: 'Dibuka',
+          width: 6,
+          styles: const PosStyles(align: PosAlign.left),
+        ),
+        PosColumn(
+          text: DateFormat('dd/MM/yyyy HH:mm').format(session.openedAt!),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+    }
+
+    if (session.closedAt != null) {
+      bytes += generator.row([
+        PosColumn(
+          text: 'Ditutup',
+          width: 6,
+          styles: const PosStyles(align: PosAlign.left),
+        ),
+        PosColumn(
+          text: DateFormat('dd/MM/yyyy HH:mm').format(session.closedAt!),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+    }
+
+    bytes += generator.text(
+        paperSize == 80
+            ? '------------------------------------------------'
+            : '--------------------------------',
+        styles: const PosStyles(bold: false, align: PosAlign.center));
+
+    // Summary
+    bytes += generator.text('RINGKASAN',
+        styles: const PosStyles(
+          bold: true,
+          align: PosAlign.center,
+          height: PosTextSize.size1,
+        ));
+
+    bytes += generator.row([
+      PosColumn(
+        text: 'Saldo Awal',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.left),
+      ),
+      PosColumn(
+        text: session.openingBalance.currencyFormatRpV2,
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
+    ]);
+
+    bytes += generator.row([
+      PosColumn(
+        text: 'Penjualan Tunai',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.left),
+      ),
+      PosColumn(
+        text: session.cashSales.currencyFormatRpV2,
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
+    ]);
+
+    bytes += generator.row([
+      PosColumn(
+        text: 'Pengeluaran',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.left),
+      ),
+      PosColumn(
+        text: session.cashExpenses.currencyFormatRpV2,
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right),
+      ),
+    ]);
+
+    final expectedBalance =
+        session.openingBalance + session.cashSales - session.cashExpenses;
+    bytes += generator.row([
+      PosColumn(
+        text: 'Saldo Ekspektasi',
+        width: 6,
+        styles: const PosStyles(align: PosAlign.left, bold: true),
+      ),
+      PosColumn(
+        text: expectedBalance.currencyFormatRpV2,
+        width: 6,
+        styles: const PosStyles(align: PosAlign.right, bold: true),
+      ),
+    ]);
+
+    if (session.closingBalance != null) {
+      bytes += generator.row([
+        PosColumn(
+          text: 'Saldo Fisik',
+          width: 6,
+          styles: const PosStyles(align: PosAlign.left),
+        ),
+        PosColumn(
+          text: session.closingBalance!.currencyFormatRpV2,
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+
+      final variance = session.closingBalance! - expectedBalance;
+      if (variance != 0) {
+        bytes += generator.row([
+          PosColumn(
+            text: 'Selisih',
+            width: 6,
+            styles: const PosStyles(align: PosAlign.left, bold: true),
+          ),
+          PosColumn(
+            text: variance.currencyFormatRpV2,
+            width: 6,
+            styles: PosStyles(
+              align: PosAlign.right,
+              bold: true,
+            ),
+          ),
+        ]);
+      }
+    }
+
+    bytes += generator.text(
+        paperSize == 80
+            ? '------------------------------------------------'
+            : '--------------------------------',
+        styles: const PosStyles(bold: false, align: PosAlign.center));
+
+    // Expenses
+    final expenses = session.expenses ?? [];
+    if (expenses.isNotEmpty) {
+      bytes += generator.text('PENGELUARAN',
+          styles: const PosStyles(
+            bold: true,
+            align: PosAlign.center,
+            height: PosTextSize.size1,
+          ));
+
+      for (final expense in expenses) {
+        bytes += generator.text(expense.description ?? '-',
+            styles: const PosStyles(align: PosAlign.left, bold: true));
+        if (expense.category != null && expense.category!.isNotEmpty) {
+          bytes += generator.text('Kategori: ${expense.category}',
+              styles: const PosStyles(align: PosAlign.left));
+        }
+        bytes += generator.row([
+          PosColumn(
+            text: expense.createdAt != null
+                ? DateFormat('dd/MM/yyyy HH:mm').format(expense.createdAt!)
+                : '-',
+            width: 6,
+            styles: const PosStyles(align: PosAlign.left),
+          ),
+          PosColumn(
+            text: expense.amount.currencyFormatRpV2,
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right, bold: true),
+          ),
+        ]);
+        bytes += generator.feed(1);
+      }
+
+      bytes += generator.text(
+          paperSize == 80
+              ? '------------------------------------------------'
+              : '--------------------------------',
+          styles: const PosStyles(bold: false, align: PosAlign.center));
+    }
+
+    // Notes
+    if (session.notes != null && session.notes!.isNotEmpty) {
+      bytes += generator.text('CATATAN',
+          styles: const PosStyles(
+            bold: true,
+            align: PosAlign.center,
+          ));
+      bytes += generator.text(session.notes!,
+          styles: const PosStyles(align: PosAlign.left));
+      bytes += generator.text(
+          paperSize == 80
+              ? '------------------------------------------------'
+              : '--------------------------------',
+          styles: const PosStyles(bold: false, align: PosAlign.center));
+    }
+
+    bytes += generator.text('Terima kasih',
+        styles: const PosStyles(bold: false, align: PosAlign.center));
+    bytes += generator.feed(3);
     bytes += generator.cut();
 
     return bytes;
