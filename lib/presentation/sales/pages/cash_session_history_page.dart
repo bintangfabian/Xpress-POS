@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
+import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/models/response/cash_session_response_model.dart';
-import 'package:xpress/data/datasources/sales_remote_datasource.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_event.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_state.dart';
-import 'package:xpress/presentation/sales/pages/cash_session_detail_page.dart';
 
 class CashSessionHistoryPage extends StatefulWidget {
   final DateTime startDate;
@@ -27,6 +28,9 @@ class CashSessionHistoryPage extends StatefulWidget {
 }
 
 class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
+  String? _selectedSessionId;
+  CashSessionData? _selectedSession;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +42,9 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.startDate != widget.startDate ||
         oldWidget.endDate != widget.endDate) {
+      // Reset selected session when date changes
+      _selectedSessionId = null;
+      _selectedSession = null;
       _loadData();
     }
   }
@@ -56,17 +63,24 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
         );
   }
 
-  void _navigateToDetail(CashSessionData session) {
-    final dataSource = SalesRemoteDataSource();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          create: (context) => CashSessionHistoryBloc(dataSource)
-            ..add(GetCashSessionDetail(sessionId: session.id ?? '')),
-          child: CashSessionDetailPage(sessionId: session.id ?? ''),
-        ),
-      ),
-    );
+  void _showDetail(CashSessionData session) {
+    setState(() {
+      _selectedSessionId = session.id;
+      _selectedSession = session;
+    });
+    // Load detail data
+    context.read<CashSessionHistoryBloc>().add(
+          GetCashSessionDetail(sessionId: session.id ?? ''),
+        );
+  }
+
+  void _hideDetail() {
+    setState(() {
+      _selectedSessionId = null;
+      _selectedSession = null;
+    });
+    // Reload data to show list again
+    _loadData();
   }
 
   @override
@@ -80,6 +94,11 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
           });
           return const Center(child: CircularProgressIndicator());
         } else if (state is CashSessionHistoryLoading) {
+          // Show loading only if not showing detail
+          if (_selectedSessionId != null) {
+            // Keep showing detail while loading
+            return _buildContentWithDetail(state);
+          }
           return const Center(child: CircularProgressIndicator());
         } else if (state is CashSessionHistoryError) {
           return RefreshIndicator(
@@ -112,6 +131,11 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
         } else if (state is CashSessionsSuccess) {
           final sessions = state.sessions;
 
+          // If showing detail, show detail view
+          if (_selectedSessionId != null) {
+            return _buildContentWithDetail(state);
+          }
+
           if (sessions.isEmpty) {
             final dateRangeText = widget.startDate.year ==
                         widget.endDate.year &&
@@ -124,41 +148,49 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
               onRefresh: () async => _loadData(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.6,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Assets.icons.database.svg(
-                          width: 120,
-                          height: 120,
-                          colorFilter: const ColorFilter.mode(
-                              AppColors.grey, BlendMode.srcIn),
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const ContentTitle('Riwayat Kas Harian'),
+                    const SpaceHeight(16),
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.5,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Assets.icons.database.svg(
+                              width: 120,
+                              height: 120,
+                              colorFilter: const ColorFilter.mode(
+                                  AppColors.grey, BlendMode.srcIn),
+                            ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              'Tidak Ada Data',
+                              style: TextStyle(
+                                color: AppColors.grey,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tidak ada data dari $dateRangeText',
+                              style: const TextStyle(
+                                color: AppColors.grey,
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Tidak Ada Data',
-                          style: TextStyle(
-                            color: AppColors.grey,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tidak ada data dari $dateRangeText',
-                          style: const TextStyle(
-                            color: AppColors.grey,
-                            fontSize: 16,
-                            fontWeight: FontWeight.normal,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             );
@@ -194,7 +226,7 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
                       final session = sortedSessions[index];
                       return _CashSessionCard(
                         session: session,
-                        onTap: () => _navigateToDetail(session),
+                        onTap: () => _showDetail(session),
                       );
                     },
                   ),
@@ -202,10 +234,507 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
               ),
             ),
           );
+        } else if (state is CashSessionDetailSuccess) {
+          // Update selected session with detail data
+          if (_selectedSessionId == state.session.id) {
+            _selectedSession = state.session;
+          }
+          return _buildContentWithDetail(state);
         }
         return const Center(child: Text('State tidak dikenali'));
       },
     );
+  }
+
+  Widget _buildContentWithDetail(CashSessionHistoryState state) {
+    final session = _selectedSession;
+    if (session == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final isLoading = state is CashSessionHistoryLoading;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_selectedSessionId != null) {
+          context.read<CashSessionHistoryBloc>().add(
+                GetCashSessionDetail(sessionId: _selectedSessionId!),
+              );
+        } else {
+          _loadData();
+        }
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Custom header with back button inside
+            Padding(
+              padding: const EdgeInsets.all(2.5),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                height: 66,
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade400,
+                      offset: const Offset(0, 5),
+                      blurRadius: 2,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                  borderRadius: const BorderRadius.all(Radius.circular(8)),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: _hideDetail,
+                      tooltip: 'Kembali ke daftar',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Riwayat Kas Harian',
+                      style: TextStyle(
+                        fontSize: 20.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SpaceHeight(16),
+            if (isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              ..._buildDetailContent(session),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildDetailContent(CashSessionData session) {
+    final isOpen = session.status == 'open';
+    final statusColor = isOpen ? AppColors.success : AppColors.primary;
+    final statusText = isOpen ? 'BUKA' : 'TUTUP';
+    final expectedBalance =
+        session.openingBalance + session.cashSales - session.cashExpenses;
+    final int? closingBalance = session.closingBalance;
+    final int? variance = isOpen
+        ? null
+        : (closingBalance != null ? (closingBalance - expectedBalance) : null);
+
+    final expenses = List<CashExpense>.from(session.expenses ?? [])
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
+    return [
+      // Header Section
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Sesi Kas Harian',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    statusText,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                  backgroundColor: statusColor.withOpacity(0.1),
+                  side: BorderSide(color: statusColor.withOpacity(0.4)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (session.openedAt != null) ...[
+              _infoRow('Dibuka pada', _formatDateTime(session.openedAt)),
+              const SizedBox(height: 8),
+            ],
+            if (session.closedAt != null) ...[
+              _infoRow('Ditutup pada', _formatDateTime(session.closedAt)),
+              const SizedBox(height: 8),
+            ],
+            if (session.openedAt != null && session.closedAt != null) ...[
+              _infoRow('Durasi',
+                  _calculateDuration(session.openedAt!, session.closedAt!)),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      ),
+      const SpaceHeight(16),
+      // Status Section
+      _section(
+        title: 'Status Shift',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow('ID Sesi', session.id ?? '-'),
+            const SizedBox(height: 8),
+            _infoRow('Shift dibuka oleh',
+                session.user?.name ?? session.userId ?? '-'),
+            if (session.notes != null && session.notes!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Text(
+                'Catatan Shift',
+                style: TextStyle(
+                  color: AppColors.grey.withOpacity(0.9),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                session.notes ?? '-',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      const SpaceHeight(16),
+      // Summary Section
+      _section(
+        title: 'Ringkasan Kas Harian',
+        child: Column(
+          children: [
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _summaryTile(
+                    'Saldo Awal', session.openingBalance.currencyFormatRp),
+                _summaryTile(
+                    'Penjualan Tunai', session.cashSales.currencyFormatRp,
+                    valueColor: AppColors.success),
+                _summaryTile(
+                    'Pengeluaran', session.cashExpenses.currencyFormatRp,
+                    valueColor: AppColors.danger),
+                _summaryTile(
+                  'Saldo Ekspektasi',
+                  expectedBalance.currencyFormatRp,
+                ),
+                _summaryTile(
+                  'Saldo Fisik',
+                  closingBalance != null
+                      ? closingBalance.currencyFormatRp
+                      : '-',
+                ),
+                _summaryTile(
+                  'Selisih',
+                  variance != null ? variance.currencyFormatRp : '-',
+                  valueColor: variance == null
+                      ? AppColors.grey
+                      : variance == 0
+                          ? AppColors.success
+                          : (variance > 0 ? Colors.green : AppColors.danger),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      const SpaceHeight(16),
+      // Expense List
+      _section(
+        title: 'Pengeluaran Tercatat',
+        child: expenses.isEmpty
+            ? const Text(
+                'Belum ada pengeluaran yang dicatat pada shift ini.',
+                style: TextStyle(color: AppColors.grey),
+              )
+            : ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final expense = expenses[index];
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.greyLightActive.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                expense.description ?? '-',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if ((expense.category?.isNotEmpty ?? false)) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Kategori: ${expense.category}',
+                                  style: const TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatDateTime(expense.createdAt),
+                                style: const TextStyle(
+                                  color: AppColors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          expense.amount.currencyFormatRp,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.danger,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemCount: expenses.length,
+              ),
+      ),
+      const SpaceHeight(16),
+      // Print Button
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Button.filled(
+          onPressed: () => _printReport(session),
+          label: 'Print Laporan',
+          color: AppColors.primary,
+          icon: Assets.icons.printer.svg(
+            height: 20,
+            width: 20,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _section({
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+          ),
+          const SpaceHeight(12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryTile(String title, String value, {Color? valueColor}) {
+    return SizedBox(
+      width: 200,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.greyLightActive.withOpacity(0.4),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _calculateDuration(DateTime start, DateTime end) {
+    // Calculate total duration in minutes
+    final duration = end.difference(start);
+    final totalMinutes = duration.inMinutes;
+
+    // Handle negative duration (if end is before start, it means it crossed midnight)
+    // This shouldn't happen in normal cases, but we handle it anyway
+    final absMinutes = totalMinutes.abs();
+
+    final days = absMinutes ~/ (24 * 60);
+    final hours = (absMinutes % (24 * 60)) ~/ 60;
+    final minutes = absMinutes % 60;
+
+    final parts = <String>[];
+    if (days > 0) {
+      parts.add('$days hari');
+    }
+    if (hours > 0) {
+      parts.add('$hours jam');
+    }
+    if (minutes > 0 || parts.isEmpty) {
+      parts.add('$minutes menit');
+    }
+
+    return parts.join(' ');
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.grey),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDateTime(DateTime? date) =>
+      date == null ? '-' : date.toFormattedDate3();
+
+  Future<void> _printReport(CashSessionData session) async {
+    try {
+      final sizeReceipt = await AuthLocalDataSource().getSizeReceipt();
+      final paperSize = int.tryParse(sizeReceipt) ?? 58;
+
+      final printValue = await PrintDataoutputs.instance.printCashSessionReport(
+        session: session,
+        paperSize: paperSize,
+      );
+
+      final bool connectionStatus =
+          await PrintBluetoothThermal.connectionStatus;
+      if (!connectionStatus) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Printer tidak terhubung. Silakan hubungkan printer terlebih dahulu.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+        return;
+      }
+
+      await PrintBluetoothThermal.writeBytes(printValue);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Laporan berhasil dicetak'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mencetak laporan: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -48,6 +48,7 @@ class CashSessionData {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<CashExpense>? expenses;
+  final CashSessionUser? user;
 
   CashSessionData({
     this.id,
@@ -66,6 +67,7 @@ class CashSessionData {
     this.createdAt,
     this.updatedAt,
     this.expenses,
+    this.user,
   });
 
   factory CashSessionData.fromMap(Map<String, dynamic> json) => CashSessionData(
@@ -96,6 +98,8 @@ class CashSessionData {
             ? null
             : List<CashExpense>.from(
                 json["expenses"].map((x) => CashExpense.fromMap(x))),
+        user:
+            json["user"] == null ? null : CashSessionUser.fromMap(json["user"]),
       );
 
   Map<String, dynamic> toMap() => {
@@ -117,6 +121,7 @@ class CashSessionData {
         "expenses": expenses == null
             ? null
             : List<dynamic>.from(expenses!.map((x) => x.toMap())),
+        "user": user?.toMap(),
       };
 
   static int _parseInt(dynamic value) {
@@ -149,6 +154,32 @@ class CashSessionData {
     }
     return 0;
   }
+}
+
+class CashSessionUser {
+  final int? id;
+  final String? name;
+  final String? email;
+
+  CashSessionUser({
+    this.id,
+    this.name,
+    this.email,
+  });
+
+  factory CashSessionUser.fromMap(Map<String, dynamic> json) => CashSessionUser(
+        id: json["id"] is int
+            ? json["id"]
+            : int.tryParse(json["id"]?.toString() ?? ''),
+        name: json["name"]?.toString(),
+        email: json["email"]?.toString(),
+      );
+
+  Map<String, dynamic> toMap() => {
+        "id": id,
+        "name": name,
+        "email": email,
+      };
 }
 
 class CashExpense {

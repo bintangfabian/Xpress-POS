@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/components/components.dart';
@@ -22,6 +23,8 @@ class SummaryPage extends StatefulWidget {
 }
 
 class _SummaryPageState extends State<SummaryPage> {
+  int? _selectedDateIndex;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +45,11 @@ class _SummaryPageState extends State<SummaryPage> {
         '${widget.startDate.year}-${widget.startDate.month.toString().padLeft(2, '0')}-${widget.startDate.day.toString().padLeft(2, '0')}';
     final endDateStr =
         '${widget.endDate.year}-${widget.endDate.month.toString().padLeft(2, '0')}-${widget.endDate.day.toString().padLeft(2, '0')}';
+
+    // Reset selected index when loading new data
+    setState(() {
+      _selectedDateIndex = null;
+    });
 
     context.read<SalesSummaryBloc>().add(
           GetSalesSummary(
@@ -79,12 +87,16 @@ class _SummaryPageState extends State<SummaryPage> {
               children: [
                 const ContentTitle('Ringkasan'),
                 const SpaceHeight(16),
-                Row(
-                  children: [
-                    Expanded(child: _salesStatisticCard(data.dailyStatistics)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _revenueDonutCard(data)),
-                  ],
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                          child: _salesStatisticCard(data.dailyStatistics)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _revenueDonutCard(data)),
+                    ],
+                  ),
                 ),
                 const SpaceHeight(16),
                 _summarySection(data),
@@ -124,6 +136,12 @@ class _SummaryPageState extends State<SummaryPage> {
           .reduce((a, b) => a > b ? a : b);
     }
 
+    // Ensure selected index is valid (use 0 as default if invalid or null)
+    final selectedIndex =
+        (_selectedDateIndex != null && _selectedDateIndex! < dailyStats.length)
+            ? _selectedDateIndex!
+            : (dailyStats.isNotEmpty ? 0 : null);
+
     return _sectionContainer(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,38 +172,63 @@ class _SummaryPageState extends State<SummaryPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               crossAxisAlignment: CrossAxisAlignment.end,
-                              children: dailyStats.map((stat) {
+                              children: dailyStats.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final stat = entry.value;
                                 final percentage = maxValue > 0
                                     ? (stat.totalSales / maxValue)
                                     : 0.0;
                                 // Reduce max height to 85 to leave space for text and spacing
                                 final barHeight = 85 * percentage;
+                                final isSelected = selectedIndex == index;
 
                                 return Expanded(
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 2.0),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          height: barHeight.toDouble(),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedDateIndex = index;
+                                        });
+                                      },
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            height: barHeight.toDouble(),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? AppColors.primary
+                                                      .withOpacity(0.8)
+                                                  : AppColors.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: isSelected
+                                                  ? Border.all(
+                                                      color: AppColors.primary,
+                                                      width: 2,
+                                                    )
+                                                  : null,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          stat.date.split('-').last,
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: AppColors.grey,
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            stat.date.split('-').last,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isSelected
+                                                  ? AppColors.primary
+                                                  : AppColors.grey,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.normal,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
@@ -202,9 +245,9 @@ class _SummaryPageState extends State<SummaryPage> {
               style: TextStyle(fontWeight: FontWeight.w700)),
           const Divider(color: AppColors.primaryLightActive),
           const SpaceHeight(8),
-          if (dailyStats.isNotEmpty)
+          if (dailyStats.isNotEmpty && selectedIndex != null)
             Text(
-              '${dailyStats.first.date}: ${(dailyStats.first.totalSales as int).currencyFormatRp}',
+              '${dailyStats[selectedIndex].date}: ${(dailyStats[selectedIndex].totalSales as int).currencyFormatRp}',
             ),
         ],
       ),
@@ -214,10 +257,16 @@ class _SummaryPageState extends State<SummaryPage> {
   Widget _revenueDonutCard(dynamic data) {
     final totalRevenue = data.totalRevenue as int;
     final netProfit = data.netProfit as int;
-    final percentage = totalRevenue > 0 ? (netProfit / totalRevenue) : 0.0;
+    final cost = totalRevenue - netProfit;
+
+    // Calculate percentages
+    final profitPercentage =
+        totalRevenue > 0 ? (netProfit / totalRevenue) : 0.0;
+    final costPercentage = totalRevenue > 0 ? (cost / totalRevenue) : 0.0;
 
     return _sectionContainer(
       Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 8),
           SizedBox(
@@ -226,32 +275,22 @@ class _SummaryPageState extends State<SummaryPage> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Background ring (light)
-                  Container(
-                    height: 150,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFFB3D4E5),
-                        width: 20,
+                  // Donut chart with two segments
+                  SizedBox(
+                    height: 180,
+                    width: 180,
+                    child: CustomPaint(
+                      painter: DonutChartPainter(
+                        profitPercentage: profitPercentage,
+                        costPercentage: costPercentage,
+                        profitColor: const Color(
+                            0xFF052649), // Dark blue (almost black/navy)
+                        costColor:
+                            const Color(0xFF0E549F), // Medium blue (vibrant)
+                        strokeWidth: 20,
                       ),
                     ),
                   ),
-                  // Foreground ring (dark) - represents percentage
-                  if (percentage > 0)
-                    SizedBox(
-                      height: 150,
-                      width: 150,
-                      child: CircularProgressIndicator(
-                        value: percentage.toDouble(),
-                        strokeWidth: 20,
-                        backgroundColor: Colors.transparent,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF052649),
-                        ),
-                      ),
-                    ),
                   // Inner cutout
                   Container(
                     height: 100,
@@ -261,6 +300,7 @@ class _SummaryPageState extends State<SummaryPage> {
                       shape: BoxShape.circle,
                     ),
                   ),
+                  // Text in center
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -282,30 +322,6 @@ class _SummaryPageState extends State<SummaryPage> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF052649),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Profit',
-                      style: TextStyle(fontSize: 12, color: AppColors.grey)),
-                ],
-              ),
-              Text(netProfit.currencyFormatRp,
-                  style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -370,5 +386,77 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
       ],
     );
+  }
+}
+
+class DonutChartPainter extends CustomPainter {
+  final double profitPercentage;
+  final double costPercentage;
+  final Color profitColor;
+  final Color costColor;
+  final double strokeWidth;
+
+  DonutChartPainter({
+    required this.profitPercentage,
+    required this.costPercentage,
+    required this.profitColor,
+    required this.costColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Start from top (12 o'clock position)
+    const startAngle = -math.pi / 2;
+
+    // Draw profit segment (dark blue - larger segment)
+    if (profitPercentage > 0) {
+      final profitSweepAngle = 2 * math.pi * profitPercentage;
+      final profitPaint = Paint()
+        ..color = profitColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        rect,
+        startAngle,
+        profitSweepAngle,
+        false,
+        profitPaint,
+      );
+    }
+
+    // Draw cost segment (medium blue - smaller segment)
+    if (costPercentage > 0) {
+      final costStartAngle = startAngle + (2 * math.pi * profitPercentage);
+      final costSweepAngle = 2 * math.pi * costPercentage;
+      final costPaint = Paint()
+        ..color = costColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        rect,
+        costStartAngle,
+        costSweepAngle,
+        false,
+        costPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(DonutChartPainter oldDelegate) {
+    return oldDelegate.profitPercentage != profitPercentage ||
+        oldDelegate.costPercentage != costPercentage ||
+        oldDelegate.profitColor != profitColor ||
+        oldDelegate.costColor != costColor ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }
