@@ -15,25 +15,8 @@ class LocalProductBloc extends Bloc<LocalProductEvent, LocalProductState> {
     this.productLocalDatasource,
   ) : super(const _Initial()) {
     on<_GetLocalProduct>((event, emit) async {
-      print('[LocalProductBloc] Loading products from local database...');
       emit(const _Loading());
       final result = await productLocalDatasource.getProducts();
-      print('[LocalProductBloc] Loaded ${result.length} products');
-
-      // Debug: Check for duplicates
-      final uniqueIds = result.map((p) => p.id).toSet();
-      final uniqueProductIds = result.map((p) => p.productId).toSet();
-      if (uniqueIds.length != result.length) {
-        print('[LocalProductBloc] ⚠️ WARNING: Duplicate IDs detected!');
-        print('   Total products: ${result.length}');
-        print('   Unique IDs: ${uniqueIds.length}');
-      }
-      if (uniqueProductIds.length != result.length) {
-        print('[LocalProductBloc] ⚠️ WARNING: Duplicate Product IDs detected!');
-        print('   Total products: ${result.length}');
-        print('   Unique Product IDs: ${uniqueProductIds.length}');
-      }
-
       emit(_Loaded(result));
     });
   }

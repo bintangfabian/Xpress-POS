@@ -40,19 +40,29 @@ class SyncRepository {
   final Box<dynamic> _settingsBox;
 
   static const _lastSyncKey = 'lastSync';
+  bool _isSyncing = false;
 
   Future<void> runFullSync() async {
+    if (_isSyncing) {
+      throw SyncException('Sinkronisasi sedang berjalan');
+    }
+
     if (!_onlineCheckerBloc.isOnline) {
       throw SyncException('Tidak dapat sinkronisasi saat offline.');
     }
 
-    await uploadPending();
-    final lastSync = _readLastSync();
-    await downloadSince(lastSync);
-    await _settingsBox.put(
-      _lastSyncKey,
-      TimezoneHelper.now().toIso8601String(),
-    );
+    _isSyncing = true;
+    try {
+      await uploadPending();
+      final lastSync = _readLastSync();
+      await downloadSince(lastSync);
+      await _settingsBox.put(
+        _lastSyncKey,
+        TimezoneHelper.now().toIso8601String(),
+      );
+    } finally {
+      _isSyncing = false;
+    }
   }
 
   Future<void> uploadPending() async {

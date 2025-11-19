@@ -8,6 +8,14 @@ import 'package:http/http.dart' as http;
 class AuthRemoteDatasource {
   Future<Either<String, AuthResponseModel>> login(
       String email, String password) async {
+    // Input validation
+    if (email.isEmpty || !email.contains('@')) {
+      return const Left('Email tidak valid');
+    }
+    if (password.isEmpty || password.length < 6) {
+      return const Left('Password minimal 6 karakter');
+    }
+
     try {
       final url = Uri.parse(
           '${Variables.baseUrl}/api/${Variables.apiVersion}/auth/login');
@@ -15,12 +23,12 @@ class AuthRemoteDatasource {
         url,
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: {
+        body: jsonEncode({
           'email': email,
           'password': password,
-        },
+        }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

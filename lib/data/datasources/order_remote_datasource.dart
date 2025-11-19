@@ -39,9 +39,6 @@ class OrderRemoteDatasource {
         if (items.isEmpty) return '#0001';
         final last = items.first;
         final on = (last['order_number'] ?? '').toString();
-        log('=== DEBUG ORDER NUMBER ===');
-        log('Raw order_number: $on');
-        log('Type: ${on.runtimeType}');
         // Try different patterns to extract number
         String numPart = '0';
 
@@ -61,11 +58,8 @@ class OrderRemoteDatasource {
             }
           }
         }
-        log('Extracted number part: $numPart');
         final next = (int.tryParse(numPart) ?? 0) + 1;
         final result = '#${next.toString().padLeft(4, '0')}';
-        log('Final result: $result');
-        log('========================');
         return result;
       }
     } catch (_) {}
@@ -77,12 +71,11 @@ class OrderRemoteDatasource {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
       final storeId = await AuthLocalDataSource().getStoreId();
-      log("OrderModelSingle: $orderModel");
-      log("OrderModel: ${orderModel.toJson()}");
-      final uri = Uri.parse('${Variables.baseUrl}/api/save-order');
+      final uri =
+          Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
       var response = await http.post(
         uri,
-        body: orderModel.toJson(),
+        body: jsonEncode(orderModel.toJson()),
         headers: {
           'Authorization': 'Bearer ${authData.token}',
           'Accept': 'application/json',
@@ -93,7 +86,7 @@ class OrderRemoteDatasource {
       if (response.statusCode == 403) {
         response = await http.post(
           uri,
-          body: orderModel.toJson(),
+          body: jsonEncode(orderModel.toJson()),
           headers: {
             'Authorization': 'Bearer ${authData.token}',
             'Accept': 'application/json',
@@ -101,40 +94,20 @@ class OrderRemoteDatasource {
           },
         );
       }
-      log("Response: ${response.statusCode}");
-      log("Response: ${response.body}");
       final isOrderSuccess =
           response.statusCode == 200 || response.statusCode == 201;
 
       if (!isOrderSuccess) {
-        log("Order creation failed with status: ${response.statusCode}");
         return false;
       }
 
-      log("Order created successfully, extracting order_id...");
       final orderId = _extractOrderId(response.body);
 
       if (orderId == null || orderId.isEmpty) {
-        log("ERROR: Unable to resolve order_id from response");
-        log("Response body: ${response.body}");
-        log("Attempting to parse response as JSON...");
-
-        try {
-          final decoded = jsonDecode(response.body);
-          log("Decoded response: $decoded");
-          log("Response keys: ${decoded is Map ? decoded.keys.toList() : 'not a map'}");
-        } catch (e) {
-          log("Error parsing response: $e");
-        }
-
-        // Jangan return false, karena order sudah terbuat
-        // Kita log error tapi tetap return true karena order creation berhasil
-        log("WARNING: Order created but payment could not be created due to missing order_id");
+        // Order created but payment could not be created due to missing order_id
+        // Return true because order creation succeeded
         return true;
       }
-
-      log("Order ID extracted: $orderId");
-      log("Creating payment...");
 
       final paymentCreated = await _createPayment(
         token: authData.token ?? '',
@@ -144,15 +117,13 @@ class OrderRemoteDatasource {
       );
 
       if (!paymentCreated) {
-        log("WARNING: Order created but payment creation failed for order_id: $orderId");
-        // Return true karena order sudah terbuat, meskipun payment gagal
+        // Order created but payment creation failed
+        // Return true because order creation succeeded
         return true;
       }
 
-      log("Payment created successfully for order_id: $orderId");
       return true;
     } catch (e) {
-      log("Error saveOrder: $e");
       return false;
     }
   }
@@ -181,7 +152,6 @@ class OrderRemoteDatasource {
         'notes': notes ?? defaultNotes,
       };
       final payload = jsonEncode(paymentPayload);
-      log('Creating payment with payload: $paymentPayload');
 
       var headers = {
         'Authorization': 'Bearer ${authData.token}',
@@ -196,14 +166,10 @@ class OrderRemoteDatasource {
         response = await http.post(uri, body: payload, headers: headers);
       }
 
-      log('Create payment response: ${response.statusCode}');
-      log('Create payment body: ${response.body}');
-
       return response.statusCode == 200 ||
           response.statusCode == 201 ||
           response.statusCode == 204;
     } catch (e) {
-      log('Error createPayment: $e');
       return false;
     }
   }
@@ -230,17 +196,9 @@ class OrderRemoteDatasource {
   // Public method to extract order_id from API response
   String? extractOrderId(String rawBody) {
     try {
-      log('Extracting order_id from response...');
-      log('Raw response body: $rawBody');
       final dynamic decoded = jsonDecode(rawBody);
-      log('Decoded response type: ${decoded.runtimeType}');
-      log('Decoded response: $decoded');
-
-      final orderId = _resolveOrderId(decoded);
-      log('Extracted order_id: $orderId');
-      return orderId;
+      return _resolveOrderId(decoded);
     } catch (e) {
-      log('Error decoding order response: $e');
       return null;
     }
   }
@@ -251,21 +209,14 @@ class OrderRemoteDatasource {
 
   String? _resolveOrderId(dynamic data) {
     if (data == null) {
-      log('_resolveOrderId: data is null');
       return null;
     }
 
-    log('_resolveOrderId: data type = ${data.runtimeType}');
-
     if (data is Map<String, dynamic>) {
-      log('_resolveOrderId: data keys = ${data.keys.toList()}');
-
       final normalized = <String, dynamic>{
         for (final entry in data.entries)
           entry.key.toString().toLowerCase(): entry.value
       };
-
-      log('_resolveOrderId: normalized keys = ${normalized.keys.toList()}');
 
       final looksLikeOrder = normalized.containsKey('order_number') ||
           normalized.containsKey('ordernumber') ||
@@ -274,31 +225,24 @@ class OrderRemoteDatasource {
                   normalized.containsKey('payment_status') ||
                   normalized.containsKey('paymentstatus')));
 
-      log('_resolveOrderId: looksLikeOrder = $looksLikeOrder');
-
       for (final key in const ['order_id', 'orderid', 'uuid', 'id']) {
         if (!normalized.containsKey(key)) continue;
         final value = normalized[key];
-        log('_resolveOrderId: found key "$key" with value = $value (type: ${value.runtimeType})');
 
         if (value == null) continue;
         if (value is! num && value is! String) continue;
         final stringValue = value.toString();
         if (stringValue.isEmpty) continue;
         if (key == 'id' && !looksLikeOrder) {
-          log('_resolveOrderId: skipping "id" key because does not look like order');
           continue;
         }
-        log('_resolveOrderId: returning order_id = $stringValue');
         return stringValue;
       }
 
       for (final key in const ['order', 'data', 'result', 'payload']) {
         if (normalized.containsKey(key)) {
-          log('_resolveOrderId: recursively checking key "$key"');
           final nested = _resolveOrderId(normalized[key]);
           if (nested != null && nested.isNotEmpty) {
-            log('_resolveOrderId: found order_id in nested "$key" = $nested');
             return nested;
           }
         }
@@ -307,10 +251,8 @@ class OrderRemoteDatasource {
       // Check nested objects directly
       for (final entry in data.entries) {
         if (entry.value is Map || entry.value is List) {
-          log('_resolveOrderId: recursively checking entry "${entry.key}"');
           final nested = _resolveOrderId(entry.value);
           if (nested != null && nested.isNotEmpty) {
-            log('_resolveOrderId: found order_id in entry "${entry.key}" = $nested');
             return nested;
           }
         }
@@ -318,18 +260,14 @@ class OrderRemoteDatasource {
     }
 
     if (data is List) {
-      log('_resolveOrderId: data is a list with ${data.length} items');
       if (data.isNotEmpty) {
-        log('_resolveOrderId: checking first item');
         final nested = _resolveOrderId(data.first);
         if (nested != null && nested.isNotEmpty) {
-          log('_resolveOrderId: found order_id in list item = $nested');
           return nested;
         }
       }
     }
 
-    log('_resolveOrderId: could not find order_id');
     return null;
   }
 
@@ -368,7 +306,8 @@ class OrderRemoteDatasource {
       }
 
       final queryParams = queryParamsMap.entries
-          .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+          .map((e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
           .join('&');
       final endpoints = [
         '${Variables.baseUrl}/api/${Variables.apiVersion}/transactions?$queryParams',
@@ -406,20 +345,19 @@ class OrderRemoteDatasource {
           try {
             final responseData = jsonDecode(response.body);
             _debugLog(enableLog, "=== RAW API RESPONSE DEBUG ===");
-            _debugLog(
-                enableLog, "Response type: ${responseData.runtimeType}");
+            _debugLog(enableLog, "Response type: ${responseData.runtimeType}");
             _debugLog(
                 enableLog, "Response keys: ${responseData.keys.toList()}");
             _debugLog(enableLog, "Success: ${responseData['success']}");
-            _debugLog(enableLog,
-                "Data type: ${responseData['data'].runtimeType}");
+            _debugLog(
+                enableLog, "Data type: ${responseData['data'].runtimeType}");
             _debugLog(
                 enableLog, "Data length: ${responseData['data']?.length}");
             if (responseData['data'] != null &&
                 responseData['data'] is List &&
                 responseData['data'].isNotEmpty) {
-              _debugLog(enableLog,
-                  "First data item: ${responseData['data'][0]}");
+              _debugLog(
+                  enableLog, "First data item: ${responseData['data'][0]}");
               _debugLog(enableLog,
                   "First data item keys: ${responseData['data'][0].keys.toList()}");
             }
@@ -435,8 +373,8 @@ class OrderRemoteDatasource {
             final firstOrder = orderResponse.data!.first;
             _debugLog(enableLog, "=== FIRST ORDER DEBUG ===");
             _debugLog(enableLog, "First order ID: ${firstOrder.id}");
-            _debugLog(
-                enableLog, "First order orderNumber: ${firstOrder.orderNumber}");
+            _debugLog(enableLog,
+                "First order orderNumber: ${firstOrder.orderNumber}");
             _debugLog(enableLog,
                 "First order totalAmount: ${firstOrder.totalAmount}");
             _debugLog(
@@ -453,13 +391,14 @@ class OrderRemoteDatasource {
             _debugLog(enableLog, "First order user: ${firstOrder.user?.name}");
             _debugLog(
                 enableLog, "First order table: ${firstOrder.table?.name}");
-            _debugLog(
-                enableLog, "First order items count: ${firstOrder.items?.length}");
+            _debugLog(enableLog,
+                "First order items count: ${firstOrder.items?.length}");
             if (firstOrder.items != null && firstOrder.items!.isNotEmpty) {
               final firstItem = firstOrder.items!.first;
               _debugLog(enableLog,
                   "First item productName: ${firstItem.productName}");
-              _debugLog(enableLog, "First item quantity: ${firstItem.quantity}");
+              _debugLog(
+                  enableLog, "First item quantity: ${firstItem.quantity}");
               _debugLog(
                   enableLog, "First item totalPrice: ${firstItem.totalPrice}");
             }
@@ -478,7 +417,6 @@ class OrderRemoteDatasource {
 
       return Left("No working endpoint found");
     } catch (e) {
-      log("Error fetching orders: $e");
       return Left("Failed to fetch orders: $e");
     }
   }
@@ -491,7 +429,7 @@ class OrderRemoteDatasource {
       final authData = await AuthLocalDataSource().getAuthData();
       final storeId = await AuthLocalDataSource().getStoreId();
       final uri = Uri.parse(
-          '${Variables.baseUrl}/api/summary?start_date=$stratDate&end_date=$endDate');
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/reports/summary?start_date=$stratDate&end_date=$endDate');
       var response = await http.get(
         uri,
         headers: {
@@ -511,19 +449,12 @@ class OrderRemoteDatasource {
           },
         );
       }
-      if (response.request != null) {
-        log("Url: ${response.request!.url}");
-      }
-      log("Response: ${response.statusCode}");
-
-      log("Response: ${response.body}");
       if (response.statusCode == 200) {
         return Right(SummaryResponseModel.fromJson(response.body));
       } else {
         return const Left("Failed Load Data");
       }
     } catch (e) {
-      log("Error: $e");
       return Left("Failed: $e");
     }
   }
@@ -543,7 +474,6 @@ class OrderRemoteDatasource {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      log("Fetching order detail: $uri");
       var response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 403) {
@@ -552,33 +482,10 @@ class OrderRemoteDatasource {
         response = await http.get(uri, headers: headers);
       }
 
-      log("Order Detail Response: ${response.statusCode}");
-      log("Order Detail Response Body: ${response.body}");
-
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         if (responseData['success'] == true && responseData['data'] != null) {
           final order = ItemOrder.fromMap(responseData['data']);
-          log("=== ORDER DETAIL DEBUG ===");
-          log("Order ID: ${order.id}");
-          log("Order Number: ${order.orderNumber}");
-          log("Total Amount: ${order.totalAmount}");
-          log("Subtotal: ${order.subtotal}");
-          log("Tax Amount: ${order.taxAmount}");
-          log("Discount Amount: ${order.discountAmount}");
-          log("Service Charge: ${order.serviceCharge}");
-          log("Payment Method: ${order.paymentMethod}");
-          log("Status: ${order.status}");
-          log("User: ${order.user?.name}");
-          log("Table: ${order.table?.name}");
-          log("Items: ${order.items?.length}");
-          if (order.items != null && order.items!.isNotEmpty) {
-            final firstItem = order.items!.first;
-            log("First item productName: ${firstItem.productName}");
-            log("First item quantity: ${firstItem.quantity}");
-            log("First item totalPrice: ${firstItem.totalPrice}");
-          }
-          log("=========================");
           return Right(order);
         } else {
           return Left("Order not found or invalid response");
@@ -587,7 +494,6 @@ class OrderRemoteDatasource {
         return Left("Failed to load order detail: ${response.statusCode}");
       }
     } catch (e) {
-      log("Error fetching order detail: $e");
       return Left("Failed to fetch order detail: $e");
     }
   }
@@ -608,7 +514,6 @@ class OrderRemoteDatasource {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      log("Fetching open bills: $uri");
       var response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 403) {
@@ -617,20 +522,15 @@ class OrderRemoteDatasource {
         response = await http.get(uri, headers: headers);
       }
 
-      log("Open Bills Response: ${response.statusCode}");
-      log("Open Bills Response Body: ${response.body}");
-
       if (response.statusCode == 200) {
         final responseModel = OrderResponseModel.fromJson(response.body);
         final orders = responseModel.data ?? [];
 
-        log("Found ${orders.length} open bills");
         return Right(orders);
       } else {
         return Left("Failed to load open bills: ${response.statusCode}");
       }
     } catch (e) {
-      log("Error fetching open bills: $e");
       return Left("Failed to fetch open bills: $e");
     }
   }
@@ -659,10 +559,6 @@ class OrderRemoteDatasource {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      log("Creating open bill order...");
-      log("Request body: ${jsonEncode(modifiedOrderData)}");
-      log("Total amount for payment: $totalAmount");
-
       var response = await http.post(
         uri,
         headers: headers,
@@ -679,31 +575,17 @@ class OrderRemoteDatasource {
         );
       }
 
-      log("Create Open Bill Response: ${response.statusCode}");
-      log("Create Open Bill Response Body: ${response.body}");
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Extract order_id from response
         final orderId = extractOrderId(response.body);
 
         if (orderId != null && orderId.isNotEmpty) {
-          log("Open bill order created successfully: $orderId");
-
           // Create payment with status="pending" using the provided totalAmount
           if (totalAmount > 0) {
-            log("Creating pending payment for order: $orderId with amount: $totalAmount");
-            final paymentCreated = await createPendingPayment(
+            await createPendingPayment(
               orderId: orderId,
               amount: totalAmount,
             );
-
-            if (paymentCreated) {
-              log("✅ Pending payment created successfully");
-            } else {
-              log("❌ WARNING: Failed to create pending payment");
-            }
-          } else {
-            log("⚠️ WARNING: Total amount is 0, skipping payment creation");
           }
 
           return Right(orderId);
@@ -714,7 +596,6 @@ class OrderRemoteDatasource {
         return Left("Failed to create open bill order: ${response.statusCode}");
       }
     } catch (e) {
-      log("Error creating open bill order: $e");
       return Left("Failed to create open bill order: $e");
     }
   }
@@ -739,12 +620,6 @@ class OrderRemoteDatasource {
       };
 
       final payload = jsonEncode(paymentPayload);
-      log('========================================');
-      log('Creating pending payment');
-      log('Order ID: $orderId');
-      log('Amount: $amount');
-      log('Payload: $paymentPayload');
-      log('========================================');
 
       var headers = {
         'Authorization': 'Bearer ${authData.token}',
@@ -756,25 +631,12 @@ class OrderRemoteDatasource {
       var response = await http.post(uri, headers: headers, body: payload);
 
       if (response.statusCode == 403) {
-        log('⚠️ Got 403, retrying without X-Store-Id header');
         headers.remove('X-Store-Id');
         response = await http.post(uri, headers: headers, body: payload);
       }
 
-      log('Pending Payment Response Status: ${response.statusCode}');
-      log('Pending Payment Response Body: ${response.body}');
-
-      final success = response.statusCode == 200 || response.statusCode == 201;
-      if (success) {
-        log('✅ Pending payment created successfully!');
-      } else {
-        log('❌ Failed to create pending payment: ${response.statusCode}');
-      }
-      log('========================================');
-
-      return success;
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      log('❌ Error creating pending payment: $e');
       return false;
     }
   }
@@ -803,14 +665,6 @@ class OrderRemoteDatasource {
       };
 
       final payload = jsonEncode(paymentPayload);
-      log('========================================');
-      log('💰 Completing open bill payment');
-      log('Order ID: $orderId');
-      log('Payment Method: $paymentMethod');
-      log('Amount: $amount');
-      log('Received Amount: $receivedAmount');
-      log('Payload: $paymentPayload');
-      log('========================================');
 
       var headers = {
         'Authorization': 'Bearer ${authData.token}',
@@ -822,25 +676,12 @@ class OrderRemoteDatasource {
       var response = await http.post(uri, headers: headers, body: payload);
 
       if (response.statusCode == 403) {
-        log('⚠️ Got 403, retrying without X-Store-Id header');
         headers.remove('X-Store-Id');
         response = await http.post(uri, headers: headers, body: payload);
       }
 
-      log('Complete Payment Response Status: ${response.statusCode}');
-      log('Complete Payment Response Body: ${response.body}');
-
-      final success = response.statusCode == 200 || response.statusCode == 201;
-      if (success) {
-        log('✅ Open bill payment completed successfully!');
-      } else {
-        log('❌ Failed to complete open bill payment: ${response.statusCode}');
-      }
-      log('========================================');
-
-      return success;
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      log('❌ Error completing open bill payment: $e');
       return false;
     }
   }
@@ -851,12 +692,6 @@ class OrderRemoteDatasource {
     required Map<String, dynamic> orderData,
   }) async {
     try {
-      log('========================================');
-      log('📝 Updating Open Bill Order');
-      log('Order ID: $orderId');
-      log('Order Data: $orderData');
-      log('========================================');
-
       final authData = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
       final uri = Uri.parse(
@@ -871,30 +706,19 @@ class OrderRemoteDatasource {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      log('🔄 Sending PUT request to: $uri');
       var response = await http.put(uri, headers: headers, body: payload);
 
       if (response.statusCode == 403) {
-        log('⚠️ Got 403, retrying without X-Store-Id header');
         headers.remove('X-Store-Id');
         response = await http.put(uri, headers: headers, body: payload);
       }
 
-      log('Response Status: ${response.statusCode}');
-      log('Response Body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        log('✅ Open Bill updated successfully!');
-        log('========================================');
         return Right(orderId);
       } else {
-        log('❌ Failed to update open bill: ${response.statusCode}');
-        log('========================================');
         return Left('Failed to update open bill: ${response.body}');
       }
     } catch (e) {
-      log('❌ Error updating open bill order: $e');
-      log('========================================');
       return Left("Failed to update open bill order: $e");
     }
   }
@@ -904,11 +728,6 @@ class OrderRemoteDatasource {
     required String orderId,
   }) async {
     try {
-      log('========================================');
-      log('🚫 Canceling Open Bill Order');
-      log('Order ID: $orderId');
-      log('========================================');
-
       final authData = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
       final uri = Uri.parse(
@@ -929,30 +748,19 @@ class OrderRemoteDatasource {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
-      log('🔄 Sending PUT request to: $uri');
       var response = await http.put(uri, headers: headers, body: payload);
 
       if (response.statusCode == 403) {
-        log('⚠️ Got 403, retrying without X-Store-Id header');
         headers.remove('X-Store-Id');
         response = await http.put(uri, headers: headers, body: payload);
       }
 
-      log('Response Status: ${response.statusCode}');
-      log('Response Body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        log('✅ Open Bill canceled successfully!');
-        log('========================================');
         return Right(orderId);
       } else {
-        log('❌ Failed to cancel open bill: ${response.statusCode}');
-        log('========================================');
         return Left('Failed to cancel open bill: ${response.body}');
       }
     } catch (e) {
-      log('❌ Error canceling open bill order: $e');
-      log('========================================');
       return Left("Failed to cancel open bill order: $e");
     }
   }

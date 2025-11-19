@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:dartz/dartz.dart';
 import 'package:xpress/data/models/request/product_request_model.dart';
 import 'package:xpress/data/models/response/add_product_response_model.dart';
@@ -13,7 +11,8 @@ class ProductRemoteDatasource {
   Future<Either<String, ProductResponseModel>> getProducts() async {
     try {
       // Request all products for current store in one shot
-      final url = Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/products?per_page=1000');
+      final url = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/products?per_page=1000');
       final authData = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
       Map<String, String> headers = {
@@ -55,8 +54,8 @@ class ProductRemoteDatasource {
     final Map<String, String> headers = {
       'Authorization': 'Bearer ${authData.token}',
     };
-    var request = http.MultipartRequest(
-        'POST', Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/products'));
+    var request = http.MultipartRequest('POST',
+        Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/products'));
     request.fields.addAll(productRequestModel.toMap());
     request.files.add(await http.MultipartFile.fromPath(
         'image', productRequestModel.image!.path));
@@ -65,8 +64,6 @@ class ProductRemoteDatasource {
     http.StreamedResponse response = await request.send();
 
     final String body = await response.stream.bytesToString();
-    log(response.stream.toString());
-    log(response.statusCode.toString());
     if (response.statusCode == 201) {
       return right(AddProductResponseModel.fromJson(body));
     } else {
