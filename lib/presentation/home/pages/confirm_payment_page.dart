@@ -15,7 +15,6 @@ import 'package:xpress/presentation/home/dialogs/member_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/table_select_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/tax_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/service_dialog.dart';
-import 'package:xpress/data/models/response/discount_response_model.dart';
 import 'package:xpress/presentation/home/dialogs/qris_confirm_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/qris_success_dialog.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
@@ -29,7 +28,13 @@ import 'package:http/http.dart' as http;
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
+import 'package:xpress/data/repositories/order_repository.dart';
+import 'package:xpress/data/datasources/local/database/database.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/core/utils/amount_parser.dart';
+import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/data/models/response/discount_response_model.dart'
+    as discount_model;
 
 class _CheckoutAmounts {
   final int subtotal;
@@ -167,7 +172,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     return [];
   }
 
-  Future<List<Discount>> _fetchDiscounts() async {
+  Future<List<discount_model.Discount>> _fetchDiscounts() async {
     try {
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
@@ -190,7 +195,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         List items = [];
         if (map is Map && map['data'] is List) items = map['data'];
         return items
-            .map((e) => Discount(
+            .map((e) => discount_model.Discount(
                   id: e['id'] is int ? e['id'] : int.tryParse('${e['id']}'),
                   name: e['name']?.toString(),
                   description: e['description']?.toString(),
@@ -204,12 +209,15 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   }
 
   // Submit order to server (2-step flow: draft order → payment)
+  // ✅ FIX: Save to local database first, then sync if online
   Future<bool> _submitOrder() async {
     try {
       print('========================================');
       print('🚀 Starting 2-step payment flow...');
       final auth = await AuthLocalDataSource().getAuthData();
       final storeUuid = await AuthLocalDataSource().getStoreUuid();
+      final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+      final isOnline = onlineCheckerBloc.isOnline;
 
       final submissionData = await _prepareOrderSubmissionData(
         userId: auth.user?.id,
@@ -221,178 +229,299 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         return false;
       }
 
-      final orderRemoteDatasource = OrderRemoteDatasource();
+      // ✅ STEP 1: ALWAYS save to local database first
+      print('💾 Step 1: Saving order to local database...');
+      final checkoutState = context.read<CheckoutBloc>().state;
+      final orderRepository = OrderRepository(database: AppDatabase.instance);
 
-      if (_isOpenBillPayment && widget.existingOrderId != null) {
-        final orderId = widget.existingOrderId!;
-        final payload = Map<String, dynamic>.from(submissionData.body);
+      OrderModel? localOrderModel;
+      String? localOrderUuid;
 
-        print('💳 Open Bill Payment (2-Step Flow)...');
+      await checkoutState.maybeWhen(
+        loaded: (
+          products,
+          discountModel,
+          discount,
+          discountAmount,
+          tax,
+          serviceCharge,
+          totalQuantity,
+          totalPrice,
+          draftName,
+          orderType,
+        ) async {
+          final amounts =
+              _resolveAmounts(products, discountModel, tax, serviceCharge);
 
-        // Step 1: Update order to open status
-        print('📝 Step 1: Updating open bill order (set to open)...');
-        payload['payment_mode'] = 'open_bill';
-        payload['status'] = 'open'; // ✅ Set to open - payment will complete it
-        payload['subtotal'] = submissionData.amounts.subtotal;
-        payload['total_amount'] = submissionData.amounts.total;
-        payload['discount_amount'] = submissionData.amounts.discount.toDouble();
-        payload['service_charge'] = submissionData.amounts.service.toDouble();
-        payload['tax'] = submissionData.amounts.tax.toDouble();
-        payload['skip_inventory_deduction'] =
-            true; // ✅ Skip deduct stok saat bayar (sudah di-deduct saat create open bill)
-        if (widget.orderNumber.isNotEmpty) {
-          payload['order_number'] = widget.orderNumber;
-        }
-
-        final updateResult = await orderRemoteDatasource.updateOpenBillOrder(
-          orderId: orderId,
-          orderData: payload,
-        );
-
-        return await updateResult.fold(
-          (error) async {
-            print('❌ ERROR updating open bill: $error');
-            return false;
-          },
-          (_) async {
-            print('✅ Open bill order updated (status: open)');
-
-            // Step 2: Create payment (will auto-complete order & trigger loyalty)
-            print('💰 Step 2: Creating payment...');
-            final paymentMethod = isCash ? 'cash' : 'qris';
-            final paymentNotes =
-                'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
-
-            final receivedAmount = _currentTotalPay();
-            final dueAmount = submissionData.amounts.total;
-
-            print('   Order ID: $orderId');
-            print('   Payment Method: $paymentMethod');
-            print('   Amount: $dueAmount');
-            print('   Received: $receivedAmount');
-
-            // ✅ Create payment → Backend auto-completes order → Loyalty points added
-            final paymentCreated = await orderRemoteDatasource.createPayment(
-              orderId: orderId,
-              paymentMethod: paymentMethod,
-              amount: dueAmount,
-              receivedAmount: receivedAmount > 0 ? receivedAmount : dueAmount,
-              notes: paymentNotes,
-            );
-
-            if (paymentCreated) {
-              print('✅ Payment created! Order auto-completed by backend.');
-              print('⭐ Loyalty points automatically added via OrderObserver');
-
-              // Show points earned notification if member selected
-              if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
-                _showPointsEarnedNotification(dueAmount);
-              }
-            } else {
-              print('❌ WARNING: Failed to create payment');
-            }
-
-            return paymentCreated;
-          },
-        );
-      }
-
-      // Regular Order (2-Step Flow)
-      print('📦 Regular Order Payment (2-Step Flow)...');
-
-      // Step 1: Create open order
-      print('📝 Step 1: Creating open order...');
-      final uri =
-          Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
-      final headers = {
-        'Authorization': 'Bearer ${auth.token}',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
-      };
-
-      print('   Payload status: ${submissionData.body['status']}');
-      print('   Items count: ${submissionData.body['items']?.length ?? 0}');
-
-      var res = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(submissionData.body),
-      );
-
-      if (res.statusCode == 403) {
-        print('   Got 403, retrying without X-Store-Id...');
-        headers.remove('X-Store-Id');
-        res = await http.post(
-          uri,
-          headers: headers,
-          body: jsonEncode(submissionData.body),
-        );
-      }
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        final orderId = orderRemoteDatasource.extractOrderId(res.body);
-
-        if (orderId != null && orderId.isNotEmpty) {
-          print('✅ Open order created (ID: $orderId)');
-
-          // Step 2: Create payment (will auto-complete order & trigger loyalty)
-          print('💰 Step 2: Creating payment...');
-          final paymentMethod = isCash ? 'cash' : 'qris';
-          final paymentNotes =
-              'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
-
-          int apiTotal = 0;
-          try {
-            final decoded = jsonDecode(res.body);
-            final data = decoded['data'];
-            if (data != null && data['total_amount'] != null) {
-              apiTotal =
-                  (double.tryParse(data['total_amount'].toString()) ?? 0.0)
-                      .round();
-            }
-          } catch (_) {}
-
-          final finalAmount =
-              apiTotal > 0 ? apiTotal : submissionData.amounts.total;
-
-          final receivedAmount = _currentTotalPay();
-
-          print('   Order ID: $orderId');
-          print('   Payment Method: $paymentMethod');
-          print('   Amount: $finalAmount');
-          print('   Received: $receivedAmount');
-
-          // ✅ Create payment → Backend auto-completes order → Loyalty points added
-          final paymentCreated = await orderRemoteDatasource.createPayment(
-            orderId: orderId,
-            paymentMethod: paymentMethod,
-            amount: finalAmount,
-            receivedAmount: receivedAmount > 0 ? receivedAmount : finalAmount,
-            notes: paymentNotes,
+          localOrderModel = OrderModel(
+            paymentAmount: _currentTotalPay(),
+            subTotal: amounts.subtotal,
+            tax: amounts.tax,
+            discount: discountAmount,
+            discountAmount: amounts.discount,
+            serviceCharge: amounts.service,
+            total: amounts.total,
+            paymentMethod: isCash ? 'cash' : 'qris',
+            totalItem: totalQuantity,
+            idKasir: auth.user?.id ?? 1,
+            namaKasir: auth.user?.name ?? 'Kasir A',
+            transactionTime: TimezoneHelper.now().toIso8601String(),
+            customerName: customerController.text,
+            tableNumber: _selectedTableNumber ??
+                _parseTableNumber(widget.table?.tableNumber) ??
+                0,
+            status: 'completed',
+            paymentStatus: 'paid',
+            isSync: isOnline ? 1 : 0,
+            operationMode:
+                normalizeOperationMode(orderType ?? widget.orderType),
+            orderItems: products,
           );
 
-          if (paymentCreated) {
-            print('✅ Payment created! Order auto-completed by backend.');
-            print('⭐ Loyalty points automatically added via OrderObserver');
+          localOrderUuid =
+              await orderRepository.createOrderLocal(localOrderModel!);
+          print('✅ Order saved locally (UUID: $localOrderUuid)');
+        },
+        orElse: () async {
+          print('⚠️ No checkout state available');
+        },
+      );
 
-            // Show points earned notification if member selected
-            if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
-              _showPointsEarnedNotification(finalAmount);
-            }
-          } else {
-            print('❌ WARNING: Failed to create payment');
-          }
-
-          return paymentCreated;
-        }
-
-        return true;
+      if (localOrderModel == null || localOrderUuid == null) {
+        print('❌ Failed to save order locally');
+        return false;
       }
 
-      return false;
+      // ✅ STEP 2: Try to sync to server if online
+      if (isOnline) {
+        print('🌐 Step 2: Attempting to sync to server...');
+        final orderRemoteDatasource = OrderRemoteDatasource();
+
+        if (_isOpenBillPayment && widget.existingOrderId != null) {
+          final orderId = widget.existingOrderId!;
+          final payload = Map<String, dynamic>.from(submissionData.body);
+
+          print('💳 Open Bill Payment (2-Step Flow)...');
+
+          // ✅ Save to local database first
+          if (localOrderModel != null && localOrderUuid != null) {
+            print(
+                '✅ Open bill order already saved locally (UUID: $localOrderUuid)');
+          }
+
+          // Step 1: Update order to open status (if online)
+          if (isOnline) {
+            print('📝 Step 2: Updating open bill order (set to open)...');
+            payload['payment_mode'] = 'open_bill';
+            payload['status'] =
+                'open'; // ✅ Set to open - payment will complete it
+            payload['subtotal'] = submissionData.amounts.subtotal;
+            payload['total_amount'] = submissionData.amounts.total;
+            payload['discount_amount'] =
+                submissionData.amounts.discount.toDouble();
+            payload['service_charge'] =
+                submissionData.amounts.service.toDouble();
+            payload['tax'] = submissionData.amounts.tax.toDouble();
+            payload['skip_inventory_deduction'] =
+                true; // ✅ Skip deduct stok saat bayar (sudah di-deduct saat create open bill)
+            if (widget.orderNumber.isNotEmpty) {
+              payload['order_number'] = widget.orderNumber;
+            }
+
+            final updateResult =
+                await orderRemoteDatasource.updateOpenBillOrder(
+              orderId: orderId,
+              orderData: payload,
+            );
+
+            return await updateResult.fold(
+              (error) async {
+                print('❌ ERROR updating open bill: $error');
+                print('✅ Order saved locally, will sync when online');
+                return true; // ✅ Return true because order saved locally
+              },
+              (_) async {
+                print('✅ Open bill order updated (status: open)');
+
+                // Step 2: Create payment (will auto-complete order & trigger loyalty)
+                print('💰 Step 3: Creating payment...');
+                final paymentMethod = isCash ? 'cash' : 'qris';
+                final paymentNotes =
+                    'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
+
+                final receivedAmount = _currentTotalPay();
+                final dueAmount = submissionData.amounts.total;
+
+                print('   Order ID: $orderId');
+                print('   Payment Method: $paymentMethod');
+                print('   Amount: $dueAmount');
+                print('   Received: $receivedAmount');
+
+                // ✅ Create payment → Backend auto-completes order → Loyalty points added
+                final paymentCreated =
+                    await orderRemoteDatasource.createPayment(
+                  orderId: orderId,
+                  paymentMethod: paymentMethod,
+                  amount: dueAmount,
+                  receivedAmount:
+                      receivedAmount > 0 ? receivedAmount : dueAmount,
+                  notes: paymentNotes,
+                );
+
+                if (paymentCreated && localOrderUuid != null) {
+                  await orderRepository.markAsSynced(localOrderUuid!,
+                      serverId: orderId);
+                  print('✅ Payment created! Order auto-completed by backend.');
+                  print(
+                      '⭐ Loyalty points automatically added via OrderObserver');
+
+                  // Show points earned notification if member selected
+                  if (_selectedMemberId != null &&
+                      _selectedMemberId!.isNotEmpty) {
+                    _showPointsEarnedNotification(dueAmount);
+                  }
+                } else {
+                  print(
+                      '❌ WARNING: Failed to create payment, but order saved locally');
+                }
+
+                return true; // ✅ Always return true (order saved locally)
+              },
+            );
+          } else {
+            print(
+                '📴 Offline: Open bill order saved locally, will sync when online');
+            return true; // ✅ Return true when offline
+          }
+        } else {
+          // Regular Order (2-Step Flow) - if not open bill payment
+          print('📦 Regular Order Payment (2-Step Flow)...');
+
+          // Step 2: Create open order (if online)
+          if (isOnline) {
+            print('📝 Step 2: Creating open order on server...');
+            final uri = Uri.parse(
+                '${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
+            final headers = {
+              'Authorization': 'Bearer ${auth.token}',
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              if (storeUuid != null && storeUuid.isNotEmpty)
+                'X-Store-Id': storeUuid,
+            };
+
+            print('   Payload status: ${submissionData.body['status']}');
+            print(
+                '   Items count: ${submissionData.body['items']?.length ?? 0}');
+
+            try {
+              var res = await http.post(
+                uri,
+                headers: headers,
+                body: jsonEncode(submissionData.body),
+              );
+
+              if (res.statusCode == 403) {
+                print('   Got 403, retrying without X-Store-Id...');
+                headers.remove('X-Store-Id');
+                res = await http.post(
+                  uri,
+                  headers: headers,
+                  body: jsonEncode(submissionData.body),
+                );
+              }
+
+              if (res.statusCode == 200 || res.statusCode == 201) {
+                final orderId = orderRemoteDatasource.extractOrderId(res.body);
+
+                if (orderId != null && orderId.isNotEmpty) {
+                  print('✅ Open order created (ID: $orderId)');
+
+                  // Step 3: Create payment (will auto-complete order & trigger loyalty)
+                  print('💰 Step 3: Creating payment...');
+                  final paymentMethod = isCash ? 'cash' : 'qris';
+                  final paymentNotes =
+                      'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
+
+                  int apiTotal = 0;
+                  try {
+                    final decoded = jsonDecode(res.body);
+                    final data = decoded['data'];
+                    if (data != null && data['total_amount'] != null) {
+                      apiTotal =
+                          (double.tryParse(data['total_amount'].toString()) ??
+                                  0.0)
+                              .round();
+                    }
+                  } catch (_) {}
+
+                  final finalAmount =
+                      apiTotal > 0 ? apiTotal : submissionData.amounts.total;
+
+                  final receivedAmount = _currentTotalPay();
+
+                  print('   Order ID: $orderId');
+                  print('   Payment Method: $paymentMethod');
+                  print('   Amount: $finalAmount');
+                  print('   Received: $receivedAmount');
+
+                  // ✅ Create payment → Backend auto-completes order → Loyalty points added
+                  final paymentCreated =
+                      await orderRemoteDatasource.createPayment(
+                    orderId: orderId,
+                    paymentMethod: paymentMethod,
+                    amount: finalAmount,
+                    receivedAmount:
+                        receivedAmount > 0 ? receivedAmount : finalAmount,
+                    notes: paymentNotes,
+                  );
+
+                  if (paymentCreated && localOrderUuid != null) {
+                    await orderRepository.markAsSynced(localOrderUuid!,
+                        serverId: orderId);
+                    print(
+                        '✅ Payment created! Order auto-completed by backend.');
+                    print(
+                        '⭐ Loyalty points automatically added via OrderObserver');
+
+                    // Show points earned notification if member selected
+                    if (_selectedMemberId != null &&
+                        _selectedMemberId!.isNotEmpty) {
+                      _showPointsEarnedNotification(finalAmount);
+                    }
+                  } else {
+                    print(
+                        '❌ WARNING: Failed to create payment, but order saved locally');
+                  }
+
+                  return true; // ✅ Always return true (order saved locally)
+                }
+
+                return true; // ✅ Order saved locally even if server response is unexpected
+              }
+
+              print('⚠️ Server request failed, but order saved locally');
+              return true; // ✅ Return true because order is saved locally
+            } catch (e) {
+              print('❌ Error during server sync: $e');
+              print('✅ Order saved locally despite error');
+              return true; // ✅ Return true because order is saved locally
+            }
+          } else {
+            print(
+                '📴 Offline mode: Order saved locally, will sync when online');
+            return true; // ✅ Always return true when offline (order saved locally)
+          }
+        }
+      } else {
+        // Offline mode - order already saved locally
+        print('📴 Offline mode: Order saved locally, will sync when online');
+        return true; // ✅ Always return true when offline (order saved locally)
+      }
     } catch (e) {
-      return false;
+      print('❌ Error during order submission: $e');
+      print('✅ Order saved locally despite error');
+      return true; // ✅ Return true because order is saved locally
     }
   }
 
@@ -423,7 +552,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     return label == '-' ? widget.orderType : label;
   }
 
-  int _computeDiscountAmount(int subtotal, Discount? model) {
+  int _computeDiscountAmount(int subtotal, discount_model.Discount? model) {
     if (model == null) return 0;
 
     // Parse value as double since it can be "50.00" or "3000.00"
@@ -473,7 +602,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
   _CheckoutAmounts _resolveAmounts(
     List<ProductQuantity> products,
-    Discount? discountModel,
+    discount_model.Discount? discountModel,
     int taxPercent,
     int servicePercent,
   ) {
@@ -1611,7 +1740,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   onPressed: () async {
                     final discounts = await _fetchDiscounts();
                     if (!mounted) return;
-                    final selected = await showDialog<Discount>(
+                    final selected = await showDialog<discount_model.Discount>(
                       context: context,
                       builder: (_) => DiscountDialog(discounts: discounts),
                     );

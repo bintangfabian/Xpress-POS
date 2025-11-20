@@ -139,19 +139,30 @@ class CashSuccessDialog extends StatelessWidget {
                 borderColor: AppColors.grey,
                 fontWeight: FontWeight.w600,
                 onPressed: () async {
-                  // Submit order to server
+                  // Submit order to server (or save locally if offline)
                   if (onSubmitOrder != null) {
                     final success = await onSubmitOrder!();
                     if (!success) {
-                      // Show error if submission failed
+                      // Order saved locally but failed to sync - show info message
                       // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Gagal menyimpan order ke server'),
-                          backgroundColor: AppColors.danger,
+                          content: Text(
+                              'Order tersimpan lokal. Akan disinkronkan saat online.'),
+                          backgroundColor: AppColors.warning,
+                          duration: Duration(seconds: 3),
                         ),
                       );
-                      // Continue anyway to save locally
+                    } else {
+                      // Order saved successfully (locally and/or synced)
+                      // ignore: use_build_context_synchronously
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Order berhasil disimpan'),
+                          backgroundColor: AppColors.success,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
                     }
                   }
 

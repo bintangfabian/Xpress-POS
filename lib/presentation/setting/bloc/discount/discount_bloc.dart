@@ -1,25 +1,26 @@
 import 'package:bloc/bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../../../data/datasources/discount_remote_datasource.dart';
 import '../../../../data/models/response/discount_response_model.dart';
+import '../../../../data/repositories/discount_repository.dart';
 
 part 'discount_bloc.freezed.dart';
 part 'discount_event.dart';
 part 'discount_state.dart';
 
 class DiscountBloc extends Bloc<DiscountEvent, DiscountState> {
-  final DiscountRemoteDatasource discountRemoteDatasource;
+  final DiscountRepository repository;
   DiscountBloc(
-    this.discountRemoteDatasource,
+    this.repository,
   ) : super(const _Initial()) {
     on<_GetDiscounts>((event, emit) async {
       emit(const _Loading());
-      final result = await discountRemoteDatasource.getDiscounts();
-      result.fold(
-        (l) => emit(_Error(l)),
-        (r) => emit(_Loaded(r.data!)),
-      );
+      try {
+        final discounts = await repository.getDiscounts();
+        emit(_Loaded(discounts));
+      } catch (e) {
+        emit(_Error(e.toString()));
+      }
     });
   }
 }

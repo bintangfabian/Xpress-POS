@@ -7,10 +7,14 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/core/components/empty_state.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
+import 'package:xpress/data/repositories/report_repository.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
+import 'package:xpress/presentation/report/blocs/transaction_report/transaction_report_bloc.dart';
 import 'package:xpress/presentation/report/pages/transaction_detail_page.dart';
 import 'package:xpress/presentation/report/widgets/report_title.dart';
 
@@ -37,6 +41,7 @@ class _ReportPageState extends State<ReportPage>
   static const int _maxDateDays = 7; // show last 7 dates only
   List<_DailyOrderSection> _dailySections = [];
   late final OrderRemoteDatasource _orderDatasource;
+  ReportRepository? _reportRepository;
   final PageStorageKey<String> _listViewKey =
       const PageStorageKey<String>('report-list-key');
   late final ScrollController _scrollController;
@@ -56,7 +61,27 @@ class _ReportPageState extends State<ReportPage>
     super.initState();
     _orderDatasource = OrderRemoteDatasource();
     _scrollController = ScrollController();
-    _fetchOrders();
+    // Don't fetch orders here - wait for build() to initialize ReportRepository
+  }
+
+  void _initializeReportRepository() {
+    if (_reportRepository != null) return; // Already initialized
+
+    try {
+      final reportRepository = context.read<TransactionReportBloc>().repository;
+      _reportRepository = reportRepository;
+      _logDebug('ReportRepository initialized successfully');
+      // Fetch orders after repository is initialized
+      if (mounted) {
+        _fetchOrders();
+      }
+    } catch (e) {
+      _logDebug('ReportRepository not available: $e');
+      // Still try to fetch from remote datasource
+      if (mounted) {
+        _fetchOrders();
+      }
+    }
   }
 
   @override
@@ -67,6 +92,21 @@ class _ReportPageState extends State<ReportPage>
 
   Future<void> _fetchOrders() async {
     if (!mounted) return;
+
+    // ✅ Check if app is online
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+    final isAppOnline = onlineCheckerBloc.isOnline;
+
+    // ✅ Tab "Transaksi Online" but app is offline - skip fetch
+    if (isOnline && !isAppOnline) {
+      setState(() {
+        isLoading = false;
+        errorMessage = null;
+        orders = [];
+        _dailySections = [];
+      });
+      return;
+    }
 
     setState(() {
       isLoading = true;
@@ -79,9 +119,12 @@ class _ReportPageState extends State<ReportPage>
       String? fetchError;
 
       // Start from today and go backwards to find dates with data
+      // Use WIB timezone for accurate date comparison
+      final nowWib = TimezoneHelper.now();
       final DateTime startDate =
           DateTime(fromDate.year, fromDate.month, fromDate.day);
-      DateTime cursor = DateTime(toDate.year, toDate.month, toDate.day);
+      // Use today in WIB timezone
+      DateTime cursor = DateTime(nowWib.year, nowWib.month, nowWib.day);
       int maxSearchDays = 30; // Maximum days to search backwards
       int daysSearched = 0;
 
@@ -170,6 +213,88 @@ class _ReportPageState extends State<ReportPage>
   }
 
   Future<_DailyFetchResult> _fetchSectionForDate(String dateKey) async {
+    // ✅ Check if app is actually online
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+    final isAppOnline = onlineCheckerBloc.isOnline;
+
+    // ✅ Tab "Transaksi Online": Only fetch if app is online
+    if (isOnline && !isAppOnline) {
+      // App is offline, return empty result for online tab
+      _logDebug('App is offline, skipping fetch for online tab');
+      return _DailyFetchResult(
+        dateKey,
+        section: _DailyOrderSection(
+          dateKey: dateKey,
+          orders: [],
+          visibleCount: 0,
+          currentPage: 1,
+          hasMore: false,
+        ),
+      );
+    }
+
+    // ✅ Use ReportRepository if available (supports offline)
+    if (_reportRepository != null) {
+      try {
+        // Filter by sync status based on tab selection
+        // Tab "Transaksi Online" (isOnline = true): only synced orders (if app is online)
+        // Tab "Transaksi Offline" (isOnline = false): only pending orders (always from local)
+        final syncStatusFilter = isOnline ? 'synced' : 'pending';
+
+        final result = await _reportRepository!.getOrdersByDateRange(
+          dateKey,
+          dateKey,
+          perPage: _ordersBatchSize,
+          page: 1,
+          syncStatusFilter: syncStatusFilter,
+        );
+
+        if (!mounted) return _DailyFetchResult(dateKey, error: 'Unmounted');
+
+        return result.fold(
+          (error) {
+            _logDebug('ReportRepository error for $dateKey: $error');
+            // Fallback to remote datasource if repository fails
+            return _fetchFromRemoteDatasource(dateKey);
+          },
+          (orderResponse) {
+            final orders = orderResponse.data ?? [];
+            orders.sort(
+              (a, b) =>
+                  _orderLocalDateTime(b).compareTo(_orderLocalDateTime(a)),
+            );
+
+            final meta = orderResponse.meta;
+            final currentPage = meta?.currentPage ?? 1;
+            final hasMore = meta?.hasMore ?? false;
+
+            _logDebug(
+                'ReportRepository: Found ${orders.length} orders for $dateKey (filter: ${isOnline ? "synced" : "pending"})');
+
+            return _DailyFetchResult(
+              dateKey,
+              section: _DailyOrderSection(
+                dateKey: dateKey,
+                orders: orders,
+                visibleCount: math.min(_ordersBatchSize, orders.length),
+                currentPage: currentPage,
+                hasMore: hasMore,
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        _logDebug('ReportRepository exception: $e');
+        // Fallback to remote datasource
+        return _fetchFromRemoteDatasource(dateKey);
+      }
+    }
+
+    // Fallback to remote datasource if repository not available
+    return _fetchFromRemoteDatasource(dateKey);
+  }
+
+  Future<_DailyFetchResult> _fetchFromRemoteDatasource(String dateKey) async {
     final result = await _orderDatasource.getOrderByRangeDate(
       dateKey,
       dateKey,
@@ -241,6 +366,70 @@ class _ReportPageState extends State<ReportPage>
     });
 
     final nextPage = section.currentPage + 1;
+
+    // ✅ Use ReportRepository if available for load more (supports offline)
+    if (_reportRepository != null) {
+      try {
+        // Filter by sync status based on tab selection
+        final syncStatusFilter = isOnline ? 'synced' : 'pending';
+
+        final result = await _reportRepository!.getOrdersByDateRange(
+          dateKey,
+          dateKey,
+          perPage: _ordersBatchSize,
+          page: nextPage,
+          syncStatusFilter: syncStatusFilter,
+        );
+
+        if (!mounted) return;
+
+        result.fold(
+          (error) {
+            setState(() {
+              section.isLoadingMore = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error)),
+            );
+          },
+          (orderResponse) {
+            final newOrders = (orderResponse.data ?? [])
+              ..sort(
+                (a, b) =>
+                    _orderLocalDateTime(b).compareTo(_orderLocalDateTime(a)),
+              );
+            final meta = orderResponse.meta;
+            final updatedCurrentPage = meta?.currentPage ?? nextPage;
+            final hasMore = meta?.hasMore ?? false;
+
+            setState(() {
+              section.orders.addAll(newOrders);
+              section.orders.sort((a, b) {
+                final dateA =
+                    a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                final dateB =
+                    b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                return dateB.compareTo(dateA);
+              });
+              section.currentPage = updatedCurrentPage;
+              section.hasMore = hasMore;
+              section.visibleCount = math.min(
+                section.visibleCount + newOrders.length,
+                section.orders.length,
+              );
+              section.isLoadingMore = false;
+              orders = _rebuildOrdersCache();
+            });
+          },
+        );
+        return;
+      } catch (e) {
+        _logDebug('ReportRepository load more error: $e');
+        // Fallback to remote datasource
+      }
+    }
+
+    // Fallback to remote datasource
     final result = await _orderDatasource.getOrderByRangeDate(
       dateKey,
       dateKey,
@@ -325,6 +514,20 @@ class _ReportPageState extends State<ReportPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // Initialize ReportRepository in build method where context is available
+    _initializeReportRepository();
+
+    // Refresh orders when page becomes visible (useful for offline orders)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          _reportRepository != null &&
+          orders.isEmpty &&
+          !isLoading) {
+        _logDebug('ReportPage: Refreshing orders after initialization');
+        _fetchOrders();
+      }
+    });
+
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 6, right: 6),
       child: Scaffold(
@@ -347,7 +550,13 @@ class _ReportPageState extends State<ReportPage>
                       Expanded(
                         child: InkWell(
                           onTap: () {
-                            if (!isOnline) setState(() => isOnline = true);
+                            if (!isOnline) {
+                              setState(() {
+                                isOnline = true;
+                              });
+                              // Refresh orders when switching to online tab
+                              _fetchOrders();
+                            }
                           },
                           child: Container(
                             height: 85,
@@ -373,7 +582,13 @@ class _ReportPageState extends State<ReportPage>
                       Expanded(
                         child: InkWell(
                           onTap: () {
-                            if (isOnline) setState(() => isOnline = false);
+                            if (isOnline) {
+                              setState(() {
+                                isOnline = false;
+                              });
+                              // Refresh orders when switching to offline tab
+                              _fetchOrders();
+                            }
                           },
                           child: Container(
                             height: 85,
@@ -400,17 +615,21 @@ class _ReportPageState extends State<ReportPage>
                   ),
                   const SizedBox(height: 15),
                   Expanded(
-                    child: isOnline
-                        ? _buildOrdersList()
-                        : (hasOfflineData
-                            ? _buildOrdersList()
-                            : _emptyOfflineState()),
+                    child: _buildOrdersList(),
                   ),
-                  if (!isOnline && hasOfflineData) ...[
+                  // Show sync button only for offline tab with pending orders
+                  if (!isOnline && orders.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Button.filled(
                       height: 52,
-                      onPressed: () {},
+                      onPressed: () {
+                        // TODO: Implement sync functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Fitur sync akan segera tersedia'),
+                          ),
+                        );
+                      },
                       icon: Assets.icons.sync.svg(
                         height: 20,
                         width: 20,
@@ -430,6 +649,15 @@ class _ReportPageState extends State<ReportPage>
   }
 
   Widget _buildOrdersList() {
+    // ✅ Check if app is online
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+    final isAppOnline = onlineCheckerBloc.isOnline;
+
+    // ✅ Tab "Transaksi Online" but app is offline
+    if (isOnline && !isAppOnline) {
+      return _emptyOfflineModeState();
+    }
+
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -459,10 +687,20 @@ class _ReportPageState extends State<ReportPage>
     }
 
     if (orders.isEmpty) {
+      // Tab "Transaksi Offline" with no data
+      if (!isOnline) {
+        return _emptyOfflineState();
+      }
+      // Tab "Transaksi Online" with no data
       return _emptyOnlineState();
     }
 
     if (_dailySections.isEmpty) {
+      // Tab "Transaksi Offline" with no data
+      if (!isOnline) {
+        return _emptyOfflineState();
+      }
+      // Tab "Transaksi Online" with no data
       return _emptyOnlineState();
     }
 
@@ -493,13 +731,20 @@ class _ReportPageState extends State<ReportPage>
   Widget _emptyOfflineState() {
     return EmptyState(
       icon: Assets.icons.deleteMinus,
-      message: "Riwayat Transaksi Offline Telah Berhasil Disingkronisasi",
+      message: "Tidak Ada Data Transaksi Offline",
     );
   }
 
   Widget _emptyOnlineState() {
     return EmptyState(
         icon: Assets.icons.bill, message: "Tidak Ada Data Transaksi");
+  }
+
+  Widget _emptyOfflineModeState() {
+    return EmptyState(
+      icon: Assets.icons.bill,
+      message: "Anda sedang dalam mode offline",
+    );
   }
 
   Widget _getProductByDate({

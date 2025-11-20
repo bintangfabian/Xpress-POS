@@ -20,6 +20,17 @@ class OrderDao extends DatabaseAccessor<AppDatabase> with _$OrderDaoMixin {
         .get();
   }
 
+  Future<List<Order>> getOrdersByDateRange(
+      DateTime startDate, DateTime endDate) {
+    return (select(orders)
+          ..where((tbl) =>
+              tbl.updatedAt.isBiggerOrEqualValue(startDate) &
+              tbl.updatedAt.isSmallerOrEqualValue(endDate) &
+              tbl.isDeleted.equals(false))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.updatedAt)]))
+        .get();
+  }
+
   Future<void> insertOrder(OrdersCompanion order) async {
     await into(orders).insertOnConflictUpdate(order);
   }

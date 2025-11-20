@@ -11,7 +11,6 @@ import 'package:xpress/data/models/response/order_response_model.dart'
     hide Product;
 import 'package:xpress/logic/bloc/sync/sync_bloc.dart';
 import 'package:xpress/presentation/home/bloc/local_product/local_product_bloc.dart';
-import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/home/widgets/custom_button.dart';
 import 'package:xpress/presentation/home/widgets/custom_tab_bar.dart';
 import 'package:xpress/presentation/home/widgets/order_menu.dart';
@@ -31,7 +30,6 @@ import 'package:xpress/presentation/home/widgets/sort_dropdown.dart';
 import 'package:xpress/presentation/home/models/product_variant.dart';
 import 'package:xpress/presentation/home/pages/confirm_payment_page.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
-import 'package:xpress/presentation/widgets/offline_banner.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/core/utils/amount_parser.dart';
 
@@ -761,21 +759,6 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.only(top: 6.0, right: 6.0),
           child: Column(
             children: [
-              BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
-                builder: (context, state) {
-                  final isOffline = state.maybeWhen(
-                    offline: () => true,
-                    orElse: () => false,
-                  );
-                  if (!isOffline) {
-                    return const SizedBox.shrink();
-                  }
-                  return const Padding(
-                    padding: EdgeInsets.only(bottom: 8.0),
-                    child: OfflineBanner(),
-                  );
-                },
-              ),
               BlocBuilder<SyncBloc, SyncState>(
                 builder: (context, state) {
                   final isSyncing = state.maybeWhen(

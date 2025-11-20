@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/auth_remote_datasource.dart';
+import 'package:xpress/data/datasources/category_local_datasource.dart';
 import 'package:xpress/data/datasources/category_remote_datasource.dart';
+import 'package:xpress/data/datasources/discount_local_datasource.dart';
 import 'package:xpress/data/datasources/discount_remote_datasource.dart';
 import 'package:xpress/data/datasources/midtrans_remote_datasource.dart';
 import 'package:xpress/data/datasources/order_item_remote_datasource.dart';
@@ -14,6 +16,9 @@ import 'package:xpress/data/datasources/product_local_datasource.dart';
 import 'package:xpress/data/datasources/product_remote_datasource.dart';
 import 'package:xpress/data/datasources/table_remote_datasource.dart';
 import 'package:xpress/data/datasources/sales_remote_datasource.dart';
+import 'package:xpress/data/repositories/category_repository.dart';
+import 'package:xpress/data/repositories/discount_repository.dart';
+import 'package:xpress/data/repositories/report_repository.dart';
 import 'package:xpress/data/repositories/sync_repository.dart';
 import 'package:xpress/data/services/api_service.dart';
 import 'package:xpress/logic/bloc/sync/sync_bloc.dart';
@@ -74,6 +79,7 @@ Future<void> main() async {
     MyApp(
       onlineCheckerBloc: onlineCheckerBloc,
       syncRepository: syncRepository,
+      appDatabase: appDatabase,
     ),
   );
 }
@@ -83,14 +89,33 @@ class MyApp extends StatelessWidget {
     super.key,
     required this.onlineCheckerBloc,
     required this.syncRepository,
+    required this.appDatabase,
   });
 
   final OnlineCheckerBloc onlineCheckerBloc;
   final SyncRepository syncRepository;
+  final AppDatabase appDatabase;
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    // Initialize repositories
+    final categoryRepository = CategoryRepository(
+      remoteDatasource: CategoryRemoteDatasource(),
+      localDatasource: CategoryLocalDatasource(),
+      onlineCheckerBloc: onlineCheckerBloc,
+    );
+    final discountRepository = DiscountRepository(
+      remoteDatasource: DiscountRemoteDatasource(),
+      localDatasource: DiscountLocalDatasource(),
+      onlineCheckerBloc: onlineCheckerBloc,
+    );
+    final reportRepository = ReportRepository(
+      remoteDatasource: OrderRemoteDatasource(),
+      database: appDatabase,
+      onlineCheckerBloc: onlineCheckerBloc,
+    );
+
     return RepositoryProvider.value(
       value: syncRepository,
       child: MultiBlocProvider(
@@ -116,13 +141,16 @@ class MyApp extends StatelessWidget {
             create: (context) => CheckoutBloc(),
           ),
           BlocProvider(
-            create: (context) => OrderBloc(OrderRemoteDatasource()),
+            create: (context) => OrderBloc(
+              OrderRemoteDatasource(),
+              onlineCheckerBloc: onlineCheckerBloc,
+            ),
           ),
           BlocProvider(
             create: (context) => SyncOrderBloc(OrderRemoteDatasource()),
           ),
           BlocProvider(
-            create: (context) => DiscountBloc(DiscountRemoteDatasource()),
+            create: (context) => DiscountBloc(discountRepository),
           ),
           BlocProvider(
             create: (context) => AddDiscountBloc(DiscountRemoteDatasource()),
@@ -132,7 +160,7 @@ class MyApp extends StatelessWidget {
                 DeleteDiscountCubit(DiscountRemoteDatasource()),
           ),
           BlocProvider(
-            create: (context) => TransactionReportBloc(OrderRemoteDatasource()),
+            create: (context) => TransactionReportBloc(reportRepository),
           ),
           BlocProvider(
             create: (context) => GenerateTableBloc(TableRemoteDatasource()),
@@ -158,10 +186,10 @@ class MyApp extends StatelessWidget {
             create: (context) => GetProductsBloc(ProductRemoteDatasource()),
           ),
           BlocProvider(
-            create: (context) => GetCategoriesBloc(CategoryRemoteDatasource()),
+            create: (context) => GetCategoriesBloc(categoryRepository),
           ),
           BlocProvider(
-            create: (context) => SummaryBloc(OrderRemoteDatasource()),
+            create: (context) => SummaryBloc(reportRepository),
           ),
           BlocProvider(
             create: (context) => ProductSalesBloc(OrderItemRemoteDatasource()),
@@ -174,8 +202,8 @@ class MyApp extends StatelessWidget {
             create: (context) => DaySalesBloc(ProductLocalDatasource.instance),
           ),
           BlocProvider(
-            create: (context) =>
-                CashSessionBloc(SalesRemoteDataSource())..add(GetCurrentCashSession()),
+            create: (context) => CashSessionBloc(SalesRemoteDataSource())
+              ..add(GetCurrentCashSession()),
           ),
           BlocProvider(
             create: (context) => QrisBloc(MidtransRemoteDatasource()),

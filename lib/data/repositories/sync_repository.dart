@@ -4,6 +4,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 
+import '../datasources/local/dao/category_dao.dart';
+import '../datasources/local/dao/discount_dao.dart';
 import '../datasources/local/dao/order_dao.dart';
 import '../datasources/local/dao/payment_dao.dart';
 import '../datasources/local/dao/product_dao.dart';
@@ -20,6 +22,8 @@ class SyncRepository {
     OrderDao? orderDao,
     PaymentDao? paymentDao,
     StockDao? stockDao,
+    CategoryDao? categoryDao,
+    DiscountDao? discountDao,
     Box<dynamic>? settingsBox,
   })  : _database = database,
         _apiService = apiService,
@@ -28,6 +32,8 @@ class SyncRepository {
         _orderDao = orderDao ?? OrderDao(database),
         _paymentDao = paymentDao ?? PaymentDao(database),
         _stockDao = stockDao ?? StockDao(database),
+        _categoryDao = categoryDao ?? CategoryDao(database),
+        _discountDao = discountDao ?? DiscountDao(database),
         _settingsBox = settingsBox ?? Hive.box('settings');
 
   final AppDatabase _database;
@@ -37,6 +43,8 @@ class SyncRepository {
   final OrderDao _orderDao;
   final PaymentDao _paymentDao;
   final StockDao _stockDao;
+  final CategoryDao _categoryDao;
+  final DiscountDao _discountDao;
   final Box<dynamic> _settingsBox;
 
   static const _lastSyncKey = 'lastSync';
@@ -154,6 +162,8 @@ class SyncRepository {
     final orders = _castList(data['orders']);
     final products = _castList(data['products']);
     final stockMovements = _castList(data['stock_movements']);
+    final categories = _castList(data['categories']);
+    final discounts = _castList(data['discounts']);
 
     await _database.transaction(() async {
       for (final order in orders) {
@@ -166,6 +176,14 @@ class SyncRepository {
 
       for (final movement in stockMovements) {
         await _applyRemoteStockMovement(movement);
+      }
+
+      for (final category in categories) {
+        await _applyRemoteCategory(category);
+      }
+
+      for (final discount in discounts) {
+        await _applyRemoteDiscount(discount);
       }
     });
   }
@@ -327,6 +345,118 @@ class SyncRepository {
     await _database
         .into(_database.stockMovements)
         .insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyRemoteCategory(Map<String, dynamic> data) async {
+    final uuid = _readString(data, 'uuid');
+    if (uuid == null || uuid.isEmpty) {
+      // Generate UUID from server ID if available
+      final serverId =
+          _readString(data, 'serverId') ?? _readString(data, 'id')?.toString();
+      if (serverId == null || serverId.isEmpty) return;
+      final generatedUuid = 'category-$serverId';
+      final existing = await _categoryDao.getByUuid(generatedUuid);
+      if (existing != null) return; // Already exists
+    }
+
+    final incomingUpdatedAt =
+        _parseDate(data['updatedAt'] ?? data['updated_at']);
+    final existingUuid = uuid ??
+        'category-${_readString(data, 'serverId') ?? _readString(data, 'id')?.toString() ?? ''}';
+    final existing = await _categoryDao.getByUuid(existingUuid);
+
+    if (existing != null &&
+        incomingUpdatedAt != null &&
+        !incomingUpdatedAt.isAfter(existing.updatedAt)) {
+      return;
+    }
+
+    final serverId =
+        _readString(data, 'serverId') ?? _readString(data, 'id')?.toString();
+    final name = _readString(data, 'name') ?? existing?.name;
+    final image = _readString(data, 'image') ?? existing?.image;
+    final isDeleted = _readBool(data, 'isDeleted') ?? false;
+
+    if (name == null && existing == null) {
+      return;
+    }
+
+    final finalUuid = uuid ?? existingUuid;
+    final companion = CategoriesCompanion(
+      uuid: Value(finalUuid),
+      serverId: serverId == null || serverId.isEmpty
+          ? const Value.absent()
+          : Value(serverId),
+      name: Value(name ?? existing?.name ?? ''),
+      image: image == null ? const Value.absent() : Value(image),
+      syncStatus: const Value('synced'),
+      updatedAt: Value(incomingUpdatedAt ?? TimezoneHelper.now()),
+      isDeleted: Value(isDeleted),
+    );
+
+    await _database
+        .into(_database.categories)
+        .insertOnConflictUpdate(companion);
+  }
+
+  Future<void> _applyRemoteDiscount(Map<String, dynamic> data) async {
+    final uuid = _readString(data, 'uuid');
+    if (uuid == null || uuid.isEmpty) {
+      final serverId =
+          _readString(data, 'serverId') ?? _readString(data, 'id')?.toString();
+      if (serverId == null || serverId.isEmpty) return;
+      final generatedUuid = 'discount-$serverId';
+      final existing = await _discountDao.getByUuid(generatedUuid);
+      if (existing != null) return;
+    }
+
+    final incomingUpdatedAt =
+        _parseDate(data['updatedAt'] ?? data['updated_at']);
+    final existingUuid = uuid ??
+        'discount-${_readString(data, 'serverId') ?? _readString(data, 'id')?.toString() ?? ''}';
+    final existing = await _discountDao.getByUuid(existingUuid);
+
+    if (existing != null &&
+        incomingUpdatedAt != null &&
+        !incomingUpdatedAt.isAfter(existing.updatedAt)) {
+      return;
+    }
+
+    final serverId =
+        _readString(data, 'serverId') ?? _readString(data, 'id')?.toString();
+    final name = _readString(data, 'name') ?? existing?.name;
+    final description =
+        _readString(data, 'description') ?? existing?.description;
+    final type = _readString(data, 'type') ?? existing?.type ?? 'percentage';
+    final value = _readString(data, 'value') ?? existing?.value ?? '0';
+    final status = _readString(data, 'status') ?? existing?.status;
+    final expiredDate = _parseDate(data['expiredDate'] ?? data['expired_date']);
+    final isDeleted = _readBool(data, 'isDeleted') ?? false;
+
+    if (name == null && existing == null) {
+      return;
+    }
+
+    final finalUuid = uuid ?? existingUuid;
+    final companion = DiscountsCompanion(
+      uuid: Value(finalUuid),
+      serverId: serverId == null || serverId.isEmpty
+          ? const Value.absent()
+          : Value(serverId),
+      name: Value(name ?? existing?.name ?? ''),
+      description:
+          description == null ? const Value.absent() : Value(description),
+      type: Value(type),
+      value: Value(value),
+      status: status == null ? const Value.absent() : Value(status),
+      expiredDate:
+          expiredDate == null ? const Value.absent() : Value(expiredDate),
+      syncStatus: const Value('synced'),
+      updatedAt: Value(incomingUpdatedAt ?? TimezoneHelper.now()),
+      isDeleted: Value(isDeleted),
+    );
+
+    await _database.into(_database.discounts).insertOnConflictUpdate(companion);
   }
 
   DateTime _readLastSync() {

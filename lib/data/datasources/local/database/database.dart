@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:drift_sqflite/drift_sqflite.dart';
+import 'tables/categories.dart';
+import 'tables/discounts.dart';
 import 'tables/order_items.dart';
 import 'tables/orders.dart';
 import 'tables/payments.dart';
@@ -23,6 +25,8 @@ part 'database.g.dart';
     Payments,
     Tables,
     StockMovements,
+    Categories,
+    Discounts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -35,7 +39,21 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onUpgrade: (migrator, from, to) async {
+        if (from < 2) {
+          // Add Categories table
+          await migrator.createTable(this.categories);
+          // Add Discounts table
+          await migrator.createTable(this.discounts);
+        }
+      },
+    );
+  }
 }
 
 LazyDatabase _openConnection() {

@@ -1,7 +1,6 @@
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
+import 'package:xpress/data/repositories/report_repository.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'transaction_report_event.dart';
@@ -10,11 +9,11 @@ part 'transaction_report_bloc.freezed.dart';
 
 class TransactionReportBloc
     extends Bloc<TransactionReportEvent, TransactionReportState> {
-  final OrderRemoteDatasource datasource;
-  TransactionReportBloc(this.datasource) : super(const _Initial()) {
+  final ReportRepository repository;
+  TransactionReportBloc(this.repository) : super(const _Initial()) {
     on<_GetReport>((event, emit) async {
       emit(const _Loading());
-      final result = await datasource.getOrderByRangeDate(
+      final result = await repository.getOrdersByDateRange(
         event.startDate,
         event.endDate,
       );

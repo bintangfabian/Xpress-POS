@@ -37,19 +37,6 @@ class _TablePageState extends State<TablePage> {
             children: [
               // 🔹 Header
               const PageTitle(title: 'Dasbor Meja'),
-              SpaceHeight(20),
-
-              Button.filled(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => const FormTableDialog(),
-                  );
-                },
-                label: 'Kelola Meja',
-                height: 50.0,
-                width: 142.0,
-              ),
               SpaceHeight(24.0),
 
               // 🔹 GridView meja -> Expanded biar scrollable
