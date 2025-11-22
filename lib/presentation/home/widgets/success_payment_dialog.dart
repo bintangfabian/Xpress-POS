@@ -5,10 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:intl/intl.dart';
-import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
 
@@ -182,29 +182,32 @@ class _SuccessPaymentDialogState extends State<SuccessPaymentDialog> {
                       );
 
                       final kembalian = paymentAmount - widget.totalPrice;
-                      return Button.filled(
-                        onPressed: () async {
+                      return PrintButton(
+                        label: 'Print',
+                        onPrint: () async {
                           final sizeReceipt =
                               await AuthLocalDataSource().getSizeReceipt();
-                          final printValue =
-                              await PrintDataoutputs.instance.printOrderV3(
+                          // Get operation mode - default to 'dine_in' if not available
+                          final operationMode =
+                              'dine_in'; // Default, can be improved if orderType is available
+
+                          return await PrintDataoutputs.instance.printOrderV3(
                             widget.data,
                             widget.totalQty,
                             widget.totalPrice,
                             'Cash',
                             paymentAmount,
                             kembalian,
-                            widget.totalTax,
-                            widget.totalDiscount,
-                            widget.subTotal,
+                            widget.subTotal, // ✅ Parameter ke-7: subTotal
+                            widget.totalDiscount, // ✅ Parameter ke-8: discount
+                            widget.totalTax, // ✅ Parameter ke-9: pajak
                             1,
                             'Cashier Ali',
                             widget.draftName,
                             int.parse(sizeReceipt),
+                            operationMode: operationMode,
                           );
-                          await PrintBluetoothThermal.writeBytes(printValue);
                         },
-                        label: 'Print',
                       );
                     },
                   ),

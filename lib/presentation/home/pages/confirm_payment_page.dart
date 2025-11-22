@@ -6,6 +6,7 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
+import 'package:xpress/data/datasources/store_local_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/models/response/table_model.dart';
 import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
@@ -15,8 +16,9 @@ import 'package:xpress/presentation/home/dialogs/member_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/table_select_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/tax_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/service_dialog.dart';
-import 'package:xpress/presentation/home/dialogs/qris_confirm_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/qris_success_dialog.dart';
+import 'package:xpress/core/services/printer_service.dart';
+import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
@@ -115,14 +117,14 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     totalPayController.addListener(() {
       if (mounted) setState(() {});
     });
-    if (_isOpenBillPayment) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final due = _calculateDueTotal();
-        if (due > 0 && totalPayController.text.toIntegerFromText == 0) {
-          totalPayController.text = due.toString();
-        }
-      });
-    }
+
+    // ✅ Fast Checkout: Auto fill total bayar dengan total harga + pajak + layanan
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final due = _calculateDueTotal();
+      if (due > 0 && totalPayController.text.toIntegerFromText == 0) {
+        totalPayController.text = due.toString();
+      }
+    });
   }
 
   @override
@@ -321,7 +323,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                 submissionData.amounts.discount.toDouble();
             payload['service_charge'] =
                 submissionData.amounts.service.toDouble();
-            payload['tax'] = submissionData.amounts.tax.toDouble();
+            payload['tax_amount'] = submissionData.amounts.tax.toDouble();
             payload['skip_inventory_deduction'] =
                 true; // ✅ Skip deduct stok saat bayar (sudah di-deduct saat create open bill)
             if (widget.orderNumber.isNotEmpty) {
@@ -600,6 +602,20 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
   int _parseAmount(String? raw) => AmountParser.parse(raw);
 
+  /// Get tax rate from store settings (returns percentage, e.g., 10 for 10%)
+  Future<int> _getTaxRateFromStore() async {
+    try {
+      final storeDatasource = StoreLocalDatasource();
+      final store = await storeDatasource.getStoreDetail();
+      final taxRate = store?.settings?.taxRate ?? 0.0;
+      return taxRate
+          .toInt(); // taxRate is already in percentage (e.g., 10 for 10%)
+    } catch (e) {
+      print('Error getting tax rate from store: $e');
+      return 0;
+    }
+  }
+
   _CheckoutAmounts _resolveAmounts(
     List<ProductQuantity> products,
     discount_model.Discount? discountModel,
@@ -806,7 +822,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         body['service_charge'] = amounts.service.toDouble();
       }
       if (amounts.tax > 0) {
-        body['tax'] = amounts.tax.toDouble();
+        body['tax_amount'] = amounts.tax.toDouble();
       }
 
       if (widget.orderNumber.isNotEmpty) {
@@ -914,7 +930,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           body['service_charge'] = amounts.service.toDouble();
         }
         if (amounts.tax > 0 || _isOpenBillPayment) {
-          body['tax'] = amounts.tax.toDouble();
+          body['tax_amount'] = amounts.tax.toDouble();
         }
 
         if (_isOpenBillPayment && widget.orderNumber.isNotEmpty) {
@@ -1273,73 +1289,132 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                           disabled: !isEnabled,
                                           onPressed: () async {
                                             if (!isEnabled) return;
-                                            final total = _calculateDueTotal();
-                                            final change = _calculateChange();
-                                            if (isCash) {
-                                              await showDialog(
-                                                context: context,
-                                                barrierDismissible: false,
-                                                builder: (_) =>
-                                                    BlocProvider.value(
-                                                  value: context
-                                                      .read<CheckoutBloc>(),
-                                                  child: CashSuccessDialog(
-                                                    total: total,
-                                                    change: change,
-                                                    orderType: widget.orderType,
-                                                    tableNumber:
-                                                        _selectedTableNumber ??
-                                                            _parseTableNumber(
-                                                                widget.table
-                                                                    ?.tableNumber),
-                                                    orderNumber:
-                                                        widget.orderNumber,
-                                                    onSubmitOrder: _submitOrder,
-                                                  ),
-                                                ),
-                                              );
-                                            } else {
-                                              await showDialog(
-                                                context: context,
-                                                barrierDismissible: false,
-                                                builder: (_) =>
-                                                    QrisConfirmDialog(
-                                                  total: total,
-                                                  change: change,
-                                                  orderType: widget.orderType,
-                                                  tableNumber:
-                                                      _parseTableNumber(widget
-                                                          .table?.tableNumber),
-                                                  onAccepted: () async {
-                                                    await showDialog(
-                                                      context: context,
-                                                      barrierDismissible: false,
-                                                      builder: (_) =>
-                                                          BlocProvider.value(
-                                                        value: context.read<
-                                                            CheckoutBloc>(),
-                                                        child:
-                                                            QrisSuccessDialog(
-                                                          total: total,
-                                                          change: change,
-                                                          orderType:
-                                                              widget.orderType,
-                                                          tableNumber:
-                                                              _selectedTableNumber ??
-                                                                  _parseTableNumber(
-                                                                      widget
-                                                                          .table
-                                                                          ?.tableNumber),
-                                                          orderNumber: widget
-                                                              .orderNumber,
-                                                          onSubmitOrder:
-                                                              _submitOrder,
+
+                                            // Show loading dialog
+                                            if (!context.mounted) return;
+                                            showDialog(
+                                              context: context,
+                                              barrierDismissible: false,
+                                              builder: (_) => const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              ),
+                                            );
+
+                                            try {
+                                              // ✅ STEP 1: Create order & payment FIRST
+                                              final success =
+                                                  await _submitOrder();
+
+                                              if (!context.mounted) return;
+                                              Navigator.of(context)
+                                                  .pop(); // Close loading
+
+                                              if (!success) {
+                                                // Show error dialog
+                                                if (context.mounted) {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (_) => AlertDialog(
+                                                      title:
+                                                          const Text('Error'),
+                                                      content: const Text(
+                                                          'Gagal membuat order. Silakan coba lagi.'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  context),
+                                                          child:
+                                                              const Text('OK'),
                                                         ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                }
+                                                return;
+                                              }
+
+                                              // ✅ STEP 2: Auto print receipt
+                                              await _autoPrintReceipt();
+
+                                              // ✅ STEP 3: Show success dialog (info only)
+                                              final total =
+                                                  _calculateDueTotal();
+                                              final change = _calculateChange();
+
+                                              if (isCash) {
+                                                await showDialog(
+                                                  context: context,
+                                                  barrierDismissible: false,
+                                                  builder: (_) =>
+                                                      BlocProvider.value(
+                                                    value: context
+                                                        .read<CheckoutBloc>(),
+                                                    child: CashSuccessDialog(
+                                                      total: total,
+                                                      change: change,
+                                                      orderType:
+                                                          widget.orderType,
+                                                      tableNumber:
+                                                          _selectedTableNumber ??
+                                                              _parseTableNumber(
+                                                                  widget.table
+                                                                      ?.tableNumber),
+                                                      orderNumber:
+                                                          widget.orderNumber,
+                                                      onSubmitOrder:
+                                                          null, // Already submitted
+                                                    ),
+                                                  ),
+                                                );
+                                              } else {
+                                                await showDialog(
+                                                  context: context,
+                                                  barrierDismissible: false,
+                                                  builder: (_) =>
+                                                      BlocProvider.value(
+                                                    value: context
+                                                        .read<CheckoutBloc>(),
+                                                    child: QrisSuccessDialog(
+                                                      total: total,
+                                                      change: change,
+                                                      orderType:
+                                                          widget.orderType,
+                                                      tableNumber:
+                                                          _selectedTableNumber ??
+                                                              _parseTableNumber(
+                                                                  widget.table
+                                                                      ?.tableNumber),
+                                                      orderNumber:
+                                                          widget.orderNumber,
+                                                      onSubmitOrder:
+                                                          null, // Already submitted
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            } catch (e) {
+                                              if (!context.mounted) return;
+                                              Navigator.of(context)
+                                                  .pop(); // Close loading
+                                              if (context.mounted) {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (_) => AlertDialog(
+                                                    title: const Text('Error'),
+                                                    content: Text('Error: $e'),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                context),
+                                                        child: const Text('OK'),
                                                       ),
-                                                    );
-                                                  },
-                                                ),
-                                              );
+                                                    ],
+                                                  ),
+                                                );
+                                              }
                                             }
                                           },
                                         );
@@ -1941,5 +2016,65 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
         ],
       ),
     );
+  }
+
+  // Auto print receipt after payment success
+  Future<void> _autoPrintReceipt() async {
+    try {
+      final checkoutState = context.read<CheckoutBloc>().state;
+      final auth = await AuthLocalDataSource().getAuthData();
+
+      await checkoutState.maybeWhen(
+        loaded: (
+          products,
+          discountModel,
+          discount,
+          discountAmount,
+          tax,
+          serviceCharge,
+          totalQuantity,
+          totalPrice,
+          draftName,
+          orderType,
+        ) async {
+          final amounts =
+              _resolveAmounts(products, discountModel, tax, serviceCharge);
+          final paymentAmount = _currentTotalPay();
+          final kembalian = paymentAmount - amounts.total;
+          final sizeReceipt = await AuthLocalDataSource().getSizeReceipt();
+          final paperSize =
+              int.tryParse(sizeReceipt) != null ? int.parse(sizeReceipt) : 58;
+
+          // Get operation mode from orderType
+          final operationMode = orderType == 'dinein' ? 'dine_in' : 'takeaway';
+
+          final printValue = await PrintDataoutputs.instance.printOrderV3(
+            products,
+            totalQuantity,
+            amounts.total,
+            isCash ? 'Cash' : 'QRIS',
+            paymentAmount,
+            kembalian,
+            amounts.subtotal, // ✅ Parameter ke-7: subTotal
+            amounts.discount, // ✅ Parameter ke-8: discount
+            amounts.tax, // ✅ Parameter ke-9: pajak
+            amounts.service,
+            auth.user?.name ?? 'Kasir',
+            draftName.isNotEmpty ? draftName : customerController.text,
+            paperSize,
+            operationMode: operationMode,
+          );
+
+          final printerService = PrinterService();
+          await printerService.printBytes(printValue);
+        },
+        orElse: () async {
+          // No data to print
+        },
+      );
+    } catch (e) {
+      // Silently fail - don't block user flow if print fails
+      print('Auto print failed: $e');
+    }
   }
 }

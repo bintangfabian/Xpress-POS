@@ -5,5 +5,5 @@ class GenerateTableState with _$GenerateTableState {
   const factory GenerateTableState.initial() = _Initial;
   const factory GenerateTableState.loading() = _Loading;
   const factory GenerateTableState.success(String message) = _Success;
-  // Keep union minimal to avoid regeneration issues.
+  const factory GenerateTableState.error(String message) = _Error;
 }

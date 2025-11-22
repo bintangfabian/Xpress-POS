@@ -81,7 +81,33 @@ class _HomePageState extends State<HomePage> {
 
     context.read<GetCategoriesBloc>().add(const GetCategoriesEvent.fetch());
     _loadNextOrderNumber();
+
+    // ✅ Fast Checkout: Auto set operation mode
+    // Jika sudah memilih meja, set ke dine in, jika tidak set ke takeaway
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateOperationMode();
+    });
+
     super.initState();
+  }
+
+  // ✅ Helper method untuk update operation mode berdasarkan meja
+  void _updateOperationMode() {
+    final orderType =
+        (widget.isTable && widget.table != null) ? 'dinein' : 'takeaway';
+    context.read<CheckoutBloc>().add(
+          CheckoutEvent.setOrderType(orderType),
+        );
+  }
+
+  @override
+  void didUpdateWidget(HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // ✅ Update operation mode jika meja berubah
+    if (oldWidget.table?.id != widget.table?.id ||
+        oldWidget.isTable != widget.isTable) {
+      _updateOperationMode();
+    }
   }
 
   Future<void> _forceResyncProducts() async {
@@ -205,7 +231,7 @@ class _HomePageState extends State<HomePage> {
           if (serviceAmt > 0) {
             orderData['service_charge'] = serviceAmt.toDouble();
           }
-          if (taxAmt > 0) orderData['tax'] = taxAmt.toDouble();
+          if (taxAmt > 0) orderData['tax_amount'] = taxAmt.toDouble();
 
           // Create open bill order
           _logHome('📤 Creating open bill order...');
@@ -477,7 +503,7 @@ class _HomePageState extends State<HomePage> {
           if (serviceAmt > 0) {
             orderData['service_charge'] = serviceAmt.toDouble();
           }
-          if (taxAmt > 0) orderData['tax'] = taxAmt.toDouble();
+          if (taxAmt > 0) orderData['tax_amount'] = taxAmt.toDouble();
 
           // Update open bill order
           final result = await OrderRemoteDatasource().updateOpenBillOrder(
@@ -1332,31 +1358,7 @@ class _HomePageState extends State<HomePage> {
                                                       : 'Open Bill',
                                                   disabled: isDisabled,
                                                   onPressed: isDisabled
-                                                      ? () {
-                                                          if (orderType ==
-                                                              null) {
-                                                            ScaffoldMessenger
-                                                                    .of(context)
-                                                                .showSnackBar(
-                                                              const SnackBar(
-                                                                backgroundColor:
-                                                                    AppColors
-                                                                        .warning,
-                                                                content: Text(
-                                                                  "Pilih Dine In atau Take Away dulu",
-                                                                  style:
-                                                                      TextStyle(
-                                                                    fontSize:
-                                                                        16,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            );
-                                                          }
-                                                        }
+                                                      ? () {}
                                                       : _isEditingOpenBill
                                                           ? () =>
                                                               _updateOpenBillOrder(
@@ -1397,27 +1399,9 @@ class _HomePageState extends State<HomePage> {
                                                   height: 64,
                                                   svgIcon: Assets.icons.cash,
                                                   label: "Lanjutkan",
+                                                  disabled: orderType == null,
                                                   onPressed: orderType == null
-                                                      ? () {
-                                                          ScaffoldMessenger.of(
-                                                                  context)
-                                                              .showSnackBar(
-                                                            const SnackBar(
-                                                              backgroundColor:
-                                                                  AppColors
-                                                                      .warning,
-                                                              content: Text(
-                                                                "Pilih Dine In atau Take Away dulu",
-                                                                style: TextStyle(
-                                                                    fontSize:
-                                                                        16,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600),
-                                                              ),
-                                                            ),
-                                                          );
-                                                        }
+                                                      ? () {}
                                                       : () {
                                                           // Pass open bill context if in editing mode
                                                           widget.onGoToPayment

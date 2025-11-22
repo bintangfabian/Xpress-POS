@@ -262,11 +262,13 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
                 icon: Icons.alternate_email,
                 label: 'Email',
                 value: _valueOrDash(store.email),
+                expand: true,
               ),
               _InfoTile(
                 icon: Icons.phone_outlined,
                 label: 'Nomor Telepon',
                 value: _valueOrDash(store.phone),
+                expand: true,
               ),
               // _InfoTile(
               //   icon: Icons.badge_outlined,
@@ -311,35 +313,83 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
+          Row(
             children: [
-              _InfoTile(
-                icon: Icons.payments_outlined,
-                label: 'Mata Uang',
-                value: _valueOrDash(settings.currency),
-                accentColor: AppColors.primary,
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.payments_outlined,
+                  label: 'Mata Uang',
+                  value: _valueOrDash(settings.currency),
+                  accentColor: AppColors.primary,
+                ),
               ),
-              _InfoTile(
-                icon: Icons.percent,
-                label: 'Pajak',
-                value: _formatPercent(settings.taxRate),
-                // accentColor: AppColors.warning,
+              const SizedBox(
+                width: 16,
               ),
-              _InfoTile(
-                icon: Icons.room_service_outlined,
-                label: 'Biaya Layanan',
-                value: _formatPercent(settings.serviceChargeRate),
-                // accentColor: AppColors.success,
-              ),
-              _InfoTile(
-                icon: Icons.public,
-                label: 'Zona Waktu',
-                value: _valueOrDash(settings.timezone),
-              ),
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.percent,
+                  label: 'Pajak',
+                  value: _formatPercent(settings.taxRate),
+                  // accentColor: AppColors.warning,
+                ),
+              )
             ],
           ),
+          const SizedBox(
+            height: 16,
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.room_service_outlined,
+                  label: 'Biaya Layanan',
+                  value: _formatPercent(settings.serviceChargeRate),
+                  // accentColor: AppColors.success,
+                ),
+              ),
+              const SizedBox(
+                width: 16,
+              ),
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.public,
+                  label: 'Zona Waktu',
+                  value: _valueOrDash(settings.timezone),
+                ),
+              )
+            ],
+          ),
+          // Wrap(
+          //   spacing: 16,
+          //   runSpacing: 16,
+          //   children: [
+          //     _InfoTile(
+          //       icon: Icons.payments_outlined,
+          //       label: 'Mata Uang',
+          //       value: _valueOrDash(settings.currency),
+          //       accentColor: AppColors.primary,
+          //     ),
+          //     _InfoTile(
+          //       icon: Icons.percent,
+          //       label: 'Pajak',
+          //       value: _formatPercent(settings.taxRate),
+          //       // accentColor: AppColors.warning,
+          //     ),
+          //     _InfoTile(
+          //       icon: Icons.room_service_outlined,
+          //       label: 'Biaya Layanan',
+          //       value: _formatPercent(settings.serviceChargeRate),
+          //       // accentColor: AppColors.success,
+          //     ),
+          //     _InfoTile(
+          //       icon: Icons.public,
+          //       label: 'Zona Waktu',
+          //       value: _valueOrDash(settings.timezone),
+          //     ),
+          //   ],
+          // ),
           const SizedBox(height: 18),
           Container(
             width: double.infinity,
@@ -681,7 +731,8 @@ class _InfoTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withAlpha((0.05 * 255).round()), width: 1),
+          border: Border.all(
+              color: Colors.black.withAlpha((0.05 * 255).round()), width: 1),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

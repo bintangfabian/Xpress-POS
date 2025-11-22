@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:http/http.dart' as http;
 import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/store_local_datasource.dart';
 import 'package:xpress/data/models/response/store_response_model.dart';
 
 class StoreRemoteDatasource {
@@ -37,6 +38,9 @@ class StoreRemoteDatasource {
         final parsed = StoreDetailResponseModel.fromJson(response.body);
         final detail = parsed.data;
         if (detail != null) {
+          // Save store detail to local storage for receipt printing
+          final storeLocalDatasource = StoreLocalDatasource();
+          await storeLocalDatasource.saveStoreDetail(detail);
           return Right(detail);
         }
         return const Left('Store detail not found in response');

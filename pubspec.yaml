@@ -1,5 +1,5 @@
 name: xpress
-description: "A new Flutter project."
+description: "Xpress POS - Point of Sale Application"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -69,6 +69,7 @@ dev_dependencies:
   build_runner: ^2.4.9
   drift_dev: ^2.16.0
   flutter_gen_runner: ^5.3.2
+  flutter_launcher_icons: ^0.13.1
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter
@@ -114,3 +115,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo/logo-aplikasi.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/logo/logo-aplikasi.png"

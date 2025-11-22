@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/services/session_timeout_service.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/auth_remote_datasource.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
@@ -45,12 +46,43 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _existingOrderId; // ✅ simpan existing order id untuk open bill
   ItemOrder? _openBillOrder; // ✅ simpan full open bill order
 
+  final SessionTimeoutService _sessionService = SessionTimeoutService();
+
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
     _contentIndex = widget.initialIndex; // konten awal mengikuti initialIndex
     _selectedTable = widget.selectedTable;
+
+    // ✅ Setup session timeout
+    _sessionService.setContext(context);
+    _sessionService.setOnTimeout(() {
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const LoginPage(),
+          ),
+          (route) => false,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Sesi Anda telah berakhir karena tidak ada aktivitas selama 2 jam'),
+            backgroundColor: AppColors.warning,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    });
+    _sessionService.startMonitoring();
+  }
+
+  @override
+  void dispose() {
+    _sessionService.stopMonitoring();
+    super.dispose();
   }
 
   @override
@@ -142,149 +174,151 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       ],
       child: SafeArea(
-        child: Scaffold(
-          resizeToAvoidBottomInset: false,
-          backgroundColor: AppColors.primaryLight,
-          body: Row(
-            children: [
-              // ✅ Sidebar
-              Container(
-                width: 73,
-                margin: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    // Online checker
-                    BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
-                      builder: (context, state) {
-                        return state.maybeWhen(
-                          orElse: () => _statusBox(false),
-                          online: () => _statusBox(true),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ✅ Nav Items
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        children: [
-                          NavItem(
-                            iconPath: Assets.icons.home.path,
-                            isActive: _selectedIndex == 0,
-                            onTap: () => setState(() {
-                              _selectedIndex = 0;
-                              _contentIndex = 0;
-                            }),
-                          ),
-                          NavItem(
-                            iconPath: Assets.icons.table.path,
-                            isActive: _selectedIndex == 1,
-                            onTap: () => setState(() {
-                              _selectedIndex = 1;
-                              _contentIndex = 1;
-                            }),
-                          ),
-                          NavItem(
-                            iconPath: Assets.icons.order.path,
-                            isActive: _selectedIndex == 2,
-                            onTap: () => setState(() {
-                              _selectedIndex = 2;
-                              _contentIndex = 2;
-                            }),
-                          ),
-                          NavItem(
-                            iconPath: Assets.icons.settings.path,
-                            isActive: _selectedIndex == 3,
-                            onTap: () => setState(() {
-                              _selectedIndex = 3;
-                              _contentIndex = 3;
-                            }),
-                          ),
-                          NavItem(
-                            iconPath: Assets.icons.graph.path,
-                            isActive: _selectedIndex == 4,
-                            onTap: () => setState(() {
-                              _selectedIndex = 4;
-                              _contentIndex = 4;
-                            }),
-                          ),
-                        ],
+        child: ActivityDetector(
+          child: Scaffold(
+            resizeToAvoidBottomInset: false,
+            backgroundColor: AppColors.primaryLight,
+            body: Row(
+              children: [
+                // ✅ Sidebar
+                Container(
+                  width: 73,
+                  margin: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      // Online checker
+                      BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+                        builder: (context, state) {
+                          return state.maybeWhen(
+                            orElse: () => _statusBox(false),
+                            online: () => _statusBox(true),
+                          );
+                        },
                       ),
-                    ),
+                      const SizedBox(height: 12),
 
-                    // ✅ Waktu
-                    StreamBuilder<DateTime>(
-                      stream: Stream.periodic(const Duration(seconds: 1),
-                          (_) => TimezoneHelper.now()),
-                      builder: (context, snapshot) {
-                        final now = snapshot.data ?? TimezoneHelper.now();
-                        return Column(
+                      // ✅ Nav Items
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           children: [
-                            Container(
-                              alignment: Alignment.center,
-                              width: 57,
-                              height: 31,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                DateFormat('HH:mm:ss').format(now),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
+                            NavItem(
+                              iconPath: Assets.icons.home.path,
+                              isActive: _selectedIndex == 0,
+                              onTap: () => setState(() {
+                                _selectedIndex = 0;
+                                _contentIndex = 0;
+                              }),
                             ),
-                            const SizedBox(height: 6),
-                            Container(
-                              alignment: Alignment.center,
-                              width: 57,
-                              height: 61,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(DateFormat('dd').format(now),
-                                      style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.primary)),
-                                  Text(DateFormat('MMM').format(now),
-                                      style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.primary)),
-                                  Text(DateFormat('yyyy').format(now),
-                                      style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.primary)),
-                                ],
-                              ),
+                            NavItem(
+                              iconPath: Assets.icons.table.path,
+                              isActive: _selectedIndex == 1,
+                              onTap: () => setState(() {
+                                _selectedIndex = 1;
+                                _contentIndex = 1;
+                              }),
+                            ),
+                            NavItem(
+                              iconPath: Assets.icons.order.path,
+                              isActive: _selectedIndex == 2,
+                              onTap: () => setState(() {
+                                _selectedIndex = 2;
+                                _contentIndex = 2;
+                              }),
+                            ),
+                            NavItem(
+                              iconPath: Assets.icons.settings.path,
+                              isActive: _selectedIndex == 3,
+                              onTap: () => setState(() {
+                                _selectedIndex = 3;
+                                _contentIndex = 3;
+                              }),
+                            ),
+                            NavItem(
+                              iconPath: Assets.icons.graph.path,
+                              isActive: _selectedIndex == 4,
+                              onTap: () => setState(() {
+                                _selectedIndex = 4;
+                                _contentIndex = 4;
+                              }),
                             ),
                           ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
+                        ),
+                      ),
 
-              // ✅ Content
-              Expanded(child: pages[_contentIndex]),
-            ],
+                      // ✅ Waktu
+                      StreamBuilder<DateTime>(
+                        stream: Stream.periodic(const Duration(seconds: 1),
+                            (_) => TimezoneHelper.now()),
+                        builder: (context, snapshot) {
+                          final now = snapshot.data ?? TimezoneHelper.now();
+                          return Column(
+                            children: [
+                              Container(
+                                alignment: Alignment.center,
+                                width: 57,
+                                height: 31,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  DateFormat('HH:mm:ss').format(now),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                alignment: Alignment.center,
+                                width: 57,
+                                height: 61,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(DateFormat('dd').format(now),
+                                        style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary)),
+                                    Text(DateFormat('MMM').format(now),
+                                        style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary)),
+                                    Text(DateFormat('yyyy').format(now),
+                                        style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+
+                // ✅ Content
+                Expanded(child: pages[_contentIndex]),
+              ],
+            ),
           ),
         ),
       ),
@@ -323,7 +357,6 @@ class _DashboardPageState extends State<DashboardPage> {
       },
     );
   }
-
 
   Widget _statusBox(bool online) {
     return Container(

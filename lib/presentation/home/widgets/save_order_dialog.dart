@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
-import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 import 'package:xpress/core/extensions/build_context_ext.dart';
+import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/data/models/response/table_model.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
@@ -83,8 +83,9 @@ class _SaveOrderDialogState extends State<SaveOrderDialog> {
                 ),
                 const SpaceWidth(8.0),
                 Flexible(
-                  child: Button.filled(
-                    onPressed: () async {
+                  child: PrintButton(
+                    label: 'Print Checker',
+                    onPrint: () async {
                       final sizeReceipt =
                           await AuthLocalDataSource().getSizeReceipt();
 
@@ -96,12 +97,14 @@ class _SaveOrderDialogState extends State<SaveOrderDialog> {
                         tableNum = int.tryParse(numStr) ?? 0;
                       }
 
-                      final printValue = await PrintDataoutputs.instance
-                          .printChecker(widget.data, tableNum, widget.draftName,
-                              'Cashier Ali', int.parse(sizeReceipt));
-                      await PrintBluetoothThermal.writeBytes(printValue);
+                      return await PrintDataoutputs.instance.printChecker(
+                        widget.data,
+                        tableNum,
+                        widget.draftName,
+                        'Cashier Ali',
+                        int.parse(sizeReceipt),
+                      );
                     },
-                    label: 'Print Checker',
                   ),
                 ),
               ],

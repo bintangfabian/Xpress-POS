@@ -9,6 +9,7 @@ import 'package:xpress/core/components/empty_state.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/repositories/report_repository.dart';
@@ -45,6 +46,7 @@ class _ReportPageState extends State<ReportPage>
   final PageStorageKey<String> _listViewKey =
       const PageStorageKey<String>('report-list-key');
   late final ScrollController _scrollController;
+  bool _hasTriedInitialFetch = false; // Prevent infinite loop
 
   @override
   bool get wantKeepAlive => true;
@@ -71,14 +73,16 @@ class _ReportPageState extends State<ReportPage>
       final reportRepository = context.read<TransactionReportBloc>().repository;
       _reportRepository = reportRepository;
       _logDebug('ReportRepository initialized successfully');
-      // Fetch orders after repository is initialized
-      if (mounted) {
+      // Fetch orders after repository is initialized (only once)
+      if (mounted && !_hasTriedInitialFetch) {
+        _hasTriedInitialFetch = true;
         _fetchOrders();
       }
     } catch (e) {
       _logDebug('ReportRepository not available: $e');
-      // Still try to fetch from remote datasource
-      if (mounted) {
+      // Still try to fetch from remote datasource (only once)
+      if (mounted && !_hasTriedInitialFetch) {
+        _hasTriedInitialFetch = true;
         _fetchOrders();
       }
     }
@@ -517,17 +521,6 @@ class _ReportPageState extends State<ReportPage>
     // Initialize ReportRepository in build method where context is available
     _initializeReportRepository();
 
-    // Refresh orders when page becomes visible (useful for offline orders)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted &&
-          _reportRepository != null &&
-          orders.isEmpty &&
-          !isLoading) {
-        _logDebug('ReportPage: Refreshing orders after initialization');
-        _fetchOrders();
-      }
-    });
-
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 6, right: 6),
       child: Scaffold(
@@ -553,6 +546,8 @@ class _ReportPageState extends State<ReportPage>
                             if (!isOnline) {
                               setState(() {
                                 isOnline = true;
+                                _hasTriedInitialFetch =
+                                    false; // Reset flag when switching tabs
                               });
                               // Refresh orders when switching to online tab
                               _fetchOrders();
@@ -585,6 +580,8 @@ class _ReportPageState extends State<ReportPage>
                             if (isOnline) {
                               setState(() {
                                 isOnline = false;
+                                _hasTriedInitialFetch =
+                                    false; // Reset flag when switching tabs
                               });
                               // Refresh orders when switching to offline tab
                               _fetchOrders();
@@ -923,7 +920,7 @@ class _ReportPageState extends State<ReportPage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Rp ${NumberFormat('#,###').format((double.tryParse(order.totalAmount ?? '0') ?? 0).toInt())}",
+                          "Rp ${NumberFormat('#,###').format(AmountParser.parse(order.totalAmount))}",
                           style: TextStyle(
                               color: Colors.black,
                               fontSize: 20,

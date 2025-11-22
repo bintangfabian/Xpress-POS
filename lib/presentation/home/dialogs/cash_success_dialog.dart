@@ -129,89 +129,56 @@ class CashSuccessDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        Row(
-          children: [
-            Expanded(
-              child: Button.outlined(
-                label: 'Selesai',
-                textColor: AppColors.grey,
-                color: AppColors.greyLight,
-                borderColor: AppColors.grey,
-                fontWeight: FontWeight.w600,
-                onPressed: () async {
-                  // Submit order to server (or save locally if offline)
-                  if (onSubmitOrder != null) {
-                    final success = await onSubmitOrder!();
-                    if (!success) {
-                      // Order saved locally but failed to sync - show info message
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Order tersimpan lokal. Akan disinkronkan saat online.'),
-                          backgroundColor: AppColors.warning,
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
-                    } else {
-                      // Order saved successfully (locally and/or synced)
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Order berhasil disimpan'),
-                          backgroundColor: AppColors.success,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  }
+        // Only show "Selesai" button - order & payment already created, receipt already printed
+        Button.filled(
+          label: 'Selesai',
+          color: AppColors.success,
+          fontWeight: FontWeight.w600,
+          onPressed: () async {
+            // Submit order to server (if not already submitted)
+            if (onSubmitOrder != null) {
+              final success = await onSubmitOrder!();
+              if (!success) {
+                // Order saved locally but failed to sync - show info message
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Order tersimpan lokal. Akan disinkronkan saat online.'),
+                    backgroundColor: AppColors.warning,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            }
 
-                  // Save to local history
-                  final id = await OrderHistoryLocalDatasource.instance
-                      .getCurrentOrderId();
-                  await OrderHistoryLocalDatasource.instance.addHistory({
-                    'orderId': id,
-                    'total': total,
-                    'change': change,
-                    'method': 'Cash',
-                    'time': now.toIso8601String(),
-                    'orderType': normalizeOperationMode(orderType),
-                    'tableNumber': tableNumber,
-                  });
-                  await OrderHistoryLocalDatasource.instance.incrementOrderId();
+            // Save to local history
+            final id =
+                await OrderHistoryLocalDatasource.instance.getCurrentOrderId();
+            await OrderHistoryLocalDatasource.instance.addHistory({
+              'orderId': id,
+              'total': total,
+              'change': change,
+              'method': 'Cash',
+              'time': now.toIso8601String(),
+              'orderType': normalizeOperationMode(orderType),
+              'tableNumber': tableNumber,
+            });
+            await OrderHistoryLocalDatasource.instance.incrementOrderId();
 
-                  // reset checkout
-                  // ignore: use_build_context_synchronously
-                  context
-                      .read<CheckoutBloc>()
-                      .add(const CheckoutEvent.clearOrder());
+            // reset checkout
+            // ignore: use_build_context_synchronously
+            context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
 
-                  // navigate home, reset table by not passing it
-                  // ignore: use_build_context_synchronously
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                        builder: (_) => const DashboardPage(initialIndex: 0)),
-                    (route) => false,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Button.filled(
-                color: AppColors.success,
-                fontWeight: FontWeight.w600,
-                label: 'Cetak Struk',
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cetak struk (coming soon)')),
-                  );
-                },
-              ),
-            ),
-          ],
-        )
+            // navigate home, reset table by not passing it
+            // ignore: use_build_context_synchronously
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                  builder: (_) => const DashboardPage(initialIndex: 0)),
+              (route) => false,
+            );
+          },
+        ),
       ],
     );
   }

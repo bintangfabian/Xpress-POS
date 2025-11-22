@@ -4,10 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
+import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
+import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/store_local_datasource.dart';
+import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
+import 'package:xpress/presentation/home/models/product_quantity.dart';
+import 'package:xpress/data/models/response/product_response_model.dart'
+    as product_model;
 import 'package:intl/intl.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 
 class TransactionDetailPage extends StatefulWidget {
   final ItemOrder? order;
@@ -24,12 +32,52 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
   ItemOrder? _order;
   bool _isLoading = true;
   String? _errorMessage;
+  int? _calculatedTaxAmount;
 
   void _logDebug(String message) {
     assert(() {
       developer.log(message, name: 'TransactionDetailPage');
       return true;
     }());
+  }
+
+  /// Calculate tax amount from subtotal and store tax rate
+  /// If taxAmount from order is null or 0, calculate from store settings
+  Future<void> _calculateTaxAmount() async {
+    if (_order == null) {
+      setState(() => _calculatedTaxAmount = 0);
+      return;
+    }
+
+    // First, try to use taxAmount from order
+    final taxAmountFromOrder = AmountParser.parse(_order!.taxAmount);
+    if (taxAmountFromOrder > 0) {
+      setState(() => _calculatedTaxAmount = taxAmountFromOrder);
+      return;
+    }
+
+    // If taxAmount is 0 or null, calculate from store settings
+    final subtotal = AmountParser.parse(_order!.subtotal);
+    if (subtotal <= 0) {
+      setState(() => _calculatedTaxAmount = 0);
+      return;
+    }
+
+    try {
+      final storeDatasource = StoreLocalDatasource();
+      final store = await storeDatasource.getStoreDetail();
+      final taxRate = store?.settings?.taxRate ?? 0.0;
+
+      if (taxRate > 0) {
+        final calculatedTax = (subtotal * (taxRate / 100)).floor();
+        setState(() => _calculatedTaxAmount = calculatedTax);
+      } else {
+        setState(() => _calculatedTaxAmount = 0);
+      }
+    } catch (e) {
+      _logDebug('Error calculating tax from store settings: $e');
+      setState(() => _calculatedTaxAmount = 0);
+    }
   }
 
   @override
@@ -47,6 +95,9 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     if (widget.order != null) {
       _order = widget.order;
       _isLoading = false;
+
+      // Calculate tax amount
+      _calculateTaxAmount();
 
       // Check if we need to fetch more detailed data
       if (_order!.totalAmount == null ||
@@ -86,6 +137,8 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             _order = order;
             _isLoading = false;
           });
+          // Calculate tax amount after order is loaded
+          _calculateTaxAmount();
         },
       );
     } catch (e) {
@@ -298,7 +351,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 child: Column(
                   children: [
                     Text(
-                      'Rp ${NumberFormat('#,###').format((double.tryParse(_order?.totalAmount ?? '0') ?? 0).toInt())}',
+                      'Rp ${NumberFormat('#,###').format(AmountParser.parse(_order?.totalAmount))}',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -362,21 +415,86 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 label: 'Refund',
               ),
               const SizedBox(height: 8),
-              // Print receipt button (outlined primary) using shared Button
-              Button.outlined(
-                onPressed: () {},
-                height: 48,
-                borderRadius: 8,
-                color: AppColors.primaryLight,
-                borderColor: AppColors.primary,
-                textColor: AppColors.primary,
+              // Print receipt button using PrintButton
+              PrintButton(
+                label: 'Cetak Struk',
+                color: AppColors.primary,
                 icon: Assets.icons.printer.svg(
                   colorFilter:
-                      ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+                      const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                   height: 20,
                   width: 20,
                 ),
-                label: 'Cetak Struk',
+                height: 48,
+                onPrint: () async {
+                  if (_order == null) {
+                    throw Exception('Data order tidak tersedia');
+                  }
+
+                  // Convert OrderItem to ProductQuantity
+                  final products = <ProductQuantity>[];
+                  if (_order!.items != null) {
+                    for (var item in _order!.items!) {
+                      // Parse unitPrice using AmountParser for robust parsing
+                      final unitPriceInt = AmountParser.parse(item.unitPrice);
+                      final product = product_model.Product(
+                        id: item.productId,
+                        productId: item.productId,
+                        name: item.productName ?? 'Unknown',
+                        price: unitPriceInt
+                            .toString(), // Use parsed integer as string
+                      );
+                      products.add(ProductQuantity(
+                        product: product,
+                        quantity: item.quantity ?? 0,
+                      ));
+                    }
+                  }
+
+                  // Get payment info - use AmountParser for robust parsing
+                  final paymentMethod = _getPaymentMethod();
+                  final paymentAmount = _order!.payments?.isNotEmpty == true
+                      ? AmountParser.parse(_order!.payments!.first.amount)
+                      : AmountParser.parse(_order!.totalAmount);
+                  final totalPrice = AmountParser.parse(_order!.totalAmount);
+                  final kembalian = paymentAmount - totalPrice;
+                  // Use calculated tax amount if available, otherwise use from order
+                  final tax = _calculatedTaxAmount ??
+                      AmountParser.parse(_order!.taxAmount);
+                  final discount = AmountParser.parse(_order!.discountAmount);
+                  final subTotal = AmountParser.parse(_order!.subtotal);
+                  final totalQty = _order!.items?.fold<int>(
+                          0, (sum, item) => sum + (item.quantity ?? 0)) ??
+                      0;
+                  final serviceCharge =
+                      AmountParser.parse(_order!.serviceCharge);
+
+                  final sizeReceipt =
+                      await AuthLocalDataSource().getSizeReceipt();
+                  final paperSize = int.tryParse(sizeReceipt) != null
+                      ? int.parse(sizeReceipt)
+                      : 58;
+
+                  // Get operation mode from order
+                  final operationMode = _order!.operationMode ?? 'dine_in';
+
+                  return await PrintDataoutputs.instance.printOrderV3(
+                    products,
+                    totalQty,
+                    totalPrice,
+                    paymentMethod == 'Tunai' ? 'Cash' : 'QRIS',
+                    paymentAmount,
+                    kembalian,
+                    subTotal, // ✅ Parameter ke-7: subTotal
+                    discount, // ✅ Parameter ke-8: discount
+                    tax, // ✅ Parameter ke-9: pajak
+                    serviceCharge,
+                    _order!.user?.name ?? 'Kasir',
+                    _order!.member?.name ?? _order!.table?.name ?? 'Customer',
+                    paperSize,
+                    operationMode: operationMode,
+                  );
+                },
               ),
               const SizedBox(height: 32),
               const Text(
@@ -409,7 +527,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                                     fontSize: 20, color: Colors.black)),
                             SizedBox(width: 12),
                             Text(
-                                'Rp ${NumberFormat('#,###').format((double.tryParse(item.totalPrice ?? '0') ?? 0).toInt())}',
+                                'Rp ${NumberFormat('#,###').format(AmountParser.parse(item.totalPrice))}',
                                 style: TextStyle(
                                     fontSize: 20, color: Colors.black)),
                           ],
@@ -429,23 +547,27 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                   height: 2, width: double.infinity, color: AppColors.primary),
               const SizedBox(height: 10),
               _rowSpaceBetween('Subtotal',
-                  'Rp ${NumberFormat('#,###').format((double.tryParse(_order?.subtotal ?? '0') ?? 0).toInt())}',
+                  'Rp ${NumberFormat('#,###').format(AmountParser.parse(_order?.subtotal))}',
                   isBold: true),
               const SizedBox(height: 8),
-              _rowSpaceBetween('Pajak',
-                  'Rp ${NumberFormat('#,###').format((double.tryParse(_order?.taxAmount ?? '0') ?? 0).toInt())}'),
+              _rowSpaceBetween(
+                'Pajak',
+                _calculatedTaxAmount != null
+                    ? 'Rp ${NumberFormat('#,###').format(_calculatedTaxAmount)}'
+                    : 'Rp ${NumberFormat('#,###').format(AmountParser.parse(_order?.taxAmount))}',
+              ),
               const SizedBox(height: 8),
               _rowSpaceBetween('Diskon',
-                  '-Rp ${NumberFormat('#,###').format((double.tryParse(_order?.discountAmount ?? '0') ?? 0).toInt())}'),
+                  '-Rp ${NumberFormat('#,###').format(AmountParser.parse(_order?.discountAmount))}'),
               const SizedBox(height: 8),
               _rowSpaceBetween('Service Charge',
-                  'Rp ${NumberFormat('#,###').format((double.tryParse(_order?.serviceCharge ?? '0') ?? 0).toInt())}'),
+                  'Rp ${NumberFormat('#,###').format(AmountParser.parse(_order?.serviceCharge))}'),
               const SizedBox(height: 10),
               Container(
                   height: 2, width: double.infinity, color: AppColors.primary),
               const SizedBox(height: 10),
               _rowSpaceBetween('Total Belanja',
-                  'Rp ${NumberFormat('#,###').format((double.tryParse(_order?.totalAmount ?? '0') ?? 0).toInt())}',
+                  'Rp ${NumberFormat('#,###').format(AmountParser.parse(_order?.totalAmount))}',
                   isBold: true),
             ],
           ),

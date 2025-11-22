@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/printer_local_datasource.dart';
+import 'package:xpress/core/services/printer_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 import '../../../core/constants/colors.dart';
+import '../models/printer_model.dart';
 
 class ManagePrinterPage extends StatefulWidget {
   const ManagePrinterPage({super.key});
@@ -39,6 +42,10 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
 
   bool connected = false;
   List<BluetoothInfo> items = [];
+  List<PrinterModel> savedPrinters = [];
+  PrinterModel? defaultPrinter;
+  final PrinterLocalDatasource _printerDatasource = PrinterLocalDatasource();
+  final PrinterService _printerService = PrinterService();
   final String _selectSize = "2";
   final _txtText = TextEditingController(text: "Hello developer");
 
@@ -225,6 +232,106 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
         selectedSize = int.parse(savedSize);
       });
     }
+    await loadSavedPrinters();
+  }
+
+  Future<void> loadSavedPrinters() async {
+    final printers = await _printerDatasource.getPrinters();
+    final defaultPrinter = await _printerDatasource.getDefaultPrinter();
+    if (mounted) {
+      setState(() {
+        savedPrinters = printers;
+        this.defaultPrinter = defaultPrinter;
+      });
+    }
+  }
+
+  Future<void> savePrinter(BluetoothInfo bluetoothInfo) async {
+    final sizeReceipt = await AuthLocalDataSource().getSizeReceipt();
+    final paperSize = sizeReceipt.isNotEmpty ? sizeReceipt : '58';
+
+    final printer = PrinterModel(
+      name: bluetoothInfo.name,
+      macAddress: bluetoothInfo.macAdress,
+      size: paperSize,
+      type: PrinterType.bluetooth,
+    );
+
+    final success = await _printerDatasource.addPrinter(printer);
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Printer berhasil disimpan'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        await loadSavedPrinters();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Printer sudah tersimpan sebelumnya'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> setAsDefaultPrinter(PrinterModel printer) async {
+    await _printerDatasource.setDefaultPrinter(printer);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Printer default berhasil diatur'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await loadSavedPrinters();
+    }
+  }
+
+  Future<void> deletePrinter(PrinterModel printer) async {
+    final success = await _printerDatasource.removePrinter(printer);
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Printer berhasil dihapus'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        await loadSavedPrinters();
+      }
+    }
+  }
+
+  Future<void> connectToSavedPrinter(PrinterModel printer) async {
+    setState(() {
+      connected = false;
+    });
+
+    final success = await _printerService.connectToPrinter(printer);
+    if (mounted) {
+      setState(() {
+        connected = success;
+      });
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Berhasil terhubung ke printer'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal terhubung ke printer'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -282,9 +389,8 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                             status: 'READY',
                             statusColor: AppColors.success,
                             actionLabel: 'Tambah',
-                            onAction: () {
-                              macName = e.macAdress;
-                              setState(() {});
+                            onAction: () async {
+                              await savePrinter(e);
                             },
                           )),
                   if (items.isEmpty)
@@ -304,39 +410,46 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
 
             const SpaceHeight(16),
 
-            // Printer Tersimpan (contoh)
+            // Printer Tersimpan
             _section(
-              title: 'Printer Tersimpan (2)',
-              child: Column(
-                children: [
-                  _SavedPrinterCard(
-                    name: 'Canon PIXMA MP287',
-                    subtitle: 'Bluetooth - Default Printer',
-                    badgeText: 'AKTIF',
-                    badgeColor: AppColors.success,
-                    onConnect: () {},
-                    onDelete: () {},
-                  ),
-                  const SpaceHeight(12),
-                  _SavedPrinterCard(
-                    name: 'Canon PIXMA MP287',
-                    subtitle: 'Bluetooth - Backup Printer',
-                    badgeText: 'STANDBY',
-                    badgeColor: AppColors.warning,
-                    onConnect: () {},
-                    onDelete: () {},
-                  ),
-                  const SpaceHeight(12),
-                  Button.outlined(
-                    onPressed: () {},
-                    height: 48,
-                    color: AppColors.greyLight,
-                    borderColor: AppColors.grey,
-                    textColor: AppColors.black,
-                    label: 'Kelola Semua',
-                  ),
-                ],
-              ),
+              title: 'Printer Tersimpan (${savedPrinters.length})',
+              child: savedPrinters.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text(
+                        'Belum ada printer yang disimpan',
+                        style: TextStyle(color: AppColors.grey),
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        ...savedPrinters.map((printer) {
+                          final isDefault = defaultPrinter != null &&
+                              ((printer.type == PrinterType.bluetooth &&
+                                      defaultPrinter!.macAddress ==
+                                          printer.macAddress) ||
+                                  (printer.type == PrinterType.wifi &&
+                                      defaultPrinter!.ipAddress ==
+                                          printer.ipAddress));
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _SavedPrinterCard(
+                              name: printer.name,
+                              subtitle:
+                                  '${printer.type.value} - ${printer.size} mm',
+                              badgeText: isDefault ? 'DEFAULT' : 'STANDBY',
+                              badgeColor: isDefault
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                              isDefault: isDefault,
+                              onSetDefault: () => setAsDefaultPrinter(printer),
+                              onConnect: () => connectToSavedPrinter(printer),
+                              onDelete: () => deletePrinter(printer),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
             ),
 
             const SpaceHeight(16),
@@ -363,14 +476,16 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                         label: const Text('58 mm'),
                         selected: selectedSize == 58,
                         onSelected: (selected) {
-                          setState(() => selectedSize = selected ? 58 : selectedSize);
+                          setState(() =>
+                              selectedSize = selected ? 58 : selectedSize);
                         },
                       ),
                       ChoiceChip(
                         label: const Text('80 mm'),
                         selected: selectedSize == 80,
                         onSelected: (selected) {
-                          setState(() => selectedSize = selected ? 80 : selectedSize);
+                          setState(() =>
+                              selectedSize = selected ? 80 : selectedSize);
                         },
                       ),
                     ],
@@ -530,15 +645,19 @@ class _SavedPrinterCard extends StatelessWidget {
   final String subtitle;
   final String badgeText;
   final Color badgeColor;
+  final bool isDefault;
   final VoidCallback onConnect;
   final VoidCallback onDelete;
+  final VoidCallback? onSetDefault;
   const _SavedPrinterCard({
     required this.name,
     required this.subtitle,
     required this.badgeText,
     required this.badgeColor,
+    this.isDefault = false,
     required this.onConnect,
     required this.onDelete,
+    this.onSetDefault,
   });
 
   @override
@@ -583,8 +702,19 @@ class _SavedPrinterCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 120,
+          if (!isDefault && onSetDefault != null)
+            Flexible(
+              child: Button.outlined(
+                onPressed: onSetDefault!,
+                height: 40,
+                color: AppColors.white,
+                borderColor: AppColors.grey,
+                textColor: AppColors.black,
+                label: 'Set Default',
+              ),
+            ),
+          if (!isDefault && onSetDefault != null) const SizedBox(width: 8),
+          Flexible(
             child: Button.filled(
               onPressed: onConnect,
               height: 40,
@@ -592,8 +722,7 @@ class _SavedPrinterCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 100,
+          Flexible(
             child: Button.filled(
               onPressed: onDelete,
               height: 40,

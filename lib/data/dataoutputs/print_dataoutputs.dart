@@ -1,14 +1,18 @@
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
+import 'package:xpress/core/assets/assets.gen.dart';
+import 'package:xpress/data/datasources/store_local_datasource.dart';
 import 'package:xpress/data/models/response/cash_session_response_model.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
 import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/utils/amount_parser.dart';
 
 class PrintDataoutputs {
   PrintDataoutputs._init();
@@ -488,41 +492,110 @@ class PrintDataoutputs {
     int serviceCharge,
     String namaKasir,
     String customerName,
-    int paper,
-  ) async {
+    int paper, {
+    String? operationMode,
+  }) async {
     List<int> bytes = [];
 
     final profile = await CapabilityProfile.load();
     final generator =
         Generator(paper == 58 ? PaperSize.mm58 : PaperSize.mm80, profile);
 
-    final ByteData data = await rootBundle.load('assets/logo/mylogo.png');
-    final Uint8List bytesData = data.buffer.asUint8List();
-    final img.Image? orginalImage = img.decodeImage(bytesData);
     bytes += generator.reset();
 
-    if (orginalImage != null) {
-      final img.Image grayscalledImage = img.grayscale(orginalImage);
-      final img.Image resizedImage =
-          img.copyResize(grayscalledImage, width: 240);
-      bytes += generator.imageRaster(resizedImage, align: PosAlign.center);
-      bytes += generator.feed(3);
+    // Load logo using assets generator
+    try {
+      final ByteData data = await rootBundle.load(Assets.logo.xWhite.path);
+      final Uint8List bytesData = data.buffer.asUint8List();
+      final img.Image? originalImage = img.decodeImage(bytesData);
+
+      if (originalImage != null) {
+        developer.log(
+            'Logo decoded successfully: ${originalImage.width}x${originalImage.height}',
+            name: 'PrintDataoutputs');
+
+        // Resize based on paper size - make it smaller for better compatibility
+        // For 58mm paper, max width should be around 384 pixels (48mm * 8 pixels/mm)
+        // For 80mm paper, max width should be around 576 pixels (72mm * 8 pixels/mm)
+        final int maxWidth = paper == 58 ? 200 : 300;
+        final img.Image resizedImage = img.copyResize(
+          originalImage,
+          width: maxWidth,
+          maintainAspect: true,
+        );
+        developer.log(
+            'Logo resized to: ${resizedImage.width}x${resizedImage.height}',
+            name: 'PrintDataoutputs');
+
+        // Convert to grayscale for thermal printer compatibility
+        final img.Image grayscaleImage = img.grayscale(resizedImage);
+
+        // Center the image before printing
+        bytes += generator.feed(1);
+
+        // Use imageRaster for logo printing - ensure proper alignment
+        bytes += generator.imageRaster(grayscaleImage, align: PosAlign.center);
+        developer.log('Logo added to print bytes', name: 'PrintDataoutputs');
+
+        bytes += generator.feed(2);
+      } else {
+        developer.log('Logo image is null after decode',
+            name: 'PrintDataoutputs');
+        print('Logo image is null after decode');
+      }
+    } catch (e, stackTrace) {
+      // If logo fails to load, just continue without it
+      developer.log('Failed to load logo: $e\n$stackTrace',
+          name: 'PrintDataoutputs');
+      print('Failed to load logo: $e');
     }
 
-    bytes += generator.text('Resto Code With Bahri',
-        styles: const PosStyles(
+    // Get store data
+    final storeDatasource = StoreLocalDatasource();
+    final store = await storeDatasource.getStoreDetail();
+
+    // Store name - adjust size based on paper width
+    final storeName = store?.name ?? 'Resto Code With Bahri';
+    bytes += generator.text(storeName,
+        styles: PosStyles(
           bold: true,
           align: PosAlign.center,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          height: paper == 58 ? PosTextSize.size1 : PosTextSize.size2,
+          width: paper == 58 ? PosTextSize.size1 : PosTextSize.size2,
         ));
 
-    bytes += generator.text('Jl. Kebun Raya No. 1, Sinduhadi, Ngaglik',
-        styles: const PosStyles(bold: false, align: PosAlign.center));
-    bytes += generator.text('Kab. Sleman, DI Yogyakarta',
-        styles: const PosStyles(bold: false, align: PosAlign.center));
-    bytes += generator.text('085640899224',
-        styles: const PosStyles(bold: false, align: PosAlign.center));
+    // Store address - ensure center alignment (no spacing)
+    if (store?.address != null && store!.address!.isNotEmpty) {
+      bytes += generator.text(
+        store.address!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
+    }
+
+    // Store phone - ensure center alignment (no spacing)
+    if (store?.phone != null && store!.phone!.isNotEmpty) {
+      bytes += generator.text(
+        store.phone!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
+    }
+
+    // Store email (optional) - ensure center alignment (no spacing)
+    if (store?.email != null && store!.email!.isNotEmpty) {
+      bytes += generator.text(
+        store.email!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
+    }
 
     bytes += generator.text(
         paper == 80
@@ -596,7 +669,18 @@ class PrintDataoutputs {
             ? '------------------------------------------------'
             : '--------------------------------',
         styles: const PosStyles(bold: false, align: PosAlign.center));
-    bytes += generator.text('Dine In',
+
+    // Operation mode - dynamic based on order
+    String operationModeText = 'Dine In';
+    if (operationMode != null) {
+      final mode = operationMode.toLowerCase().trim();
+      if (mode == 'takeaway' || mode == 'takeout') {
+        operationModeText = 'Take Away';
+      } else if (mode == 'dine_in' || mode == 'dinein') {
+        operationModeText = 'Dine In';
+      }
+    }
+    bytes += generator.text(operationModeText,
         styles: const PosStyles(bold: true, align: PosAlign.center));
     bytes += generator.text(
         paper == 80
@@ -604,6 +688,10 @@ class PrintDataoutputs {
             : '--------------------------------',
         styles: const PosStyles(bold: false, align: PosAlign.center));
     for (final product in products) {
+      // Calculate price correctly using AmountParser for robust parsing
+      final unitPrice = AmountParser.parse(product.product.price);
+      final totalPrice = unitPrice * product.quantity;
+
       bytes += generator.row([
         PosColumn(
           text: '${product.quantity} x ${product.product.name}',
@@ -611,8 +699,7 @@ class PrintDataoutputs {
           styles: const PosStyles(bold: true, align: PosAlign.left),
         ),
         PosColumn(
-          text: '${product.product.price!.toIntegerFromText * product.quantity}'
-              .currencyFormatRpV2,
+          text: totalPrice.currencyFormatRpV2,
           width: 4,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
@@ -624,19 +711,15 @@ class PrintDataoutputs {
             : '--------------------------------',
         styles: const PosStyles(bold: false, align: PosAlign.center));
 
-    final subTotalPrice = products.fold<int>(
-        0,
-        (previousValue, element) =>
-            previousValue +
-            (element.product.price!.toIntegerFromText * element.quantity));
+    // Use subTotal parameter that was passed (already calculated correctly)
     bytes += generator.row([
       PosColumn(
-        text: 'Subtotal $totalQuantity Product',
+        text: 'Subtotal',
         width: 6,
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: subTotalPrice.currencyFormatRpV2,
+        text: subTotal.currencyFormatRpV2,
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),
@@ -662,7 +745,7 @@ class PrintDataoutputs {
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: '${(totalPrice * 0.1).ceil()}'.currencyFormatRpV2,
+        text: pajak.currencyFormatRpV2,
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),
@@ -674,7 +757,7 @@ class PrintDataoutputs {
         styles: const PosStyles(align: PosAlign.left),
       ),
       PosColumn(
-        text: '${(totalPrice * 0.05).ceil()}'.currencyFormatRpV2,
+        text: serviceCharge.currencyFormatRpV2,
         width: 6,
         styles: const PosStyles(align: PosAlign.right),
       ),
@@ -691,7 +774,7 @@ class PrintDataoutputs {
         styles: const PosStyles(bold: true, align: PosAlign.left),
       ),
       PosColumn(
-        text: '$totalPrice'.currencyFormatRpV2,
+        text: totalPrice.currencyFormatRpV2,
         width: 6,
         styles: const PosStyles(bold: true, align: PosAlign.right),
       ),
@@ -782,20 +865,53 @@ class PrintDataoutputs {
 
     bytes += generator.reset();
 
-    bytes += generator.text('Order Checker',
-        styles: const PosStyles(
+    // Load logo using assets generator
+    try {
+      final ByteData data = await rootBundle.load(Assets.logo.xWhite.path);
+      final Uint8List bytesData = data.buffer.asUint8List();
+      final img.Image? originalImage = img.decodeImage(bytesData);
+
+      if (originalImage != null) {
+        // Resize based on paper size
+        final int logoWidth = paper == 58 ? 150 : 200; // Smaller for 58mm paper
+        final img.Image resizedImage = img.copyResize(
+          originalImage,
+          width: logoWidth,
+          maintainAspect: true,
+        );
+
+        // Convert to grayscale for thermal printer compatibility
+        final img.Image grayscaleImage = img.grayscale(resizedImage);
+
+        // Use imageRaster with proper alignment
+        bytes += generator.imageRaster(grayscaleImage, align: PosAlign.center);
+        bytes += generator.feed(2);
+      }
+    } catch (e) {
+      // If logo fails to load, just continue without it
+      print('Failed to load logo: $e');
+    }
+
+    // Get store data
+    final storeDatasource = StoreLocalDatasource();
+    final store = await storeDatasource.getStoreDetail();
+
+    // Store name - adjust size based on paper width
+    final storeName = store?.name ?? 'Order Checker';
+    bytes += generator.text(storeName,
+        styles: PosStyles(
           bold: true,
           align: PosAlign.center,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          height: paper == 58 ? PosTextSize.size1 : PosTextSize.size2,
+          width: paper == 58 ? PosTextSize.size1 : PosTextSize.size2,
         ));
     bytes += generator.feed(1);
-    bytes += generator.text(tableNumber.toString(),
-        styles: const PosStyles(
+    bytes += generator.text('Table $tableNumber',
+        styles: PosStyles(
           bold: true,
           align: PosAlign.center,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          height: paper == 58 ? PosTextSize.size1 : PosTextSize.size2,
+          width: paper == 58 ? PosTextSize.size1 : PosTextSize.size2,
         ));
     bytes += generator.feed(1);
 
@@ -900,25 +1016,111 @@ class PrintDataoutputs {
     final generator =
         Generator(paperSize == 58 ? PaperSize.mm58 : PaperSize.mm80, profile);
 
-    final ByteData data = await rootBundle.load('assets/logo/mylogo.png');
-    final Uint8List bytesData = data.buffer.asUint8List();
-    final img.Image? orginalImage = img.decodeImage(bytesData);
     bytes += generator.reset();
 
-    if (orginalImage != null) {
-      final img.Image grayscalledImage = img.grayscale(orginalImage);
-      final img.Image resizedImage =
-          img.copyResize(grayscalledImage, width: 240);
-      bytes += generator.imageRaster(resizedImage, align: PosAlign.center);
-      bytes += generator.feed(2);
+    // Load logo using assets generator
+    try {
+      developer.log('Loading logo from: ${Assets.logo.xWhite.path}',
+          name: 'PrintDataoutputs');
+      final ByteData data = await rootBundle.load(Assets.logo.xWhite.path);
+      final Uint8List bytesData = data.buffer.asUint8List();
+      developer.log('Logo bytes loaded: ${bytesData.length} bytes',
+          name: 'PrintDataoutputs');
+
+      final img.Image? originalImage = img.decodeImage(bytesData);
+
+      if (originalImage != null) {
+        developer.log(
+            'Logo decoded successfully: ${originalImage.width}x${originalImage.height}',
+            name: 'PrintDataoutputs');
+
+        // Resize based on paper size - make it smaller for better compatibility
+        final int maxWidth = paperSize == 58 ? 200 : 300;
+        final img.Image resizedImage = img.copyResize(
+          originalImage,
+          width: maxWidth,
+          maintainAspect: true,
+        );
+        developer.log(
+            'Logo resized to: ${resizedImage.width}x${resizedImage.height}',
+            name: 'PrintDataoutputs');
+
+        // Convert to grayscale for thermal printer compatibility
+        final img.Image grayscaleImage = img.grayscale(resizedImage);
+
+        // Center the image before printing
+        bytes += generator.feed(1);
+
+        // Use imageRaster for logo printing - ensure proper alignment
+        bytes += generator.imageRaster(grayscaleImage, align: PosAlign.center);
+        developer.log('Logo added to print bytes', name: 'PrintDataoutputs');
+
+        bytes += generator.feed(2);
+      } else {
+        developer.log('Logo image is null after decode',
+            name: 'PrintDataoutputs');
+        print('Logo image is null after decode');
+      }
+    } catch (e, stackTrace) {
+      // If logo fails to load, just continue without it
+      developer.log('Failed to load logo: $e\n$stackTrace',
+          name: 'PrintDataoutputs');
+      print('Failed to load logo: $e');
+    }
+
+    // Get store data
+    final storeDatasource = StoreLocalDatasource();
+    final store = await storeDatasource.getStoreDetail();
+
+    // Store name - adjust size based on paper width - ensure center
+    final storeName = store?.name ?? 'LAPORAN KAS HARIAN';
+    bytes += generator.text(storeName,
+        styles: PosStyles(
+          bold: true,
+          align: PosAlign.center,
+          height: paperSize == 58 ? PosTextSize.size1 : PosTextSize.size2,
+          width: paperSize == 58 ? PosTextSize.size1 : PosTextSize.size2,
+        ));
+
+    // Store address - ensure center alignment (no spacing)
+    if (store?.address != null && store!.address!.isNotEmpty) {
+      bytes += generator.text(
+        store.address!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
+    }
+
+    // Store phone - ensure center alignment (no spacing)
+    if (store?.phone != null && store!.phone!.isNotEmpty) {
+      bytes += generator.text(
+        store.phone!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
+    }
+
+    // Store email (optional) - ensure center alignment (no spacing)
+    if (store?.email != null && store!.email!.isNotEmpty) {
+      bytes += generator.text(
+        store.email!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
     }
 
     bytes += generator.text('LAPORAN KAS HARIAN',
-        styles: const PosStyles(
+        styles: PosStyles(
           bold: true,
           align: PosAlign.center,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          height: paperSize == 58 ? PosTextSize.size1 : PosTextSize.size1,
+          width: paperSize == 58 ? PosTextSize.size1 : PosTextSize.size1,
         ));
 
     bytes += generator.text(
@@ -942,23 +1144,7 @@ class PrintDataoutputs {
       ),
     ]);
 
-    // Session ID
-    if (session.id != null) {
-      bytes += generator.row([
-        PosColumn(
-          text: 'ID Sesi',
-          width: 6,
-          styles: const PosStyles(align: PosAlign.left),
-        ),
-        PosColumn(
-          text: session.id!,
-          width: 6,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
-      ]);
-    }
-
-    // Dates
+    // Dates and Duration
     if (session.openedAt != null) {
       bytes += generator.row([
         PosColumn(
@@ -983,6 +1169,32 @@ class PrintDataoutputs {
         ),
         PosColumn(
           text: DateFormat('dd/MM/yyyy HH:mm').format(session.closedAt!),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+    }
+
+    // Duration (from openedAt to closedAt in hours)
+    if (session.openedAt != null && session.closedAt != null) {
+      final duration = session.closedAt!.difference(session.openedAt!);
+      final hours = duration.inHours;
+      final minutes = duration.inMinutes % 60;
+      String durationText;
+      if (hours > 0) {
+        durationText = minutes > 0 ? '$hours jam $minutes menit' : '$hours jam';
+      } else {
+        durationText = '$minutes menit';
+      }
+
+      bytes += generator.row([
+        PosColumn(
+          text: 'Durasi',
+          width: 6,
+          styles: const PosStyles(align: PosAlign.left),
+        ),
+        PosColumn(
+          text: durationText,
           width: 6,
           styles: const PosStyles(align: PosAlign.right),
         ),

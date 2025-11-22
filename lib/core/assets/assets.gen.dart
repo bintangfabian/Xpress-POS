@@ -249,139 +249,59 @@ class $AssetsImagesGen {
   AssetGenImage get bgLogin =>
       const AssetGenImage('assets/images/bg-login.png');
 
-  /// File path: assets/images/drink1.png
-  AssetGenImage get drink1 => const AssetGenImage('assets/images/drink1.png');
-
-  /// File path: assets/images/drink2.png
-  AssetGenImage get drink2 => const AssetGenImage('assets/images/drink2.png');
-
-  /// File path: assets/images/drink3.png
-  AssetGenImage get drink3 => const AssetGenImage('assets/images/drink3.png');
-
-  /// File path: assets/images/drink4.png
-  AssetGenImage get drink4 => const AssetGenImage('assets/images/drink4.png');
-
-  /// File path: assets/images/drink5.png
-  AssetGenImage get drink5 => const AssetGenImage('assets/images/drink5.png');
-
-  /// File path: assets/images/drink6.png
-  AssetGenImage get drink6 => const AssetGenImage('assets/images/drink6.png');
-
-  /// File path: assets/images/drink7.png
-  AssetGenImage get drink7 => const AssetGenImage('assets/images/drink7.png');
-
-  /// File path: assets/images/logo.png
-  AssetGenImage get logo => const AssetGenImage('assets/images/logo.png');
-
-  /// File path: assets/images/manage_printer.png
-  AssetGenImage get managePrinter =>
-      const AssetGenImage('assets/images/manage_printer.png');
-
-  /// File path: assets/images/manage_product.png
-  AssetGenImage get manageProduct =>
-      const AssetGenImage('assets/images/manage_product.png');
-
-  /// File path: assets/images/manage_qr.png
-  AssetGenImage get manageQr =>
-      const AssetGenImage('assets/images/manage_qr.png');
-
-  /// File path: assets/images/menu1.png
-  AssetGenImage get menu1 => const AssetGenImage('assets/images/menu1.png');
-
-  /// File path: assets/images/menu10.png
-  AssetGenImage get menu10 => const AssetGenImage('assets/images/menu10.png');
-
-  /// File path: assets/images/menu11.png
-  AssetGenImage get menu11 => const AssetGenImage('assets/images/menu11.png');
-
-  /// File path: assets/images/menu12.png
-  AssetGenImage get menu12 => const AssetGenImage('assets/images/menu12.png');
-
-  /// File path: assets/images/menu13.png
-  AssetGenImage get menu13 => const AssetGenImage('assets/images/menu13.png');
-
-  /// File path: assets/images/menu14.png
-  AssetGenImage get menu14 => const AssetGenImage('assets/images/menu14.png');
-
-  /// File path: assets/images/menu2.png
-  AssetGenImage get menu2 => const AssetGenImage('assets/images/menu2.png');
-
-  /// File path: assets/images/menu3.png
-  AssetGenImage get menu3 => const AssetGenImage('assets/images/menu3.png');
-
-  /// File path: assets/images/menu4.png
-  AssetGenImage get menu4 => const AssetGenImage('assets/images/menu4.png');
-
-  /// File path: assets/images/menu5.png
-  AssetGenImage get menu5 => const AssetGenImage('assets/images/menu5.png');
-
-  /// File path: assets/images/menu6.png
-  AssetGenImage get menu6 => const AssetGenImage('assets/images/menu6.png');
-
-  /// File path: assets/images/menu7.png
-  AssetGenImage get menu7 => const AssetGenImage('assets/images/menu7.png');
-
-  /// File path: assets/images/menu8.png
-  AssetGenImage get menu8 => const AssetGenImage('assets/images/menu8.png');
-
-  /// File path: assets/images/product1.jpg
-  AssetGenImage get product1 =>
-      const AssetGenImage('assets/images/product1.jpg');
-
-  /// File path: assets/images/product2.jpg
-  AssetGenImage get product2 =>
-      const AssetGenImage('assets/images/product2.jpg');
-
-  /// File path: assets/images/product3.jpg
-  AssetGenImage get product3 =>
-      const AssetGenImage('assets/images/product3.jpg');
-
-  /// File path: assets/images/product4.jpg
-  AssetGenImage get product4 =>
-      const AssetGenImage('assets/images/product4.jpg');
-
   /// List of all assets
-  List<AssetGenImage> get values => [
-        bgLogin,
-        drink1,
-        drink2,
-        drink3,
-        drink4,
-        drink5,
-        drink6,
-        drink7,
-        logo,
-        managePrinter,
-        manageProduct,
-        manageQr,
-        menu1,
-        menu10,
-        menu11,
-        menu12,
-        menu13,
-        menu14,
-        menu2,
-        menu3,
-        menu4,
-        menu5,
-        menu6,
-        menu7,
-        menu8,
-        product1,
-        product2,
-        product3,
-        product4
-      ];
+  List<AssetGenImage> get values => [bgLogin];
 }
 
 class $AssetsLogoGen {
   const $AssetsLogoGen();
 
-  /// File path: assets/logo/mylogo.png
-  AssetGenImage get mylogo => const AssetGenImage('assets/logo/mylogo.png');
+  /// File path: assets/logo/X-(Black).png
+  AssetGenImage get xBlack => const AssetGenImage('assets/logo/X-(Black).png');
+
+  /// File path: assets/logo/X-(Colored).png
+  AssetGenImage get xColored =>
+      const AssetGenImage('assets/logo/X-(Colored).png');
+
+  /// File path: assets/logo/X-(White).png
+  AssetGenImage get xWhite => const AssetGenImage('assets/logo/X-(White).png');
+
+  /// File path: assets/logo/logo-1-(monochrome-black-ver).png
+  AssetGenImage get logo1MonochromeBlackVer =>
+      const AssetGenImage('assets/logo/logo-1-(monochrome-black-ver).png');
+
+  /// File path: assets/logo/logo-1-(monochrome-white-ver).png
+  AssetGenImage get logo1MonochromeWhiteVer =>
+      const AssetGenImage('assets/logo/logo-1-(monochrome-white-ver).png');
+
+  /// File path: assets/logo/logo-1-(ori-black-ver).png
+  AssetGenImage get logo1OriBlackVer =>
+      const AssetGenImage('assets/logo/logo-1-(ori-black-ver).png');
+
+  /// File path: assets/logo/logo-1-(ori-blue-ver).png
+  AssetGenImage get logo1OriBlueVer =>
+      const AssetGenImage('assets/logo/logo-1-(ori-blue-ver).png');
+
+  /// File path: assets/logo/logo-1-(ori-white-ver).png
+  AssetGenImage get logo1OriWhiteVer =>
+      const AssetGenImage('assets/logo/logo-1-(ori-white-ver).png');
+
+  /// File path: assets/logo/logo-aplikasi.png
+  AssetGenImage get logoAplikasi =>
+      const AssetGenImage('assets/logo/logo-aplikasi.png');
 
   /// List of all assets
-  List<AssetGenImage> get values => [mylogo];
+  List<AssetGenImage> get values => [
+        xBlack,
+        xColored,
+        xWhite,
+        logo1MonochromeBlackVer,
+        logo1MonochromeWhiteVer,
+        logo1OriBlackVer,
+        logo1OriBlueVer,
+        logo1OriWhiteVer,
+        logoAplikasi
+      ];
 }
 
 class Assets {

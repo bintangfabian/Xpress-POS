@@ -11,7 +11,7 @@
     <!-- Izin khusus untuk akses foto (media images) di Android 33 ke atas -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <application
-        android:label="Xpress"
+        android:label="Xpress POS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

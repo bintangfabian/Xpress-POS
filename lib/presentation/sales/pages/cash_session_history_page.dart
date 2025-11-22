@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/models/response/cash_session_response_model.dart';
@@ -557,8 +557,7 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
             ),
           ],
         ),
-        child: Button.filled(
-          onPressed: () => _printReport(session),
+        child: PrintButton(
           label: 'Print Laporan',
           color: AppColors.primary,
           icon: Assets.icons.printer.svg(
@@ -566,6 +565,14 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
             width: 20,
             colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
           ),
+          onPrint: () async {
+            final sizeReceipt = await AuthLocalDataSource().getSizeReceipt();
+            final paperSize = int.tryParse(sizeReceipt) ?? 58;
+            return await PrintDataoutputs.instance.printCashSessionReport(
+              session: session,
+              paperSize: paperSize,
+            );
+          },
         ),
       ),
     ];
@@ -689,53 +696,6 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
 
   String _formatDateTime(DateTime? date) =>
       date == null ? '-' : date.toFormattedDate3();
-
-  Future<void> _printReport(CashSessionData session) async {
-    try {
-      final sizeReceipt = await AuthLocalDataSource().getSizeReceipt();
-      final paperSize = int.tryParse(sizeReceipt) ?? 58;
-
-      final printValue = await PrintDataoutputs.instance.printCashSessionReport(
-        session: session,
-        paperSize: paperSize,
-      );
-
-      final bool connectionStatus =
-          await PrintBluetoothThermal.connectionStatus;
-      if (!connectionStatus) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Printer tidak terhubung. Silakan hubungkan printer terlebih dahulu.'),
-              backgroundColor: AppColors.danger,
-            ),
-          );
-        }
-        return;
-      }
-
-      await PrintBluetoothThermal.writeBytes(printValue);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Laporan berhasil dicetak'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mencetak laporan: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
-    }
-  }
 }
 
 class _CashSessionCard extends StatelessWidget {

@@ -4,7 +4,6 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
-import 'package:xpress/presentation/table/dialogs/form_table_dialog.dart';
 import 'package:xpress/presentation/table/widgets/card_table_widget.dart';
 
 class TablePage extends StatefulWidget {

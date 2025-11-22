@@ -5,7 +5,6 @@ import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc
 
 import '../../../core/assets/assets.gen.dart';
 import '../../../core/components/buttons.dart';
-import '../../../core/components/custom_text_field.dart';
 import '../../../core/components/spaces.dart';
 import '../../../core/constants/colors.dart';
 import '../../home/pages/dashboard_page.dart';
@@ -28,10 +27,13 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   bool isPasswordVisible = false;
   bool _offlineUnavailable = false;
   bool _showOfflineBanner = false;
   String? _message;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void initState() {
@@ -133,29 +135,187 @@ class _LoginPageState extends State<LoginPage> {
                     textAlign: TextAlign.center,
                   ),
                   const SpaceHeight(20.0),
-                  CustomTextField(
-                    controller: emailController,
-                    label: 'Email',
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SpaceHeight(12.0),
-                  CustomTextField(
-                    controller: passwordController,
-                    label: 'Password',
-                    obscureText: !isPasswordVisible,
-                    textInputAction: TextInputAction.done,
-                    suffixIcon: InkWell(
-                      onTap: () => setState(() {
-                        isPasswordVisible = !isPasswordVisible;
-                      }),
-                      child: Icon(
-                        isPasswordVisible
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: Colors.grey,
-                        size: 20,
-                      ),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Email Field
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Email',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SpaceHeight(12.0),
+                            TextFormField(
+                              controller: emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              onChanged: (_) {
+                                if (_emailError != null) {
+                                  setState(() {
+                                    _emailError = null;
+                                  });
+                                }
+                              },
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: BorderSide(
+                                    color: _emailError != null
+                                        ? AppColors.danger
+                                        : Colors.grey,
+                                    width: _emailError != null ? 2.0 : 1.0,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: BorderSide(
+                                    color: _emailError != null
+                                        ? AppColors.danger
+                                        : Colors.grey,
+                                    width: _emailError != null ? 2.0 : 1.0,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: BorderSide(
+                                    color: _emailError != null
+                                        ? AppColors.danger
+                                        : AppColors.primary,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.danger,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.danger,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                hintText: 'Email',
+                              ),
+                            ),
+                            if (_emailError != null) ...[
+                              const SpaceHeight(4.0),
+                              Text(
+                                _emailError!,
+                                style: const TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SpaceHeight(12.0),
+                        // Password Field
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Password',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SpaceHeight(12.0),
+                            TextFormField(
+                              controller: passwordController,
+                              obscureText: !isPasswordVisible,
+                              textInputAction: TextInputAction.done,
+                              onChanged: (_) {
+                                if (_passwordError != null) {
+                                  setState(() {
+                                    _passwordError = null;
+                                  });
+                                }
+                              },
+                              decoration: InputDecoration(
+                                suffixIcon: InkWell(
+                                  onTap: () => setState(() {
+                                    isPasswordVisible = !isPasswordVisible;
+                                  }),
+                                  child: Icon(
+                                    isPasswordVisible
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                    color: Colors.grey,
+                                    size: 20,
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: BorderSide(
+                                    color: _passwordError != null
+                                        ? AppColors.danger
+                                        : Colors.grey,
+                                    width: _passwordError != null ? 2.0 : 1.0,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: BorderSide(
+                                    color: _passwordError != null
+                                        ? AppColors.danger
+                                        : Colors.grey,
+                                    width: _passwordError != null ? 2.0 : 1.0,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: BorderSide(
+                                    color: _passwordError != null
+                                        ? AppColors.danger
+                                        : AppColors.primary,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.danger,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.danger,
+                                    width: 2.0,
+                                  ),
+                                ),
+                                hintText: 'Password',
+                              ),
+                            ),
+                            if (_passwordError != null) ...[
+                              const SpaceHeight(4.0),
+                              Text(
+                                _passwordError!,
+                                style: const TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   const SpaceHeight(12.0),
@@ -165,6 +325,12 @@ class _LoginPageState extends State<LoginPage> {
                       state.maybeWhen(
                         orElse: () {},
                         success: (authResponseModel) async {
+                          // Clear errors on success
+                          setState(() {
+                            _emailError = null;
+                            _passwordError = null;
+                          });
+
                           final ds = AuthLocalDataSource();
                           await ds.saveAuthData(authResponseModel);
                           await ds.setLoginMode('online');
@@ -181,12 +347,32 @@ class _LoginPageState extends State<LoginPage> {
                           );
                         },
                         error: (message) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(message),
-                              backgroundColor: AppColors.danger,
-                            ),
-                          );
+                          // ✅ Parse error message untuk menentukan field mana yang error
+                          setState(() {
+                            _emailError = null;
+                            _passwordError = null;
+
+                            final lowerMessage = message.toLowerCase();
+
+                            // Cek apakah error terkait email
+                            if (lowerMessage.contains('email') ||
+                                lowerMessage.contains('user tidak ditemukan') ||
+                                lowerMessage.contains('user not found')) {
+                              _emailError = message;
+                            }
+                            // Cek apakah error terkait password
+                            else if (lowerMessage.contains('password') ||
+                                lowerMessage.contains('salah') ||
+                                lowerMessage.contains('wrong') ||
+                                lowerMessage.contains('incorrect') ||
+                                lowerMessage.contains('invalid credentials')) {
+                              _passwordError = message;
+                            }
+                            // Jika tidak jelas, tampilkan di password (karena biasanya password yang salah)
+                            else {
+                              _passwordError = message;
+                            }
+                          });
                         },
                       );
                     },
@@ -210,8 +396,8 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     );
                                   } else {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
                                           'Silakan login saat online terlebih dahulu.',
