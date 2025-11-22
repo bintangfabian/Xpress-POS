@@ -20,13 +20,18 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Track inventory logic
     final isTrackingInventory = data.trackInventory ?? false;
-    final actualStock = data.stock ?? 0;
+    final actualStock = data.stock; // null means unlimited stock
 
-    // Display stock: jika tidak tracking, tampilkan 999; jika tracking, tampilkan stock asli
-    final displayStock = !isTrackingInventory ? 999 : actualStock;
+    // Display stock:
+    // - Jika tidak tracking atau stock null (unlimited), tampilkan "∞" atau "999"
+    // - Jika tracking dan stock ada, tampilkan stock asli
+    final displayStock = (!isTrackingInventory || actualStock == null)
+        ? "∞"
+        : actualStock.toString();
 
-    // Out of stock hanya untuk produk yang tracking inventory dan stock nya 0
-    final isOutOfStock = isTrackingInventory && actualStock <= 0;
+    // Out of stock hanya untuk produk yang tracking inventory dan stock nya 0 atau kurang
+    final isOutOfStock =
+        isTrackingInventory && (actualStock == null ? false : actualStock <= 0);
 
     return GestureDetector(
       onTap: isOutOfStock ? null : onCartButton,
@@ -141,7 +146,9 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 12,),
+              const SizedBox(
+                height: 12,
+              ),
 
               // === Harga Produk
               Padding(
@@ -213,7 +220,9 @@ class ProductCard extends StatelessWidget {
   }
 
   bool _stockIsLow() {
-    final stock = data.stock ?? 0;
+    final stock = data.stock;
+    // If stock is null (unlimited), it's never low
+    if (stock == null) return false;
     final min = data.minStockLevel ?? 0;
     return stock <= min;
   }

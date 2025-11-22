@@ -103,7 +103,6 @@ class MyApp extends StatelessWidget {
     final categoryRepository = CategoryRepository(
       remoteDatasource: CategoryRemoteDatasource(),
       localDatasource: CategoryLocalDatasource(),
-      onlineCheckerBloc: onlineCheckerBloc,
     );
     final discountRepository = DiscountRepository(
       remoteDatasource: DiscountRemoteDatasource(),

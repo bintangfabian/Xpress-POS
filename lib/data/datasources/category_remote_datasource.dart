@@ -9,28 +9,36 @@ import 'package:http/http.dart' as http;
 class CategoryRemoteDatasource {
   Future<Either<String, CategroyResponseModel>> getCategories() async {
     final authData = await AuthLocalDataSource().getAuthData();
-    final storeId = await AuthLocalDataSource().getStoreId();
+    final storeUuid = await AuthLocalDataSource().getStoreUuid();
     var response = await http.get(
       Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/categories'),
       headers: {
         'Authorization': 'Bearer ${authData.token}',
         'Accept': 'application/json',
-        'X-Store-Id': storeId.toString(),
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       },
     );
     if (response.statusCode == 403) {
       response = await http.get(
-        Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/categories'),
+        Uri.parse(
+            '${Variables.baseUrl}/api/${Variables.apiVersion}/categories'),
         headers: {
           'Authorization': 'Bearer ${authData.token}',
           'Accept': 'application/json',
         },
       );
     }
-    log(response.statusCode.toString());
-    log(response.body);
+    log('Category API Response: ${response.statusCode}');
+    log('Category API Body: ${response.body}');
     if (response.statusCode == 200) {
-      return right(CategroyResponseModel.fromJson(response.body));
+      try {
+        final result = CategroyResponseModel.fromJson(response.body);
+        log('Category parsed successfully: ${result.data.length} categories');
+        return right(result);
+      } catch (e) {
+        log('Error parsing category response: $e');
+        return left('Failed to parse category response: $e');
+      }
     } else {
       return left(response.body);
     }

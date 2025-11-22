@@ -281,7 +281,11 @@ class SyncRepository {
     final name = _readString(data, 'name') ?? existing?.name;
     final cost = _readDouble(data, 'cost') ?? existing?.cost ?? 0;
     final price = _readDouble(data, 'price') ?? existing?.price ?? 0;
-    final stock = _readInt(data, 'stock') ?? existing?.stock ?? 0;
+    // null stock means unlimited, but database requires int, so use -1 for unlimited
+    // Use -1 to represent unlimited stock in database (null in API = -1 in DB)
+    final stockFromData = _readInt(data, 'stock');
+    final stockFromExisting = existing?.stock;
+    final stockValue = stockFromData ?? stockFromExisting;
 
     if (name == null && existing == null) {
       return;
@@ -293,7 +297,7 @@ class SyncRepository {
       name: Value(name ?? existing?.name ?? ''),
       cost: Value(cost),
       price: Value(price),
-      stock: Value(stock),
+      stock: Value(stockValue ?? -1),
       syncStatus: const Value('synced'),
       updatedAt: Value(incomingUpdatedAt ?? TimezoneHelper.now()),
       isDeleted: Value(isDeleted),
@@ -401,20 +405,40 @@ class SyncRepository {
 
   Future<void> _applyRemoteDiscount(Map<String, dynamic> data) async {
     final uuid = _readString(data, 'uuid');
+    String? finalUuid;
+
     if (uuid == null || uuid.isEmpty) {
       final serverId =
           _readString(data, 'serverId') ?? _readString(data, 'id')?.toString();
-      if (serverId == null || serverId.isEmpty) return;
-      final generatedUuid = 'discount-$serverId';
-      final existing = await _discountDao.getByUuid(generatedUuid);
-      if (existing != null) return;
+      if (serverId == null || serverId.isEmpty) {
+        // No UUID and no serverId, cannot proceed
+        return;
+      }
+      finalUuid = 'discount-$serverId';
+
+      // Check if this generated UUID already exists
+      final existingByUuid = await _discountDao.getByUuid(finalUuid);
+      if (existingByUuid != null) {
+        // Use existing UUID to avoid duplicate
+        finalUuid = existingByUuid.uuid;
+      }
+    } else {
+      finalUuid = uuid;
     }
+
+    // Ensure finalUuid is not null or empty
+    // At this point, if uuid was provided, finalUuid is not null
+    // If uuid was not provided, finalUuid was set from generated UUID or is null
+    if (finalUuid == null || finalUuid.isEmpty) {
+      return;
+    }
+
+    // At this point, finalUuid is guaranteed to be non-null and non-empty
+    final nonNullUuid = finalUuid;
 
     final incomingUpdatedAt =
         _parseDate(data['updatedAt'] ?? data['updated_at']);
-    final existingUuid = uuid ??
-        'discount-${_readString(data, 'serverId') ?? _readString(data, 'id')?.toString() ?? ''}';
-    final existing = await _discountDao.getByUuid(existingUuid);
+    final existing = await _discountDao.getByUuid(nonNullUuid);
 
     if (existing != null &&
         incomingUpdatedAt != null &&
@@ -437,9 +461,8 @@ class SyncRepository {
       return;
     }
 
-    final finalUuid = uuid ?? existingUuid;
     final companion = DiscountsCompanion(
-      uuid: Value(finalUuid),
+      uuid: Value(nonNullUuid),
       serverId: serverId == null || serverId.isEmpty
           ? const Value.absent()
           : Value(serverId),
@@ -456,7 +479,24 @@ class SyncRepository {
       isDeleted: Value(isDeleted),
     );
 
-    await _database.into(_database.discounts).insertOnConflictUpdate(companion);
+    try {
+      // insertOnConflictUpdate automatically uses unique constraints (uuid)
+      await _database
+          .into(_database.discounts)
+          .insertOnConflictUpdate(companion);
+    } catch (e) {
+      // If conflict still occurs, try to update existing record
+      if (nonNullUuid.isEmpty) return;
+      final existingByUuid = await _discountDao.getByUuid(nonNullUuid);
+      if (existingByUuid != null) {
+        await (_database.update(_database.discounts)
+              ..where((tbl) => tbl.uuid.equals(nonNullUuid)))
+            .write(companion);
+      } else {
+        // If no existing record, try insert without conflict
+        await _database.into(_database.discounts).insert(companion);
+      }
+    }
   }
 
   DateTime _readLastSync() {

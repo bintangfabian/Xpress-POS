@@ -5,6 +5,7 @@ import 'package:xpress/data/datasources/local/database/database.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart'
     as remote;
 
+// testing
 class DiscountLocalDatasource {
   final DiscountDao _discountDao;
 
@@ -26,7 +27,7 @@ class DiscountLocalDatasource {
         updatedAt: discount.updatedAt,
       );
     }).toList();
-  }
+  }   
 
   Future<List<remote.Discount>> getActiveDiscounts() async {
     final discounts = await _discountDao.getActiveDiscounts();

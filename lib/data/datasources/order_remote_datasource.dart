@@ -548,6 +548,34 @@ class OrderRemoteDatasource {
       final modifiedOrderData = Map<String, dynamic>.from(orderData);
       modifiedOrderData['payment_mode'] = 'open_bill';
       modifiedOrderData['status'] = 'open';
+      // Ensure items format is correct (product_id, quantity, product_options, notes)
+      if (modifiedOrderData.containsKey('items') &&
+          modifiedOrderData['items'] is List) {
+        final items = modifiedOrderData['items'] as List;
+        modifiedOrderData['items'] = items.map((item) {
+          if (item is Map<String, dynamic>) {
+            // Ensure product_id is integer
+            if (item.containsKey('product_id')) {
+              final productId = item['product_id'];
+              if (productId is String) {
+                item['product_id'] = int.tryParse(productId) ?? 0;
+              } else if (productId is! int) {
+                item['product_id'] = int.tryParse(productId.toString()) ?? 0;
+              }
+            }
+            // Ensure product_options is array
+            if (!item.containsKey('product_options') ||
+                item['product_options'] == null) {
+              item['product_options'] = [];
+            }
+            // Ensure notes is string
+            if (!item.containsKey('notes') || item['notes'] == null) {
+              item['notes'] = '';
+            }
+          }
+          return item;
+        }).toList();
+      }
 
       final uri =
           Uri.parse('${Variables.baseUrl}/api/${Variables.apiVersion}/orders');
@@ -762,6 +790,77 @@ class OrderRemoteDatasource {
       }
     } catch (e) {
       return Left("Failed to cancel open bill order: $e");
+    }
+  }
+
+  // Refund a payment
+  Future<Either<String, Map<String, dynamic>>> refundPayment({
+    required String paymentId,
+    required double amount,
+    required String reason,
+  }) async {
+    try {
+      final authData = await AuthLocalDataSource().getAuthData();
+      if (authData.token == null || authData.token!.isEmpty) {
+        return const Left(
+            'Authentication token is missing. Please login again.');
+      }
+
+      final storeUuid = await AuthLocalDataSource().getStoreUuid();
+      final uri = Uri.parse(
+          '${Variables.baseUrl}/api/${Variables.apiVersion}/payments/$paymentId/refund');
+
+      final payload = jsonEncode({
+        'amount': amount,
+        'reason': reason,
+      });
+
+      var headers = {
+        'Authorization': 'Bearer ${authData.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
+      };
+
+      log('Refunding payment: $uri');
+      log('Payment ID: $paymentId');
+      log('Payload: $payload');
+      log('Headers: ${headers.keys.toList()}');
+
+      var response = await http.post(uri, headers: headers, body: payload);
+
+      if (response.statusCode == 403 || response.statusCode == 401) {
+        log('Retrying refund without store header...');
+        headers.remove('X-Store-Id');
+        response = await http.post(uri, headers: headers, body: payload);
+      }
+
+      log('Refund Response: ${response.statusCode}');
+      log('Refund Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        try {
+          final responseData = jsonDecode(response.body);
+          return Right(responseData['data'] ?? responseData);
+        } catch (e) {
+          log('Error parsing refund response: $e');
+          return Left('Failed to parse refund response: $e');
+        }
+      } else {
+        try {
+          final errorData = jsonDecode(response.body);
+          final errorMessage = errorData['error']?['message'] ??
+              errorData['message'] ??
+              'Failed to process refund';
+          return Left(errorMessage);
+        } catch (e) {
+          return Left(
+              'Failed to process refund: ${response.statusCode} - ${response.body}');
+        }
+      }
+    } catch (e) {
+      log('Error refunding payment: $e');
+      return Left("Failed to refund payment: $e");
     }
   }
 }

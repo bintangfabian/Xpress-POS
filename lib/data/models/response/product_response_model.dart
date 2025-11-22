@@ -104,7 +104,8 @@ class Product {
         image:
             (json["image"] ?? json["image_url"] ?? json["photo"])?.toString(),
         price: _extractPrice(json),
-        stock: _asInt(json["stock"]) ?? _asInt(json["quantity"]) ?? 0,
+        stock: _asInt(json["stock"]) ??
+            _asInt(json["quantity"]), // null means unlimited stock
         minStockLevel: _asInt(json['min_stock_level']) ?? 0,
         trackInventory: _parseBool(json['track_inventory']),
         status: _asInt(json["status"]) ?? 1,
@@ -119,30 +120,35 @@ class Product {
         price: json["price"].toString(),
       );
 
-  factory Product.fromLocalMap(Map<String, dynamic> json) => Product(
-        id: json["id"],
-        productId: json["product_id"],
-        categoryId: json["categoryId"],
-        category: Category(
-          id: json["categoryId"],
-          name: json["categoryName"],
-        ),
-        name: json["name"],
-        description: json["description"],
-        image: json["image"],
-        price: json["price"],
-        stock: json["stock"],
-        minStockLevel: json["minStockLevel"],
-        trackInventory: _parseBool(json["trackInventory"]),
-        status: json["status"],
-        isFavorite: json["isFavorite"],
-        createdAt: json["createdAt"] == null
-            ? null
-            : DateTime.parse(json["createdAt"]),
-        updatedAt: json["updatedAt"] == null
-            ? null
-            : DateTime.parse(json["updatedAt"]),
-      );
+  factory Product.fromLocalMap(Map<String, dynamic> json) {
+    final stockValue = json["stock"];
+    // Convert -1 (unlimited in DB) back to null (unlimited in model)
+    final stock =
+        (stockValue is int && stockValue == -1) ? null : _asInt(stockValue);
+
+    return Product(
+      id: json["id"],
+      productId: json["product_id"],
+      categoryId: json["categoryId"],
+      category: Category(
+        id: json["categoryId"],
+        name: json["categoryName"],
+      ),
+      name: json["name"],
+      description: json["description"],
+      image: json["image"],
+      price: json["price"],
+      stock: stock,
+      minStockLevel: json["minStockLevel"],
+      trackInventory: _parseBool(json["trackInventory"]),
+      status: json["status"],
+      isFavorite: json["isFavorite"],
+      createdAt:
+          json["createdAt"] == null ? null : DateTime.parse(json["createdAt"]),
+      updatedAt:
+          json["updatedAt"] == null ? null : DateTime.parse(json["updatedAt"]),
+    );
+  }
 
   Map<String, dynamic> toLocalMap() => {
         "product_id": id,

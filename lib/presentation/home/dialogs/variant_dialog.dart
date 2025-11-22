@@ -479,17 +479,24 @@ class _VariantDialogState extends State<VariantDialog> {
   }
 
   // Helper methods for stock display
-  int _getDisplayStock() {
+  String _getDisplayStock() {
     final isTrackingInventory = widget.product.trackInventory ?? false;
-    final actualStock = widget.product.stock ?? 0;
-    return !isTrackingInventory ? 999 : actualStock;
+    final actualStock = widget.product.stock; // null means unlimited
+    // If not tracking or stock is null (unlimited), show "∞"
+    if (!isTrackingInventory || actualStock == null) {
+      return "∞";
+    }
+    return actualStock.toString();
   }
 
   Color _getStockColor() {
     final isTrackingInventory = widget.product.trackInventory ?? false;
     if (!isTrackingInventory) return AppColors.successLight;
 
-    final stock = widget.product.stock ?? 0;
+    final stock = widget.product.stock;
+    // If stock is null (unlimited), it's never low
+    if (stock == null) return AppColors.successLight;
+
     final minStock = widget.product.minStockLevel ?? 0;
     return stock <= minStock ? AppColors.dangerLight : AppColors.successLight;
   }
@@ -498,7 +505,9 @@ class _VariantDialogState extends State<VariantDialog> {
     final isTrackingInventory = widget.product.trackInventory ?? false;
     if (!isTrackingInventory) return AppColors.success;
 
-    final stock = widget.product.stock ?? 0;
+    final stock = widget.product.stock;
+    // If stock is null (unlimited), it's never low
+    if (stock == null) return AppColors.success;
     final minStock = widget.product.minStockLevel ?? 0;
     return stock <= minStock ? AppColors.danger : AppColors.success;
   }

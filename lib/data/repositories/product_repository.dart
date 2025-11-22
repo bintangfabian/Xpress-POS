@@ -66,7 +66,8 @@ class ProductRepository {
       name: product.name ?? 'Produk Tanpa Nama',
       cost: cost,
       price: price,
-      stock: Value(product.stock ?? 0),
+      // null stock means unlimited, but database requires int, so use -1 for unlimited
+      stock: Value(product.stock != null ? product.stock! : -1),
       serverId: serverId.isEmpty ? const Value.absent() : Value(serverId),
       syncStatus: const Value('synced'),
       updatedAt: Value(product.updatedAt ?? TimezoneHelper.now()),

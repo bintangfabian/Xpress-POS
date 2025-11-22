@@ -399,21 +399,22 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               _rowSpaceBetween('Status Pembayaran', _getPaymentStatus()),
               const SizedBox(height: 16),
               // Refund button (outlined danger) using shared Button
-              Button.outlined(
-                onPressed: () {},
-                height: 48,
-                borderRadius: 8,
-                color: AppColors.dangerLight,
-                borderColor: AppColors.danger,
-                textColor: AppColors.danger,
-                icon: Assets.icons.refund.svg(
-                  colorFilter:
-                      ColorFilter.mode(AppColors.danger, BlendMode.srcIn),
-                  height: 20,
-                  width: 20,
+              if (_order?.payments != null && _order!.payments!.isNotEmpty)
+                Button.outlined(
+                  onPressed: () => _showRefundDialog(context),
+                  height: 48,
+                  borderRadius: 8,
+                  color: AppColors.dangerLight,
+                  borderColor: AppColors.danger,
+                  textColor: AppColors.danger,
+                  icon: Assets.icons.refund.svg(
+                    colorFilter:
+                        ColorFilter.mode(AppColors.danger, BlendMode.srcIn),
+                    height: 20,
+                    width: 20,
+                  ),
+                  label: 'Refund',
                 ),
-                label: 'Refund',
-              ),
               const SizedBox(height: 8),
               // Print receipt button using PrintButton
               PrintButton(
@@ -711,6 +712,174 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
       default:
         // Capitalize first letter
         return status[0].toUpperCase() + status.substring(1);
+    }
+  }
+
+  Future<void> _showRefundDialog(BuildContext context) async {
+    if (_order == null ||
+        _order!.payments == null ||
+        _order!.payments!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak ada pembayaran untuk di-refund')),
+      );
+      return;
+    }
+
+    final payment = _order!.payments!.first;
+    final paymentAmount = AmountParser.parse(payment.amount);
+
+    final amountController = TextEditingController(
+      text: paymentAmount.toString(),
+    );
+    final reasonController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Refund Pembayaran'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                  'Jumlah Pembayaran: Rp ${NumberFormat('#,###').format(paymentAmount)}'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Jumlah Refund',
+                  hintText: 'Masukkan jumlah refund',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Alasan Refund',
+                  hintText: 'Masukkan alasan refund',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(amountController.text);
+              final reason = reasonController.text.trim();
+
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Jumlah refund harus lebih dari 0')),
+                );
+                return;
+              }
+
+              if (amount > paymentAmount) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text(
+                          'Jumlah refund tidak boleh melebihi jumlah pembayaran')),
+                );
+                return;
+              }
+
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Alasan refund harus diisi')),
+                );
+                return;
+              }
+
+              Navigator.of(context).pop(true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+            ),
+            child: const Text('Refund', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && payment.id != null && payment.id!.isNotEmpty) {
+      await _processRefund(
+        paymentId: payment.id!,
+        amount: double.parse(amountController.text),
+        reason: reasonController.text.trim(),
+      );
+    }
+  }
+
+  Future<void> _processRefund({
+    required String paymentId,
+    required double amount,
+    required String reason,
+  }) async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final result = await OrderRemoteDatasource().refundPayment(
+        paymentId: paymentId,
+        amount: amount,
+        reason: reason,
+      );
+
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      result.fold(
+        (error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal melakukan refund: $error'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        },
+        (data) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Refund berhasil diproses'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Refresh order data
+          if (widget.orderId != null) {
+            _fetchOrderDetail();
+          } else if (widget.order != null) {
+            setState(() {
+              _isLoading = true;
+            });
+            _fetchOrderDetail();
+          }
+        },
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog if still open
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     }
   }
 }

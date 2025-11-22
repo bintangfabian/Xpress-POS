@@ -72,6 +72,28 @@ class ProductQuantity {
     };
   }
 
+  /// Convert to API format for order items (new format)
+  /// Backend expects: product_id, quantity, product_options (array of UUIDs), notes
+  Map<String, dynamic> toOrderItemMap() {
+    final remoteProductId = product.productId ?? product.id;
+
+    // Convert variants to product_options (array of UUIDs)
+    final productOptions = variants
+            ?.where((v) => v.id != null && v.id!.isNotEmpty)
+            .map((v) => v.id!)
+            .toList() ??
+        [];
+
+    return {
+      'product_id': remoteProductId is int
+          ? remoteProductId
+          : int.tryParse(remoteProductId.toString()) ?? 0,
+      'quantity': quantity,
+      'product_options': productOptions,
+      'notes': '', // Optional notes field
+    };
+  }
+
   factory ProductQuantity.fromMap(Map<String, dynamic> map) {
     return ProductQuantity(
       product: Product.fromMap(map['product']),

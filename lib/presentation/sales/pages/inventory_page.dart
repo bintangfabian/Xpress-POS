@@ -348,9 +348,10 @@ class _InventoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stock = product.stock ?? 0;
+    final stock = product.stock; // null means unlimited stock
     final minStockLevel = product.minStockLevel ?? 5;
-    final isLowStock = stock <= minStockLevel;
+    // If stock is null (unlimited), it's never low
+    final isLowStock = stock != null && stock <= minStockLevel;
     final price = int.tryParse(product.price ?? '0') ?? 0;
     final categoryName = product.category?.name ?? 'Lainnya';
 
@@ -435,7 +436,7 @@ class _InventoryRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              '$stock',
+              stock == null ? '∞' : '$stock',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,

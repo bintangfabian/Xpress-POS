@@ -97,6 +97,22 @@ class OrderModel {
     };
   }
 
+  /// Convert to API format for creating orders (new format)
+  /// Backend expects: items (array with product_id, quantity, product_options, notes)
+  Map<String, dynamic> toOrderApiMap() {
+    return {
+      'operation_mode': normalizeOperationMode(operationMode),
+      'payment_mode': paymentStatus == 'pending' ? 'open_bill' : 'direct',
+      'status': status,
+      'service_charge': serviceCharge,
+      'discount_amount': discountAmount,
+      'notes': '',
+      'items': orderItems.map((e) => e.toOrderItemMap()).toList(),
+      if (tableNumber > 0) 'table_id': tableNumber.toString(),
+      'deduct_inventory': true, // Auto-deduct inventory for new orders
+    };
+  }
+
   Map<String, dynamic> toMap() {
     return {
       // 'id': id,

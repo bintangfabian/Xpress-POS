@@ -28,6 +28,7 @@ import 'package:xpress/presentation/home/dialogs/open_bill_list_dialog.dart';
 import 'package:xpress/presentation/home/dialogs/clear_order_dialog.dart';
 import 'package:xpress/presentation/home/widgets/sort_dropdown.dart';
 import 'package:xpress/presentation/home/models/product_variant.dart';
+import 'package:xpress/presentation/home/models/product_quantity.dart';
 import 'package:xpress/presentation/home/pages/confirm_payment_page.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
@@ -189,33 +190,25 @@ class _HomePageState extends State<HomePage> {
           final serviceAmt = (subtotal * (serviceCharge / 100)).round();
           final totalAmt = subtotal - discAmt + taxAmt + serviceAmt;
 
-          // Build items
+          // Build items using toOrderItemMap() for correct API format
           final items = products.map((e) {
-            final basePrice = e.product.price?.toIntegerFromText ?? 0;
-            final variantPrice =
-                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
-                    0;
-            final unitPrice = basePrice + variantPrice;
-            final totalPrice = unitPrice * e.quantity;
-
-            return {
-              'product_id': e.product.productId ?? e.product.id,
-              'product_name': e.product.name,
-              'quantity': e.quantity,
-              'unit_price': unitPrice,
-              'total_price': totalPrice,
-            };
+            // Convert ProductQuantity to order item format
+            final productQuantity = ProductQuantity(
+              product: e.product,
+              quantity: e.quantity,
+              variants: e.variants,
+            );
+            return productQuantity.toOrderItemMap();
           }).toList();
 
           // Build order data
           final orderData = <String, dynamic>{
-            'order_number': _orderNumber,
-            'order_type': orderType,
-            'operation_mode': orderType == 'dinein'
-                ? 'dine_in'
-                : 'takeaway', // ✅ Add operation_mode
-            'subtotal': subtotal,
-            'total_amount': totalAmt,
+            'operation_mode': orderType == 'dinein' ? 'dine_in' : 'takeaway',
+            'payment_mode': 'open_bill',
+            'status': 'open',
+            'service_charge': serviceAmt.toDouble(),
+            'discount_amount': discAmt.toDouble(),
+            'notes': '',
             'items': items,
             'deduct_inventory':
                 true, // ✅ Tambahkan flag untuk kurangi stok saat create open bill
@@ -458,35 +451,24 @@ class _HomePageState extends State<HomePage> {
           final discAmt = discountAmount;
           final taxAmt = (subtotal * (tax / 100)).round();
           final serviceAmt = (subtotal * (serviceCharge / 100)).round();
-          final totalAmt = subtotal - discAmt + taxAmt + serviceAmt;
 
-          // Build items
+          // Build items using toOrderItemMap() for correct API format
           final items = products.map((e) {
-            final basePrice = e.product.price?.toIntegerFromText ?? 0;
-            final variantPrice =
-                e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ??
-                    0;
-            final unitPrice = basePrice + variantPrice;
-            final totalPrice = unitPrice * e.quantity;
-
-            return {
-              'product_id': e.product.productId ?? e.product.id,
-              'product_name': e.product.name,
-              'quantity': e.quantity,
-              'unit_price': unitPrice,
-              'total_price': totalPrice,
-            };
+            // Convert ProductQuantity to order item format
+            final productQuantity = ProductQuantity(
+              product: e.product,
+              quantity: e.quantity,
+              variants: e.variants,
+            );
+            return productQuantity.toOrderItemMap();
           }).toList();
 
           // Build order data for update
           final orderData = <String, dynamic>{
-            'order_number': _orderNumber,
-            'order_type': orderType,
-            'operation_mode': orderType == 'dinein'
-                ? 'dine_in'
-                : 'takeaway', // ✅ Add operation_mode
-            'subtotal': subtotal,
-            'total_amount': totalAmt,
+            'operation_mode': orderType == 'dinein' ? 'dine_in' : 'takeaway',
+            'service_charge': serviceAmt.toDouble(),
+            'discount_amount': discAmt.toDouble(),
+            'notes': '',
             'items': items,
             'update_inventory':
                 true, // ✅ Update stok saat edit open bill (jika ada perubahan items)
