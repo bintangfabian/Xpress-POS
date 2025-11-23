@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
+import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
@@ -736,77 +737,126 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Refund Pembayaran'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        title: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                  'Jumlah Pembayaran: Rp ${NumberFormat('#,###').format(paymentAmount)}'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Jumlah Refund',
-                  hintText: 'Masukkan jumlah refund',
-                  border: OutlineInputBorder(),
+              const Text(
+                'Refund Pembayaran',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
                 ),
-                keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Alasan Refund',
-                  hintText: 'Masukkan alasan refund',
-                  border: OutlineInputBorder(),
+              IconButton(
+                icon: Assets.icons.cancel.svg(
+                  colorFilter:
+                      ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                  height: 32,
+                  width: 32,
                 ),
-                maxLines: 3,
+                onPressed: () => Navigator.of(context).pop(false),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(amountController.text);
-              final reason = reasonController.text.trim();
-
-              if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Jumlah refund harus lebih dari 0')),
-                );
-                return;
-              }
-
-              if (amount > paymentAmount) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text(
-                          'Jumlah refund tidak boleh melebihi jumlah pembayaran')),
-                );
-                return;
-              }
-
-              if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Alasan refund harus diisi')),
-                );
-                return;
-              }
-
-              Navigator.of(context).pop(true);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
+        content: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jumlah Pembayaran: Rp ${NumberFormat('#,###').format(paymentAmount)}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: amountController,
+                  label: 'Jumlah Refund',
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: reasonController,
+                  label: 'Alasan Refund',
+                ),
+              ],
             ),
-            child: const Text('Refund', style: TextStyle(color: Colors.white)),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Button.outlined(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    label: 'Batal',
+                    height: 50,
+                    color: AppColors.greyLight,
+                    borderColor: AppColors.grey,
+                    textColor: AppColors.grey,
+                    borderRadius: 8.0,
+                    fontSize: 16.0,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Button.filled(
+                    onPressed: () {
+                      final amount = double.tryParse(amountController.text);
+                      final reason = reasonController.text.trim();
+
+                      if (amount == null || amount <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Jumlah refund harus lebih dari 0')),
+                        );
+                        return;
+                      }
+
+                      if (amount > paymentAmount) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Jumlah refund tidak boleh melebihi jumlah pembayaran')),
+                        );
+                        return;
+                      }
+
+                      if (reason.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Alasan refund harus diisi')),
+                        );
+                        return;
+                      }
+
+                      Navigator.of(context).pop(true);
+                    },
+                    label: 'Refund',
+                    height: 50,
+                    color: AppColors.danger,
+                    textColor: AppColors.white,
+                    borderRadius: 8.0,
+                    fontSize: 16.0,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

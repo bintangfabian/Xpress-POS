@@ -145,12 +145,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       index: currentIndex,
                       children: [
                         const UserProfilePage(), // 0 Profil Pengguna
-                        StoreSettingPage(), // 3 Kelola Pajak
-                        const MembersPage(), // 1 Kelola Member
-                        DiscountPage(), // 2 Kelola Diskon
+                        StoreSettingPage(), // 1 Pengaturan Toko
+                        const MembersPage(), // 2 Kelola Member
+                        const DiscountPage(), // 3 Kelola Diskon
                         // const ServicesPage(), // 4 Kelola Layanan
-                        const ManagePrinterPage(), // 5 Kelola Printer
-                        const SyncDataPage(), // 6 Sinkronisasi Data
+                        const ManagePrinterPage(), // 4 Kelola Printer
+                        const SyncDataPage(), // 5 Sinkronisasi Data
                       ],
                     ),
                   ),

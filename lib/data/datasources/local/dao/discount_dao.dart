@@ -43,9 +43,26 @@ class DiscountDao extends DatabaseAccessor<AppDatabase>
     List<DiscountsCompanion> entries,
   ) async {
     if (entries.isEmpty) return;
-    await batch((batch) {
-      batch.insertAllOnConflictUpdate(discounts, entries);
-    });
+    // Use insertOnConflictUpdate for each entry to handle uuid unique constraint
+    // insertOnConflictUpdate automatically uses unique constraints (uuid)
+    for (final entry in entries) {
+      try {
+        await into(discounts).insertOnConflictUpdate(entry);
+      } catch (e) {
+        // If conflict still occurs, try to update existing record by uuid
+        final uuid = entry.uuid.value;
+        if (uuid.isNotEmpty) {
+          final existing = await getByUuid(uuid);
+          if (existing != null) {
+            await (update(discounts)..where((tbl) => tbl.uuid.equals(uuid)))
+                .write(entry);
+          } else {
+            // If no existing record, try insert without conflict
+            await into(discounts).insert(entry);
+          }
+        }
+      }
+    }
   }
 
   Future<void> markAsSynced(

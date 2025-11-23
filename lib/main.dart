@@ -9,6 +9,7 @@ import 'package:xpress/data/datasources/category_local_datasource.dart';
 import 'package:xpress/data/datasources/category_remote_datasource.dart';
 import 'package:xpress/data/datasources/discount_local_datasource.dart';
 import 'package:xpress/data/datasources/discount_remote_datasource.dart';
+import 'package:xpress/data/datasources/local/dao/discount_dao.dart';
 import 'package:xpress/data/datasources/midtrans_remote_datasource.dart';
 import 'package:xpress/data/datasources/order_item_remote_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
@@ -106,7 +107,9 @@ class MyApp extends StatelessWidget {
     );
     final discountRepository = DiscountRepository(
       remoteDatasource: DiscountRemoteDatasource(),
-      localDatasource: DiscountLocalDatasource(),
+      localDatasource: DiscountLocalDatasource(
+        discountDao: DiscountDao(appDatabase),
+      ),
       onlineCheckerBloc: onlineCheckerBloc,
     );
     final reportRepository = ReportRepository(

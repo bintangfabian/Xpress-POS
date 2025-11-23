@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
@@ -83,7 +84,8 @@ class _CashDailyPageState extends State<CashDailyPage> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final bool isRefreshing = _session != null && state is CashSessionLoading;
+        final bool isRefreshing =
+            _session != null && state is CashSessionLoading;
         final String? errorBanner = _resolveErrorMessage(state);
 
         return RefreshIndicator(
@@ -308,8 +310,7 @@ class _CashDailyPageState extends State<CashDailyPage> {
         runSpacing: 12,
         children: [
           _summaryTile('Saldo Awal', _formatCurrency(session?.openingBalance)),
-          _summaryTile(
-              'Penjualan Tunai', _formatCurrency(session?.cashSales)),
+          _summaryTile('Penjualan Tunai', _formatCurrency(session?.cashSales)),
           _summaryTile('Pengeluaran', _formatCurrency(session?.cashExpenses)),
           _summaryTile(
             'Saldo Ekspektasi',
@@ -399,53 +400,96 @@ class _CashDailyPageState extends State<CashDailyPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text(
-            'Pengeluaran Tunai',
-            style: TextStyle(fontWeight: FontWeight.w700),
+          backgroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          title: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CustomTextField(
-                  controller: _expenseAmountCtrl,
-                  label: 'Jumlah pengeluaran (Rp)',
-                  keyboardType: TextInputType.number,
+                const Text(
+                  'Pengeluaran Tunai',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                CustomTextField(
-                  controller: _expenseCategoryCtrl,
-                  label: 'Kategori',
-                ),
-                const SizedBox(height: 12),
-                CustomTextField(
-                  controller: _expenseNoteCtrl,
-                  label: 'Deskripsi',
+                IconButton(
+                  icon: Assets.icons.cancel.svg(
+                    colorFilter:
+                        ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                    height: 32,
+                    width: 32,
+                  ),
+                  onPressed: _isSubmittingExpense
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: _isSubmittingExpense
-                  ? null
-                  : () {
-                      Navigator.of(dialogContext).pop();
-                    },
-              child: const Text('Batal'),
+          content: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomTextField(
+                    controller: _expenseAmountCtrl,
+                    label: 'Jumlah pengeluaran (Rp)',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    controller: _expenseCategoryCtrl,
+                    label: 'Kategori',
+                  ),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    controller: _expenseNoteCtrl,
+                    label: 'Deskripsi',
+                  ),
+                ],
+              ),
             ),
-            FilledButton(
-              onPressed: _isSubmittingExpense
-                  ? null
-                  : () => _submitExpense(dialogContext),
-              child: _isSubmittingExpense
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Simpan'),
+          ),
+          actions: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Button.outlined(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      label: 'Batal',
+                      height: 50,
+                      color: AppColors.greyLight,
+                      borderColor: AppColors.grey,
+                      textColor: AppColors.grey,
+                      borderRadius: 8.0,
+                      fontSize: 16.0,
+                      disabled: _isSubmittingExpense,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Button.filled(
+                      onPressed: () => _submitExpense(dialogContext),
+                      label: _isSubmittingExpense ? 'Menyimpan...' : 'Simpan',
+                      height: 50,
+                      color: AppColors.primary,
+                      textColor: AppColors.white,
+                      borderRadius: 8.0,
+                      fontSize: 16.0,
+                      disabled: _isSubmittingExpense,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -525,56 +569,92 @@ class _CashDailyPageState extends State<CashDailyPage> {
   void _openShiftDialog() async {
     _openShiftAmountCtrl.clear();
     _openShiftNotesCtrl.clear();
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Buka Shift',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          title: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Buka Shift',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+                IconButton(
+                  icon: Assets.icons.cancel.svg(
+                    colorFilter:
+                        ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                    height: 32,
+                    width: 32,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Masukkan saldo awal kas sebelum shift dimulai.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _openShiftAmountCtrl,
+                    label: 'Saldo awal (Rp)',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    controller: _openShiftNotesCtrl,
+                    label: 'Catatan shift',
+                    textInputAction: TextInputAction.done,
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Masukkan saldo awal kas sebelum shift dimulai.',
-                style: TextStyle(color: AppColors.grey),
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _openShiftAmountCtrl,
-                label: 'Saldo awal (Rp)',
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                controller: _openShiftNotesCtrl,
-                label: 'Catatan shift',
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: 20),
-              Row(
+            ),
+          ),
+          actions: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
                 children: [
                   Expanded(
                     child: Button.outlined(
                       onPressed: () => Navigator.pop(context),
                       label: 'Batal',
+                      height: 50,
+                      color: AppColors.greyLight,
+                      borderColor: AppColors.grey,
+                      textColor: AppColors.grey,
+                      borderRadius: 8.0,
+                      fontSize: 16.0,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Button.filled(
                       onPressed: () {
-                        final amount = _parseCurrency(_openShiftAmountCtrl.text);
+                        final amount =
+                            _parseCurrency(_openShiftAmountCtrl.text);
                         final notes = _openShiftNotesCtrl.text.trim();
                         if (amount <= 0) {
                           _showSnackBar(
@@ -596,12 +676,17 @@ class _CashDailyPageState extends State<CashDailyPage> {
                         );
                       },
                       label: 'Mulai Shift',
+                      height: 50,
+                      color: AppColors.primary,
+                      textColor: AppColors.white,
+                      borderRadius: 8.0,
+                      fontSize: 16.0,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -626,53 +711,87 @@ class _CashDailyPageState extends State<CashDailyPage> {
     _closeShiftAmountCtrl.clear();
     final expected = _calculateExpectedBalance(session);
 
-    final result = await showModalBottomSheet<int>(
+    final result = await showDialog<int>(
       context: context,
-      isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Tutup Shift',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Saldo ekspektasi: ${expected.currencyFormatRp}',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
+          title: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tutup Shift',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
+                IconButton(
+                  icon: Assets.icons.cancel.svg(
+                    colorFilter:
+                        ColorFilter.mode(AppColors.grey, BlendMode.srcIn),
+                    height: 32,
+                    width: 32,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Saldo ekspektasi: ${expected.currencyFormatRp}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _closeShiftAmountCtrl,
+                    label: 'Saldo fisik akhir (Rp)',
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                controller: _closeShiftAmountCtrl,
-                label: 'Saldo fisik akhir (Rp)',
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 20),
-              Row(
+            ),
+          ),
+          actions: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
                 children: [
                   Expanded(
                     child: Button.outlined(
                       onPressed: () => Navigator.pop(context),
                       label: 'Batal',
+                      height: 50,
+                      color: AppColors.greyLight,
+                      borderColor: AppColors.grey,
+                      textColor: AppColors.grey,
+                      borderRadius: 8.0,
+                      fontSize: 16.0,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Button.filled(
                       onPressed: () {
-                        final amount = _parseCurrency(_closeShiftAmountCtrl.text);
+                        final amount =
+                            _parseCurrency(_closeShiftAmountCtrl.text);
                         if (amount <= 0) {
                           _showSnackBar(
                             'Saldo akhir harus lebih dari 0.',
@@ -683,13 +802,17 @@ class _CashDailyPageState extends State<CashDailyPage> {
                         Navigator.pop(context, amount);
                       },
                       label: 'Tutup Shift',
+                      height: 50,
                       color: AppColors.danger,
+                      textColor: AppColors.white,
+                      borderRadius: 8.0,
+                      fontSize: 16.0,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
