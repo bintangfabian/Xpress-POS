@@ -301,6 +301,78 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
         orElse: () {},
       );
     });
+
+    // ✅ Update Item Variants Handler
+    on<_UpdateItemVariants>((event, emit) {
+      var currentState = state as _Loaded;
+      List<ProductQuantity> items = [...currentState.items];
+
+      log('========================================');
+      log('UPDATE ITEM VARIANTS');
+      log('Product: ${event.product.name} (ID: ${event.product.id})');
+      log('Old variants: ${event.oldVariants?.map((v) => v.name).join(", ") ?? "none"}');
+      log('New variants: ${event.newVariants.map((v) => v.name).join(", ")}');
+      log('Current cart items: ${items.length}');
+
+      // Find the item with matching product and old variants
+      var index = -1;
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i];
+        log('  Checking item $i: ${item.product.name} (ID: ${item.product.id})');
+        log('    Variants: ${item.variants?.map((v) => v.name).join(", ") ?? "none"}');
+
+        if (item.product.id == event.product.id &&
+            _listEquals(item.variants, event.oldVariants)) {
+          index = i;
+          log('  ✅ MATCH FOUND at index $i');
+          break;
+        }
+      }
+
+      if (index == -1) {
+        log('⚠️ NO MATCH - Trying fallback match by product ID only');
+        // Fallback: Find by product ID only (first occurrence)
+        index = items
+            .indexWhere((element) => element.product.id == event.product.id);
+
+        if (index != -1) {
+          log('  ✅ Fallback match found at index $index');
+        }
+      }
+
+      emit(_Loading());
+
+      if (index != -1) {
+        // Update the item with new variants, keep the quantity
+        final oldQuantity = items[index].quantity;
+        items[index] = ProductQuantity(
+          product: event.product,
+          quantity: oldQuantity,
+          variants: event.newVariants,
+        );
+
+        log('✅ UPDATED item at index $index');
+        log('   Quantity preserved: $oldQuantity');
+        log('   New variants: ${event.newVariants.map((v) => v.name).join(", ")}');
+      } else {
+        log('❌ Item not found for variant update - no action taken');
+      }
+
+      log('========================================');
+
+      emit(_Loaded(
+        items,
+        currentState.discountModel,
+        currentState.discount,
+        currentState.discountAmount,
+        currentState.tax,
+        currentState.serviceCharge,
+        currentState.totalQuantity,
+        currentState.totalPrice,
+        currentState.draftName,
+        currentState.orderType,
+      ));
+    });
   }
 
   bool _listEquals(List<ProductVariant>? a, List<ProductVariant>? b) {
@@ -308,8 +380,19 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;
     if (a.length != b.length) return false;
+
+    // Compare by ID instead of object equality
     for (int i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
+      // If both have IDs, compare by ID
+      if (a[i].id != null && b[i].id != null) {
+        if (a[i].id != b[i].id) return false;
+      } else {
+        // Fallback to name and price comparison
+        if (a[i].name != b[i].name ||
+            a[i].priceAdjustment != b[i].priceAdjustment) {
+          return false;
+        }
+      }
     }
     return true;
   }

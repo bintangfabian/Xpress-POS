@@ -2,12 +2,16 @@ import 'dart:convert';
 
 class ProductVariant {
   final String? id; // UUID from server
-  final String name;
+  final String name; // For display (can be value or group name)
+  final String? groupName; // Group name (Size, Topping, etc)
+  final String? value; // Option value (Large, Ice Cream, etc)
   final int priceAdjustment;
 
   ProductVariant({
     this.id,
     required this.name,
+    this.groupName,
+    this.value,
     required this.priceAdjustment,
   });
 
@@ -15,6 +19,8 @@ class ProductVariant {
     return {
       'id': id,
       'name': name,
+      'groupName': groupName,
+      'value': value,
       'priceAdjustment': priceAdjustment,
     };
   }
@@ -23,6 +29,8 @@ class ProductVariant {
     return ProductVariant(
       id: map['id']?.toString(),
       name: map['name'] ?? '',
+      groupName: map['groupName']?.toString(),
+      value: map['value']?.toString(),
       priceAdjustment: map['priceAdjustment']?.toInt() ?? 0,
     );
   }
@@ -39,11 +47,18 @@ class ProductVariant {
     return other is ProductVariant &&
         other.id == id &&
         other.name == name &&
+        other.groupName == groupName &&
+        other.value == value &&
         other.priceAdjustment == priceAdjustment;
   }
 
   @override
-  int get hashCode => id.hashCode ^ name.hashCode ^ priceAdjustment.hashCode;
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      groupName.hashCode ^
+      value.hashCode ^
+      priceAdjustment.hashCode;
 
   @override
   String toString() => '$name (+$priceAdjustment)';

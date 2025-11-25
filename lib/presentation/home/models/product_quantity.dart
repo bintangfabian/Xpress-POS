@@ -77,14 +77,23 @@ class ProductQuantity {
   Map<String, dynamic> toOrderItemMap() {
     final remoteProductId = product.productId ?? product.id;
 
-    // Convert variants to product_options (array of UUIDs)
-    final productOptions = variants
-            ?.where((v) => v.id != null && v.id!.isNotEmpty)
-            .map((v) => v.id!)
-            .toList() ??
-        [];
+    log('🔄 toOrderItemMap() - ${product.name}');
+    log('  Product ID (local): ${product.id}');
+    log('  Product ID (remote): $remoteProductId');
+    log('  Quantity: $quantity');
+    log('  Variants count: ${variants?.length ?? 0}');
 
-    return {
+    // Convert variants to product_options format
+    // Backend expects ARRAY OF UUIDs, not objects!
+    // Backend will query variant details from database
+    final productOptions =
+        variants?.where((v) => v.id != null && v.id!.isNotEmpty).map((v) {
+              log('    Variant UUID: ${v.id} (${v.name})');
+              return v.id!; // ✅ Only send UUID string
+            }).toList() ??
+            [];
+
+    final result = {
       'product_id': remoteProductId is int
           ? remoteProductId
           : int.tryParse(remoteProductId.toString()) ?? 0,
@@ -92,7 +101,45 @@ class ProductQuantity {
       'product_options': productOptions,
       'notes': '', // Optional notes field
     };
+
+    log('  product_options (UUIDs): $productOptions');
+    log('  Final result: $result');
+
+    return result;
   }
+
+  /// Calculate total price including variant adjustments
+  double get totalPrice {
+    final basePrice = double.tryParse(product.price ?? '0') ?? 0.0;
+    final variantAdjustment = variants?.fold<double>(
+          0.0,
+          (sum, v) => sum + v.priceAdjustment,
+        ) ??
+        0.0;
+    return (basePrice + variantAdjustment) * quantity;
+  }
+
+  /// Get unit price (base price + variant adjustments)
+  double get unitPrice {
+    final basePrice = double.tryParse(product.price ?? '0') ?? 0.0;
+    final variantAdjustment = variants?.fold<double>(
+          0.0,
+          (sum, v) => sum + v.priceAdjustment,
+        ) ??
+        0.0;
+    return basePrice + variantAdjustment;
+  }
+
+  /// Get variant summary string for display
+  String get variantSummary {
+    if (variants == null || variants!.isEmpty) {
+      return '';
+    }
+    return variants!.map((v) => v.name).join(', ');
+  }
+
+  /// Check if this product has variants
+  bool get hasVariants => variants != null && variants!.isNotEmpty;
 
   factory ProductQuantity.fromMap(Map<String, dynamic> map) {
     return ProductQuantity(

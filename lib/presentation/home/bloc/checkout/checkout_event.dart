@@ -45,4 +45,11 @@ class CheckoutEvent with _$CheckoutEvent {
 
   // ✅ NEW: set order type (dinein / takeaway)
   const factory CheckoutEvent.setOrderType(String orderType) = _SetOrderType;
+
+  // ✅ NEW: update item variants
+  const factory CheckoutEvent.updateItemVariants(
+    Product product,
+    List<ProductVariant>? oldVariants,
+    List<ProductVariant> newVariants,
+  ) = _UpdateItemVariants;
 }

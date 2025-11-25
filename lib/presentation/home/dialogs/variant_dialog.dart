@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -10,68 +9,71 @@ import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/core/utils/image_utils.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
-import 'package:http/http.dart' as http;
-import 'package:xpress/core/constants/variables.dart';
-import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/product_variant_remote_datasource.dart';
 import 'package:xpress/presentation/home/models/product_variant.dart';
 
 class VariantDialog extends StatefulWidget {
   final Product product;
+  final List<ProductVariant>? initialSelectedVariants;
   final List<String> options;
-  const VariantDialog(
-      {super.key,
-      required this.product,
-      this.options = const [
-        'Small',
-        'Medium',
-        'Large',
-        'No Sugar',
-        'Less Sugar',
-        'More Sugar',
-        'Hot',
-        'Cold',
-        'Less Ice',
-        'Normal Ice',
-        'More Ice',
-      ]});
+
+  const VariantDialog({
+    super.key,
+    required this.product,
+    this.initialSelectedVariants,
+    this.options = const [
+      'Small',
+      'Medium',
+      'Large',
+      'No Sugar',
+      'Less Sugar',
+      'More Sugar',
+      'Hot',
+      'Cold',
+      'Less Ice',
+      'Normal Ice',
+      'More Ice',
+    ],
+  });
 
   @override
   State<VariantDialog> createState() => _VariantDialogState();
 }
 
-class _VariantItem {
-  final String? id; // UUID from server
-  final String label;
-  final int priceAdjustment;
-  _VariantItem(this.label, this.priceAdjustment, {this.id});
+// Helper class untuk grouped variant options
+class _VariantGroupData {
+  final String groupName;
+  final bool isRequired;
+  final List<_VariantOptionData> options;
+
+  _VariantGroupData({
+    required this.groupName,
+    required this.isRequired,
+    required this.options,
+  });
 }
 
-List<_VariantItem> _parseOptions(String body) {
-  try {
-    final map = jsonDecode(body);
-    List list = [];
-    if (map is List) list = map;
-    if (map is Map) {
-      final d = map['data'];
-      if (d is List) list = d;
-    }
-    return list.map<_VariantItem>((e) {
-      final id = e['id']?.toString(); // Capture UUID
-      final name = (e['value'] ?? e['name'] ?? '').toString();
-      final adj = (e['price_adjustment'] ?? 0).toString();
-      final padj = int.tryParse(adj.replaceAll('.00', '')) ?? 0;
-      return _VariantItem(name, padj, id: id);
-    }).toList();
-  } catch (_) {
-    return [];
-  }
+class _VariantOptionData {
+  final String id;
+  final String value;
+  final int priceAdjustment;
+  final bool isDefault;
+
+  _VariantOptionData({
+    required this.id,
+    required this.value,
+    required this.priceAdjustment,
+    required this.isDefault,
+  });
 }
 
 class _VariantDialogState extends State<VariantDialog> {
-  final Map<String, _VariantItem> selected =
-      {}; // name -> _VariantItem (includes id)
+  // Track selected option per group: groupName -> selected option ID
+  final Map<String, String> _selectedPerGroup = {};
+
   bool _loading = true;
-  List<_VariantItem> _options = [];
+  List<_VariantGroupData> _variantGroups = [];
+  String? _error;
 
   void _logDebug(String message, {Object? error}) {
     assert(() {
@@ -87,72 +89,127 @@ class _VariantDialogState extends State<VariantDialog> {
   }
 
   Future<void> _fetchOptions() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
-      final auth = await AuthLocalDataSource().getAuthData();
-      final storeUuid = await AuthLocalDataSource().getStoreUuid();
-
-      // IMPORTANT: Use productId for API (this is the actual server ID)
-      // id is local database ID, productId is from server
-      final id = widget.product.productId ?? widget.product.id;
+      // Get product ID (server ID)
+      final productId =
+          widget.product.productId?.toString() ?? widget.product.id?.toString();
 
       _logDebug('========================================');
-      _logDebug('VARIANT DIALOG - Fetching options for:');
+      _logDebug('VARIANT DIALOG - Fetching variants for:');
       _logDebug('Product Name: ${widget.product.name}');
-      _logDebug('Product ID (local): ${widget.product.id}');
-      _logDebug('Product ProductId (server): ${widget.product.productId}');
-      _logDebug('Using ID for API: $id');
+      _logDebug('Product ID: $productId');
       _logDebug('========================================');
 
-      if (id == null) {
+      if (productId == null) {
         setState(() {
-          _options = [];
+          _error = 'Product ID not found';
           _loading = false;
         });
         return;
       }
 
-      final uri = Uri.parse(
-          '${Variables.baseUrl}/api/${Variables.apiVersion}/products/$id/options');
+      // Fetch variant data using datasource
+      final datasource = ProductVariantRemoteDatasource();
+      final variantData = await datasource.getProductVariants(productId);
 
-      _logDebug('VARIANT DIALOG - API URL: $uri');
-
-      final headers = {
-        'Authorization': 'Bearer ${auth.token}',
-        'Accept': 'application/json',
-        if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
-      };
-
-      var res = await http.get(uri, headers: headers);
-
-      _logDebug('VARIANT DIALOG - Response Status: ${res.statusCode}');
-      _logDebug('VARIANT DIALOG - Response Body: ${res.body}');
-
-      if (res.statusCode == 403) {
-        res = await http.get(uri, headers: {
-          'Authorization': 'Bearer ${auth.token}',
-          'Accept': 'application/json',
-        });
-      }
-      if (res.statusCode == 200) {
-        final parsed = _parseOptions(res.body);
-        _logDebug('VARIANT DIALOG - Parsed ${parsed.length} options');
+      if (variantData == null || !variantData.hasVariants) {
+        _logDebug('VARIANT DIALOG - No variants found');
         setState(() {
-          _options = parsed;
+          _variantGroups = [];
           _loading = false;
         });
-      } else {
-        _logDebug('VARIANT DIALOG - No options found');
-        setState(() {
-          _options = [];
-          _loading = false;
-        });
+        return;
       }
-    } catch (e) {
-      _logDebug('VARIANT DIALOG - Error: $e', error: e);
+
+      // Convert to internal format
+      final groups = variantData.variantGroups.map((group) {
+        return _VariantGroupData(
+          groupName: group.groupName,
+          isRequired: group.isRequired,
+          options: group.options.map((option) {
+            return _VariantOptionData(
+              id: option.id,
+              value: option.value,
+              priceAdjustment: option.priceAdjustmentInt,
+              isDefault: option.isDefault,
+            );
+          }).toList(),
+        );
+      }).toList();
+
+      _logDebug('VARIANT DIALOG - Found ${groups.length} variant groups');
+
       setState(() {
-        _options = [];
+        _variantGroups = groups;
         _loading = false;
       });
+
+      // Auto-select default options for required groups
+      _autoSelectDefaults();
+    } catch (e, stackTrace) {
+      _logDebug('VARIANT DIALOG - Error: $e', error: e);
+      _logDebug('Stack trace: $stackTrace');
+      setState(() {
+        _error = 'Failed to load variants';
+        _loading = false;
+      });
+    }
+  }
+
+  /// Auto-select default options for required groups
+  void _autoSelectDefaults() {
+    // First, check if we have initial selected variants (editing mode)
+    if (widget.initialSelectedVariants != null &&
+        widget.initialSelectedVariants!.isNotEmpty) {
+      _logDebug(
+          'Loading initial selected variants: ${widget.initialSelectedVariants!.length}');
+
+      // Map initial variants to groups by finding matching options
+      for (var initialVariant in widget.initialSelectedVariants!) {
+        _logDebug(
+            '  - Initial variant: ${initialVariant.name} (ID: ${initialVariant.id})');
+
+        // Find which group and option this variant belongs to
+        for (var group in _variantGroups) {
+          final matchingOption = group.options
+              .where((opt) =>
+                  opt.id == initialVariant.id ||
+                  opt.value == initialVariant.name)
+              .firstOrNull;
+
+          if (matchingOption != null) {
+            setState(() {
+              _selectedPerGroup[group.groupName] = matchingOption.id;
+            });
+            _logDebug(
+                '  ✓ Pre-selected ${matchingOption.value} for ${group.groupName}');
+            break;
+          }
+        }
+      }
+    } else {
+      // No initial selection, auto-select defaults for required groups
+      for (var group in _variantGroups) {
+        if (group.isRequired && group.options.isNotEmpty) {
+          // Find default option or select first
+          final defaultOption = group.options.firstWhere(
+            (opt) => opt.isDefault,
+            orElse: () => group.options.first,
+          );
+
+          setState(() {
+            _selectedPerGroup[group.groupName] = defaultOption.id;
+          });
+
+          _logDebug(
+              'Auto-selected ${defaultOption.value} for ${group.groupName}');
+        }
+      }
     }
   }
 
@@ -279,7 +336,7 @@ class _VariantDialogState extends State<VariantDialog> {
                 ),
               ),
               const SizedBox(width: 16),
-              // Right: Options
+              // Right: Options (Grouped Variants)
               Expanded(
                 flex: 4,
                 child: Column(
@@ -289,103 +346,66 @@ class _VariantDialogState extends State<VariantDialog> {
                     const Text('Pilihan :',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
-                    // Scrollable list for variants
+
+                    // Loading state
                     if (_loading)
-                      const Center(child: CircularProgressIndicator())
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+
+                    // Error state
+                    else if (_error != null)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.error_outline,
+                                  size: 48, color: AppColors.grey),
+                              const SizedBox(height: 8),
+                              Text(_error!,
+                                  style: TextStyle(color: AppColors.grey)),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: _fetchOptions,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+
+                    // No variants
+                    else if (_variantGroups.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            'No variants available',
+                            style: TextStyle(color: AppColors.grey),
+                          ),
+                        ),
+                      )
+
+                    // Variant groups list
                     else
                       Flexible(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
-                            maxHeight: 370, // adjust as needed
+                            maxHeight: 370,
                           ),
-                          child: Scrollbar(
-                            thickness: 0,
-                            thumbVisibility: true,
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _options.isNotEmpty
-                                  ? _options.length
-                                  : widget.options.length,
-                              itemBuilder: (context, idx) {
-                                final item = _options.isNotEmpty
-                                    ? _options[idx]
-                                    : _VariantItem(widget.options[idx], 0);
-                                final label = item.label;
-                                final price = item.priceAdjustment;
-                                final isSelected = selected.containsKey(label);
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8.0),
-                                  child: Row(
-                                    children: [
-                                      // Tombol select di kiri
-                                      InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            if (isSelected) {
-                                              selected.remove(label);
-                                            } else {
-                                              selected[label] =
-                                                  item; // Store full item with id
-                                            }
-                                          });
-                                        },
-                                        child: Container(
-                                          width: 48,
-                                          height: 48,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.white,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: isSelected
-                                                ? Border.all(
-                                                    color: AppColors.primary,
-                                                    width: 2)
-                                                : Border.all(
-                                                    color: AppColors
-                                                        .greyLightActive,
-                                                    width: 2),
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: isSelected
-                                              ? Container(
-                                                  width: 24,
-                                                  height: 24,
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.primary,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            4),
-                                                  ),
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      // Nama varian
-                                      Expanded(
-                                        child: Text(
-                                          label,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                      // Harga varian di kanan
-                                      Text(
-                                        "+ ${price.currencyFormatRp}",
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: _variantGroups.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 24),
+                            itemBuilder: (context, groupIdx) {
+                              final group = _variantGroups[groupIdx];
+                              return _buildVariantGroup(group);
+                            },
                           ),
                         ),
                       ),
@@ -413,16 +433,7 @@ class _VariantDialogState extends State<VariantDialog> {
               child: Button.filled(
                 color: AppColors.success,
                 label: 'Selesai',
-                onPressed: () {
-                  final variants = selected.entries
-                      .map((e) => ProductVariant(
-                            id: e.value.id, // Include UUID
-                            name: e.key,
-                            priceAdjustment: e.value.priceAdjustment,
-                          ))
-                      .toList();
-                  Navigator.pop(context, variants);
-                },
+                onPressed: _handleConfirm,
               ),
             ),
           ],
@@ -476,6 +487,180 @@ class _VariantDialogState extends State<VariantDialog> {
         );
       },
     );
+  }
+
+  /// Build a variant group with radio button selection
+  Widget _buildVariantGroup(_VariantGroupData group) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Group header
+        Row(
+          children: [
+            Text(
+              group.groupName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.grey,
+              ),
+            ),
+            if (group.isRequired) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Wajib',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Group options
+        ...group.options.map((option) {
+          final isSelected = _selectedPerGroup[group.groupName] == option.id;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  // Radio behavior: select this option for this group
+                  _selectedPerGroup[group.groupName] = option.id;
+                });
+              },
+              child: Row(
+                children: [
+                  // Radio button
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: isSelected
+                          ? Border.all(color: AppColors.primary, width: 2)
+                          : Border.all(
+                              color: AppColors.greyLightActive, width: 2),
+                    ),
+                    alignment: Alignment.center,
+                    child: isSelected
+                        ? Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Option name
+                  Expanded(
+                    child: Text(
+                      option.value,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  // Price adjustment
+                  Text(
+                    _formatPriceAdjustment(option.priceAdjustment),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: option.priceAdjustment == 0
+                          ? AppColors.success
+                          : AppColors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  /// Format price adjustment for display
+  String _formatPriceAdjustment(int priceAdjustment) {
+    if (priceAdjustment == 0) {
+      return 'Free';
+    } else if (priceAdjustment > 0) {
+      return '+${priceAdjustment.currencyFormatRp}';
+    } else {
+      // Negative price (discount)
+      return priceAdjustment.currencyFormatRp; // Already includes minus sign
+    }
+  }
+
+  /// Validate and confirm selection
+  void _handleConfirm() {
+    // Validate required groups
+    for (var group in _variantGroups) {
+      if (group.isRequired && !_selectedPerGroup.containsKey(group.groupName)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Mohon pilih ${group.groupName}'),
+            backgroundColor: AppColors.danger,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+    }
+
+    // Build selected variants list
+    final List<ProductVariant> selectedVariants = [];
+
+    for (var entry in _selectedPerGroup.entries) {
+      final groupName = entry.key;
+      final selectedOptionId = entry.value;
+
+      // Find the group and option
+      final group = _variantGroups.firstWhere(
+        (g) => g.groupName == groupName,
+        orElse: () => _variantGroups.first,
+      );
+
+      final option = group.options.firstWhere(
+        (o) => o.id == selectedOptionId,
+        orElse: () => group.options.first,
+      );
+
+      // Save both group name and value for backend API
+      selectedVariants.add(ProductVariant(
+        id: option.id,
+        name: option.value, // For display in UI
+        groupName: groupName, // For backend API
+        value: option.value, // For backend API
+        priceAdjustment: option.priceAdjustment,
+      ));
+    }
+
+    _logDebug('Selected variants: ${selectedVariants.length}');
+    for (var v in selectedVariants) {
+      _logDebug('  - ${v.name}: ${v.id} (+${v.priceAdjustment})');
+    }
+
+    Navigator.pop(context, selectedVariants);
   }
 
   // Helper methods for stock display

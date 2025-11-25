@@ -33,6 +33,9 @@ mixin _$CheckoutEvent {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -51,6 +54,9 @@ mixin _$CheckoutEvent {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -69,6 +75,9 @@ mixin _$CheckoutEvent {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -87,6 +96,7 @@ mixin _$CheckoutEvent {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -104,6 +114,7 @@ mixin _$CheckoutEvent {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -121,6 +132,7 @@ mixin _$CheckoutEvent {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -197,6 +209,9 @@ class _$StartedImpl implements _Started {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return started();
   }
@@ -218,6 +233,9 @@ class _$StartedImpl implements _Started {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return started?.call();
   }
@@ -239,6 +257,9 @@ class _$StartedImpl implements _Started {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (started != null) {
@@ -263,6 +284,7 @@ class _$StartedImpl implements _Started {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return started(this);
   }
@@ -283,6 +305,7 @@ class _$StartedImpl implements _Started {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return started?.call(this);
   }
@@ -303,6 +326,7 @@ class _$StartedImpl implements _Started {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (started != null) {
@@ -395,6 +419,9 @@ class _$AddItemImpl implements _AddItem {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return addItem(product);
   }
@@ -416,6 +443,9 @@ class _$AddItemImpl implements _AddItem {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return addItem?.call(product);
   }
@@ -437,6 +467,9 @@ class _$AddItemImpl implements _AddItem {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (addItem != null) {
@@ -461,6 +494,7 @@ class _$AddItemImpl implements _AddItem {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return addItem(this);
   }
@@ -481,6 +515,7 @@ class _$AddItemImpl implements _AddItem {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return addItem?.call(this);
   }
@@ -501,6 +536,7 @@ class _$AddItemImpl implements _AddItem {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (addItem != null) {
@@ -598,6 +634,9 @@ class _$RemoveItemImpl implements _RemoveItem {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return removeItem(product);
   }
@@ -619,6 +658,9 @@ class _$RemoveItemImpl implements _RemoveItem {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return removeItem?.call(product);
   }
@@ -640,6 +682,9 @@ class _$RemoveItemImpl implements _RemoveItem {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeItem != null) {
@@ -664,6 +709,7 @@ class _$RemoveItemImpl implements _RemoveItem {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return removeItem(this);
   }
@@ -684,6 +730,7 @@ class _$RemoveItemImpl implements _RemoveItem {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return removeItem?.call(this);
   }
@@ -704,6 +751,7 @@ class _$RemoveItemImpl implements _RemoveItem {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeItem != null) {
@@ -802,6 +850,9 @@ class _$AddDiscountImpl implements _AddDiscount {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return addDiscount(discount);
   }
@@ -823,6 +874,9 @@ class _$AddDiscountImpl implements _AddDiscount {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return addDiscount?.call(discount);
   }
@@ -844,6 +898,9 @@ class _$AddDiscountImpl implements _AddDiscount {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (addDiscount != null) {
@@ -868,6 +925,7 @@ class _$AddDiscountImpl implements _AddDiscount {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return addDiscount(this);
   }
@@ -888,6 +946,7 @@ class _$AddDiscountImpl implements _AddDiscount {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return addDiscount?.call(this);
   }
@@ -908,6 +967,7 @@ class _$AddDiscountImpl implements _AddDiscount {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (addDiscount != null) {
@@ -979,6 +1039,9 @@ class _$RemoveDiscountImpl implements _RemoveDiscount {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return removeDiscount();
   }
@@ -1000,6 +1063,9 @@ class _$RemoveDiscountImpl implements _RemoveDiscount {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return removeDiscount?.call();
   }
@@ -1021,6 +1087,9 @@ class _$RemoveDiscountImpl implements _RemoveDiscount {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeDiscount != null) {
@@ -1045,6 +1114,7 @@ class _$RemoveDiscountImpl implements _RemoveDiscount {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return removeDiscount(this);
   }
@@ -1065,6 +1135,7 @@ class _$RemoveDiscountImpl implements _RemoveDiscount {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return removeDiscount?.call(this);
   }
@@ -1085,6 +1156,7 @@ class _$RemoveDiscountImpl implements _RemoveDiscount {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeDiscount != null) {
@@ -1177,6 +1249,9 @@ class _$AddTaxImpl implements _AddTax {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return addTax(tax);
   }
@@ -1198,6 +1273,9 @@ class _$AddTaxImpl implements _AddTax {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return addTax?.call(tax);
   }
@@ -1219,6 +1297,9 @@ class _$AddTaxImpl implements _AddTax {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (addTax != null) {
@@ -1243,6 +1324,7 @@ class _$AddTaxImpl implements _AddTax {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return addTax(this);
   }
@@ -1263,6 +1345,7 @@ class _$AddTaxImpl implements _AddTax {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return addTax?.call(this);
   }
@@ -1283,6 +1366,7 @@ class _$AddTaxImpl implements _AddTax {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (addTax != null) {
@@ -1382,6 +1466,9 @@ class _$AddServiceChargeImpl implements _AddServiceCharge {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return addServiceCharge(serviceCharge);
   }
@@ -1403,6 +1490,9 @@ class _$AddServiceChargeImpl implements _AddServiceCharge {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return addServiceCharge?.call(serviceCharge);
   }
@@ -1424,6 +1514,9 @@ class _$AddServiceChargeImpl implements _AddServiceCharge {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (addServiceCharge != null) {
@@ -1448,6 +1541,7 @@ class _$AddServiceChargeImpl implements _AddServiceCharge {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return addServiceCharge(this);
   }
@@ -1468,6 +1562,7 @@ class _$AddServiceChargeImpl implements _AddServiceCharge {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return addServiceCharge?.call(this);
   }
@@ -1488,6 +1583,7 @@ class _$AddServiceChargeImpl implements _AddServiceCharge {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (addServiceCharge != null) {
@@ -1560,6 +1656,9 @@ class _$RemoveTaxImpl implements _RemoveTax {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return removeTax();
   }
@@ -1581,6 +1680,9 @@ class _$RemoveTaxImpl implements _RemoveTax {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return removeTax?.call();
   }
@@ -1602,6 +1704,9 @@ class _$RemoveTaxImpl implements _RemoveTax {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeTax != null) {
@@ -1626,6 +1731,7 @@ class _$RemoveTaxImpl implements _RemoveTax {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return removeTax(this);
   }
@@ -1646,6 +1752,7 @@ class _$RemoveTaxImpl implements _RemoveTax {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return removeTax?.call(this);
   }
@@ -1666,6 +1773,7 @@ class _$RemoveTaxImpl implements _RemoveTax {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeTax != null) {
@@ -1733,6 +1841,9 @@ class _$RemoveServiceChargeImpl implements _RemoveServiceCharge {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return removeServiceCharge();
   }
@@ -1754,6 +1865,9 @@ class _$RemoveServiceChargeImpl implements _RemoveServiceCharge {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return removeServiceCharge?.call();
   }
@@ -1775,6 +1889,9 @@ class _$RemoveServiceChargeImpl implements _RemoveServiceCharge {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeServiceCharge != null) {
@@ -1799,6 +1916,7 @@ class _$RemoveServiceChargeImpl implements _RemoveServiceCharge {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return removeServiceCharge(this);
   }
@@ -1819,6 +1937,7 @@ class _$RemoveServiceChargeImpl implements _RemoveServiceCharge {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return removeServiceCharge?.call(this);
   }
@@ -1839,6 +1958,7 @@ class _$RemoveServiceChargeImpl implements _RemoveServiceCharge {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (removeServiceCharge != null) {
@@ -1953,6 +2073,9 @@ class _$SaveDraftOrderImpl implements _SaveDraftOrder {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return saveDraftOrder(tableNumber, draftName, discountAmount);
   }
@@ -1974,6 +2097,9 @@ class _$SaveDraftOrderImpl implements _SaveDraftOrder {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return saveDraftOrder?.call(tableNumber, draftName, discountAmount);
   }
@@ -1995,6 +2121,9 @@ class _$SaveDraftOrderImpl implements _SaveDraftOrder {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (saveDraftOrder != null) {
@@ -2019,6 +2148,7 @@ class _$SaveDraftOrderImpl implements _SaveDraftOrder {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return saveDraftOrder(this);
   }
@@ -2039,6 +2169,7 @@ class _$SaveDraftOrderImpl implements _SaveDraftOrder {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return saveDraftOrder?.call(this);
   }
@@ -2059,6 +2190,7 @@ class _$SaveDraftOrderImpl implements _SaveDraftOrder {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (saveDraftOrder != null) {
@@ -2160,6 +2292,9 @@ class _$LoadDraftOrderImpl implements _LoadDraftOrder {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return loadDraftOrder(data);
   }
@@ -2181,6 +2316,9 @@ class _$LoadDraftOrderImpl implements _LoadDraftOrder {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return loadDraftOrder?.call(data);
   }
@@ -2202,6 +2340,9 @@ class _$LoadDraftOrderImpl implements _LoadDraftOrder {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (loadDraftOrder != null) {
@@ -2226,6 +2367,7 @@ class _$LoadDraftOrderImpl implements _LoadDraftOrder {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return loadDraftOrder(this);
   }
@@ -2246,6 +2388,7 @@ class _$LoadDraftOrderImpl implements _LoadDraftOrder {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return loadDraftOrder?.call(this);
   }
@@ -2266,6 +2409,7 @@ class _$LoadDraftOrderImpl implements _LoadDraftOrder {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (loadDraftOrder != null) {
@@ -2338,6 +2482,9 @@ class _$ClearOrderImpl implements _ClearOrder {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return clearOrder();
   }
@@ -2359,6 +2506,9 @@ class _$ClearOrderImpl implements _ClearOrder {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return clearOrder?.call();
   }
@@ -2380,6 +2530,9 @@ class _$ClearOrderImpl implements _ClearOrder {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (clearOrder != null) {
@@ -2404,6 +2557,7 @@ class _$ClearOrderImpl implements _ClearOrder {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return clearOrder(this);
   }
@@ -2424,6 +2578,7 @@ class _$ClearOrderImpl implements _ClearOrder {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return clearOrder?.call(this);
   }
@@ -2444,6 +2599,7 @@ class _$ClearOrderImpl implements _ClearOrder {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (clearOrder != null) {
@@ -2537,6 +2693,9 @@ class _$SetOrderTypeImpl implements _SetOrderType {
     required TResult Function(DraftOrderModel data) loadDraftOrder,
     required TResult Function() clearOrder,
     required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
   }) {
     return setOrderType(orderType);
   }
@@ -2558,6 +2717,9 @@ class _$SetOrderTypeImpl implements _SetOrderType {
     TResult? Function(DraftOrderModel data)? loadDraftOrder,
     TResult? Function()? clearOrder,
     TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
   }) {
     return setOrderType?.call(orderType);
   }
@@ -2579,6 +2741,9 @@ class _$SetOrderTypeImpl implements _SetOrderType {
     TResult Function(DraftOrderModel data)? loadDraftOrder,
     TResult Function()? clearOrder,
     TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
     required TResult orElse(),
   }) {
     if (setOrderType != null) {
@@ -2603,6 +2768,7 @@ class _$SetOrderTypeImpl implements _SetOrderType {
     required TResult Function(_LoadDraftOrder value) loadDraftOrder,
     required TResult Function(_ClearOrder value) clearOrder,
     required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
   }) {
     return setOrderType(this);
   }
@@ -2623,6 +2789,7 @@ class _$SetOrderTypeImpl implements _SetOrderType {
     TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult? Function(_ClearOrder value)? clearOrder,
     TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
   }) {
     return setOrderType?.call(this);
   }
@@ -2643,6 +2810,7 @@ class _$SetOrderTypeImpl implements _SetOrderType {
     TResult Function(_LoadDraftOrder value)? loadDraftOrder,
     TResult Function(_ClearOrder value)? clearOrder,
     TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
     required TResult orElse(),
   }) {
     if (setOrderType != null) {
@@ -2658,6 +2826,270 @@ abstract class _SetOrderType implements CheckoutEvent {
   String get orderType;
   @JsonKey(ignore: true)
   _$$SetOrderTypeImplCopyWith<_$SetOrderTypeImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$UpdateItemVariantsImplCopyWith<$Res> {
+  factory _$$UpdateItemVariantsImplCopyWith(_$UpdateItemVariantsImpl value,
+          $Res Function(_$UpdateItemVariantsImpl) then) =
+      __$$UpdateItemVariantsImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call(
+      {Product product,
+      List<ProductVariant>? oldVariants,
+      List<ProductVariant> newVariants});
+}
+
+/// @nodoc
+class __$$UpdateItemVariantsImplCopyWithImpl<$Res>
+    extends _$CheckoutEventCopyWithImpl<$Res, _$UpdateItemVariantsImpl>
+    implements _$$UpdateItemVariantsImplCopyWith<$Res> {
+  __$$UpdateItemVariantsImplCopyWithImpl(_$UpdateItemVariantsImpl _value,
+      $Res Function(_$UpdateItemVariantsImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? product = null,
+    Object? oldVariants = freezed,
+    Object? newVariants = null,
+  }) {
+    return _then(_$UpdateItemVariantsImpl(
+      null == product
+          ? _value.product
+          : product // ignore: cast_nullable_to_non_nullable
+              as Product,
+      freezed == oldVariants
+          ? _value._oldVariants
+          : oldVariants // ignore: cast_nullable_to_non_nullable
+              as List<ProductVariant>?,
+      null == newVariants
+          ? _value._newVariants
+          : newVariants // ignore: cast_nullable_to_non_nullable
+              as List<ProductVariant>,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$UpdateItemVariantsImpl implements _UpdateItemVariants {
+  const _$UpdateItemVariantsImpl(
+      this.product,
+      final List<ProductVariant>? oldVariants,
+      final List<ProductVariant> newVariants)
+      : _oldVariants = oldVariants,
+        _newVariants = newVariants;
+
+  @override
+  final Product product;
+  final List<ProductVariant>? _oldVariants;
+  @override
+  List<ProductVariant>? get oldVariants {
+    final value = _oldVariants;
+    if (value == null) return null;
+    if (_oldVariants is EqualUnmodifiableListView) return _oldVariants;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(value);
+  }
+
+  final List<ProductVariant> _newVariants;
+  @override
+  List<ProductVariant> get newVariants {
+    if (_newVariants is EqualUnmodifiableListView) return _newVariants;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_newVariants);
+  }
+
+  @override
+  String toString() {
+    return 'CheckoutEvent.updateItemVariants(product: $product, oldVariants: $oldVariants, newVariants: $newVariants)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$UpdateItemVariantsImpl &&
+            (identical(other.product, product) || other.product == product) &&
+            const DeepCollectionEquality()
+                .equals(other._oldVariants, _oldVariants) &&
+            const DeepCollectionEquality()
+                .equals(other._newVariants, _newVariants));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      product,
+      const DeepCollectionEquality().hash(_oldVariants),
+      const DeepCollectionEquality().hash(_newVariants));
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$UpdateItemVariantsImplCopyWith<_$UpdateItemVariantsImpl> get copyWith =>
+      __$$UpdateItemVariantsImplCopyWithImpl<_$UpdateItemVariantsImpl>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() started,
+    required TResult Function(Product product) addItem,
+    required TResult Function(Product product) removeItem,
+    required TResult Function(Discount discount) addDiscount,
+    required TResult Function() removeDiscount,
+    required TResult Function(int tax) addTax,
+    required TResult Function(int serviceCharge) addServiceCharge,
+    required TResult Function() removeTax,
+    required TResult Function() removeServiceCharge,
+    required TResult Function(
+            int tableNumber, String draftName, int discountAmount)
+        saveDraftOrder,
+    required TResult Function(DraftOrderModel data) loadDraftOrder,
+    required TResult Function() clearOrder,
+    required TResult Function(String orderType) setOrderType,
+    required TResult Function(Product product,
+            List<ProductVariant>? oldVariants, List<ProductVariant> newVariants)
+        updateItemVariants,
+  }) {
+    return updateItemVariants(product, oldVariants, newVariants);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? started,
+    TResult? Function(Product product)? addItem,
+    TResult? Function(Product product)? removeItem,
+    TResult? Function(Discount discount)? addDiscount,
+    TResult? Function()? removeDiscount,
+    TResult? Function(int tax)? addTax,
+    TResult? Function(int serviceCharge)? addServiceCharge,
+    TResult? Function()? removeTax,
+    TResult? Function()? removeServiceCharge,
+    TResult? Function(int tableNumber, String draftName, int discountAmount)?
+        saveDraftOrder,
+    TResult? Function(DraftOrderModel data)? loadDraftOrder,
+    TResult? Function()? clearOrder,
+    TResult? Function(String orderType)? setOrderType,
+    TResult? Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
+  }) {
+    return updateItemVariants?.call(product, oldVariants, newVariants);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? started,
+    TResult Function(Product product)? addItem,
+    TResult Function(Product product)? removeItem,
+    TResult Function(Discount discount)? addDiscount,
+    TResult Function()? removeDiscount,
+    TResult Function(int tax)? addTax,
+    TResult Function(int serviceCharge)? addServiceCharge,
+    TResult Function()? removeTax,
+    TResult Function()? removeServiceCharge,
+    TResult Function(int tableNumber, String draftName, int discountAmount)?
+        saveDraftOrder,
+    TResult Function(DraftOrderModel data)? loadDraftOrder,
+    TResult Function()? clearOrder,
+    TResult Function(String orderType)? setOrderType,
+    TResult Function(Product product, List<ProductVariant>? oldVariants,
+            List<ProductVariant> newVariants)?
+        updateItemVariants,
+    required TResult orElse(),
+  }) {
+    if (updateItemVariants != null) {
+      return updateItemVariants(product, oldVariants, newVariants);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_Started value) started,
+    required TResult Function(_AddItem value) addItem,
+    required TResult Function(_RemoveItem value) removeItem,
+    required TResult Function(_AddDiscount value) addDiscount,
+    required TResult Function(_RemoveDiscount value) removeDiscount,
+    required TResult Function(_AddTax value) addTax,
+    required TResult Function(_AddServiceCharge value) addServiceCharge,
+    required TResult Function(_RemoveTax value) removeTax,
+    required TResult Function(_RemoveServiceCharge value) removeServiceCharge,
+    required TResult Function(_SaveDraftOrder value) saveDraftOrder,
+    required TResult Function(_LoadDraftOrder value) loadDraftOrder,
+    required TResult Function(_ClearOrder value) clearOrder,
+    required TResult Function(_SetOrderType value) setOrderType,
+    required TResult Function(_UpdateItemVariants value) updateItemVariants,
+  }) {
+    return updateItemVariants(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_Started value)? started,
+    TResult? Function(_AddItem value)? addItem,
+    TResult? Function(_RemoveItem value)? removeItem,
+    TResult? Function(_AddDiscount value)? addDiscount,
+    TResult? Function(_RemoveDiscount value)? removeDiscount,
+    TResult? Function(_AddTax value)? addTax,
+    TResult? Function(_AddServiceCharge value)? addServiceCharge,
+    TResult? Function(_RemoveTax value)? removeTax,
+    TResult? Function(_RemoveServiceCharge value)? removeServiceCharge,
+    TResult? Function(_SaveDraftOrder value)? saveDraftOrder,
+    TResult? Function(_LoadDraftOrder value)? loadDraftOrder,
+    TResult? Function(_ClearOrder value)? clearOrder,
+    TResult? Function(_SetOrderType value)? setOrderType,
+    TResult? Function(_UpdateItemVariants value)? updateItemVariants,
+  }) {
+    return updateItemVariants?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_Started value)? started,
+    TResult Function(_AddItem value)? addItem,
+    TResult Function(_RemoveItem value)? removeItem,
+    TResult Function(_AddDiscount value)? addDiscount,
+    TResult Function(_RemoveDiscount value)? removeDiscount,
+    TResult Function(_AddTax value)? addTax,
+    TResult Function(_AddServiceCharge value)? addServiceCharge,
+    TResult Function(_RemoveTax value)? removeTax,
+    TResult Function(_RemoveServiceCharge value)? removeServiceCharge,
+    TResult Function(_SaveDraftOrder value)? saveDraftOrder,
+    TResult Function(_LoadDraftOrder value)? loadDraftOrder,
+    TResult Function(_ClearOrder value)? clearOrder,
+    TResult Function(_SetOrderType value)? setOrderType,
+    TResult Function(_UpdateItemVariants value)? updateItemVariants,
+    required TResult orElse(),
+  }) {
+    if (updateItemVariants != null) {
+      return updateItemVariants(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _UpdateItemVariants implements CheckoutEvent {
+  const factory _UpdateItemVariants(
+      final Product product,
+      final List<ProductVariant>? oldVariants,
+      final List<ProductVariant> newVariants) = _$UpdateItemVariantsImpl;
+
+  Product get product;
+  List<ProductVariant>? get oldVariants;
+  List<ProductVariant> get newVariants;
+  @JsonKey(ignore: true)
+  _$$UpdateItemVariantsImplCopyWith<_$UpdateItemVariantsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 

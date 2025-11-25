@@ -21,6 +21,7 @@ import '../../../core/constants/colors.dart';
 import '../bloc/checkout/checkout_bloc.dart';
 import '../widgets/product_card.dart';
 import 'package:xpress/presentation/home/dialogs/variant_dialog.dart';
+import 'package:xpress/data/datasources/product_variant_remote_datasource.dart';
 import 'package:xpress/presentation/setting/bloc/get_categories/get_categories_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/sync_product/sync_product_bloc.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
@@ -148,6 +149,160 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       setState(() => _orderNumber = next);
     } catch (_) {}
+  }
+
+  /// Handle editing variant for item already in cart
+  Future<void> _handleEditVariant(ProductQuantity productQuantity) async {
+    try {
+      _logHome('========================================');
+      _logHome('Edit variant for: ${productQuantity.product.name}');
+      _logHome('Current variants: ${productQuantity.variants?.length ?? 0}');
+
+      // Get product ID
+      final productId = productQuantity.product.productId?.toString() ??
+          productQuantity.product.id?.toString();
+
+      if (productId == null) {
+        _logHome('ERROR: Product ID is null');
+        return;
+      }
+
+      // Check if product has variants (double check)
+      final datasource = ProductVariantRemoteDatasource();
+      final variantData = await datasource.getProductVariants(productId);
+
+      if (!mounted) return;
+
+      if (variantData != null && variantData.hasVariants) {
+        _logHome('✅ Opening variant dialog for edit...');
+
+        // Show dialog with pre-selected variants
+        final res = await showDialog<List<ProductVariant>>(
+          context: context,
+          builder: (_) => VariantDialog(
+            product: productQuantity.product,
+            initialSelectedVariants: productQuantity.variants,
+          ),
+        );
+
+        if (!mounted) return;
+
+        if (res != null) {
+          _logHome('✅ Variants updated: ${res.length} options');
+
+          // Update the item in cart with new variants
+          final bloc = context.read<CheckoutBloc>();
+          bloc.add(CheckoutEvent.updateItemVariants(
+            productQuantity.product,
+            productQuantity.variants, // old variants
+            res, // new variants
+          ));
+
+          _logHome('✅ Item variants updated in cart');
+        } else {
+          _logHome('ℹ️ Variant edit cancelled');
+        }
+      }
+
+      _logHome('========================================');
+    } catch (e, stackTrace) {
+      _logHome('❌ Error editing variants: $e');
+      _logHome('Stack trace: $stackTrace');
+    }
+  }
+
+  /// Handle product selection with conditional variant logic
+  /// If product has variants → show variant dialog
+  /// If product has no variants → directly add to cart
+  Future<void> _handleProductSelection(Product product) async {
+    try {
+      _logHome('========================================');
+      _logHome('Product selected: ${product.name}');
+      _logHome('Checking for variants...');
+
+      // Get product ID (use server ID if available)
+      final productId = product.productId?.toString() ?? product.id?.toString();
+
+      if (productId == null) {
+        _logHome('ERROR: Product ID is null');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid product'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Check if product has variants
+      final datasource = ProductVariantRemoteDatasource();
+      final variantData = await datasource.getProductVariants(productId);
+
+      if (!mounted) return;
+
+      // If product has variants, show dialog
+      if (variantData != null && variantData.hasVariants) {
+        _logHome(
+            '✅ Product has ${variantData.variantGroups.length} variant groups');
+        _logHome('   Opening variant dialog...');
+
+        // Use old VariantDialog design with new conditional logic
+        final res = await showDialog<List<ProductVariant>>(
+          context: context,
+          builder: (_) => VariantDialog(product: product),
+        );
+
+        if (!mounted) return;
+
+        if (res != null && res.isNotEmpty) {
+          _logHome('✅ Variants selected: ${res.length} options');
+
+          // Add to cart with selected variants
+          final bloc = context.read<CheckoutBloc>();
+          bloc.setPendingVariants(res);
+          bloc.add(CheckoutEvent.addItem(product));
+
+          // Store selected variants for this product
+          if (product.id != null) {
+            setState(() {
+              _selectedVariants[product.id!] = res;
+            });
+          }
+
+          _logHome('✅ Product added to cart with variants');
+        } else {
+          _logHome('ℹ️ Variant selection cancelled');
+        }
+      } else {
+        // Product has no variants, add directly to cart
+        _logHome('ℹ️ Product has no variants');
+        _logHome('✅ Adding directly to cart...');
+
+        final bloc = context.read<CheckoutBloc>();
+        bloc.setPendingVariants(null); // No variants
+        bloc.add(CheckoutEvent.addItem(product));
+
+        _logHome('✅ Product added to cart without variants');
+
+        // No snackbar for products without variants (as requested)
+      }
+
+      _logHome('========================================');
+    } catch (e, stackTrace) {
+      _logHome('❌ Error handling product selection: $e');
+      _logHome('Stack trace: $stackTrace');
+
+      // If error checking variants, assume no variants and add directly
+      _logHome('⚠️ Assuming no variants due to error, adding directly...');
+
+      if (mounted) {
+        final bloc = context.read<CheckoutBloc>();
+        bloc.setPendingVariants(null);
+        bloc.add(CheckoutEvent.addItem(product));
+      }
+    }
   }
 
   Future<void> _createOpenBillOrder(String orderType) async {
@@ -1146,6 +1301,11 @@ class _HomePageState extends State<HomePage> {
                                               itemBuilder: (_, i) {
                                                 return OrderMenu(
                                                   data: products[i],
+                                                  onTap: products[i].hasVariants
+                                                      ? () =>
+                                                          _handleEditVariant(
+                                                              products[i])
+                                                      : null,
                                                 );
                                               },
                                             ),
@@ -1523,21 +1683,7 @@ class _HomePageState extends State<HomePage> {
                   itemBuilder: (_, i) => ProductCard(
                     data: filtered[i],
                     onCartButton: () async {
-                      final res = await showDialog<List<ProductVariant>>(
-                        context: context,
-                        builder: (_) => VariantDialog(product: filtered[i]),
-                      );
-                      if (!context.mounted) return;
-                      if (res != null) {
-                        final bloc = context.read<CheckoutBloc>();
-                        bloc.setPendingVariants(res);
-                        bloc.add(CheckoutEvent.addItem(filtered[i]));
-                        if (filtered[i].id != null) {
-                          setState(() {
-                            _selectedVariants[filtered[i].id!] = res;
-                          });
-                        }
-                      }
+                      await _handleProductSelection(filtered[i]);
                     },
                   ),
                 );

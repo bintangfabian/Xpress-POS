@@ -563,10 +563,16 @@ class OrderRemoteDatasource {
                 item['product_id'] = int.tryParse(productId.toString()) ?? 0;
               }
             }
-            // Ensure product_options is array
+            // Ensure product_options is array of UUIDs
             if (!item.containsKey('product_options') ||
                 item['product_options'] == null) {
               item['product_options'] = [];
+            }
+            // Validate product_options is array of strings (UUIDs)
+            if (item['product_options'] is List) {
+              item['product_options'] = (item['product_options'] as List)
+                  .where((opt) => opt is String && opt.isNotEmpty)
+                  .toList();
             }
             // Ensure notes is string
             if (!item.containsKey('notes') || item['notes'] == null) {
@@ -587,20 +593,33 @@ class OrderRemoteDatasource {
         if (storeUuid != null && storeUuid.isNotEmpty) 'X-Store-Id': storeUuid,
       };
 
+      log('========================================');
+      log('CREATE OPEN BILL ORDER');
+      log('URL: $uri');
+      log('Headers: ${headers.keys.join(", ")}');
+      log('Request Body: ${jsonEncode(modifiedOrderData)}');
+      log('========================================');
+
       var response = await http.post(
         uri,
         headers: headers,
         body: jsonEncode(modifiedOrderData),
       );
 
+      log('Response Status Code: ${response.statusCode}');
+      log('Response Body: ${response.body}');
+
       if (response.statusCode == 403) {
         // Retry without store header if forbidden
+        log('⚠️ 403 Forbidden - Retrying without X-Store-Id header');
         headers.remove('X-Store-Id');
         response = await http.post(
           uri,
           headers: headers,
           body: jsonEncode(modifiedOrderData),
         );
+        log('Retry Response Status Code: ${response.statusCode}');
+        log('Retry Response Body: ${response.body}');
       }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
