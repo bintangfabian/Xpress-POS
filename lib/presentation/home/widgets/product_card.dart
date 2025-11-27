@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:xpress/core/components/spaces.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/core/utils/image_utils.dart';
@@ -50,122 +51,139 @@ class ProductCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // === Gambar Produk + Label Stok + Overlay Habis
-              Expanded(
-                child: Stack(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12.0), // 🚀 padding gambar
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        //TODO: image has to set
-                        child: _buildProductImage(),
-                      ),
-                    ),
-                    // Overlay "Stok Habis" jika stock = 0
-                    if (isOutOfStock)
-                      Positioned.fill(
-                        child: Container(
-                          margin: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withAlpha((0.7 * 255).round()),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Hitung proporsi: gambar 60%, teks 40% (lebih seimbang)
+              final imageHeight = constraints.maxHeight * 0.60;
+              final textHeight = constraints.maxHeight * 0.40;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // === Gambar Produk + Label Stok + Overlay Habis
+                  // Gunakan tinggi tetap berdasarkan proporsi untuk memastikan gambar tidak mengecil
+                  SizedBox(
+                    height: imageHeight,
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding:
+                              const EdgeInsets.all(12.0), // 🚀 padding gambar
+                          child: ClipRRect(
                             borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.block,
-                                  color: Colors.white,
-                                  size: 32,
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Stok Habis',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            //TODO: image has to set
+                            child: _buildProductImage(),
                           ),
                         ),
-                      ),
-                    // Label Stok (hanya tampil jika masih ada stock atau tidak tracking)
-                    if (!isOutOfStock)
-                      Positioned(
-                        bottom: 18,
-                        right: 18,
-                        child: Container(
+                        // Overlay "Stok Habis" jika stock = 0
+                        if (isOutOfStock)
+                          Positioned.fill(
+                            child: Container(
+                              margin: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color:
+                                    Colors.black.withAlpha((0.7 * 255).round()),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.block,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Stok Habis',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Label Stok (hanya tampil jika masih ada stock atau tidak tracking)
+                        if (!isOutOfStock)
+                          Positioned(
+                            bottom: 18,
+                            right: 18,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: !isTrackingInventory
+                                    ? AppColors.successLight
+                                    : (_stockIsLow()
+                                        ? AppColors.dangerLight
+                                        : AppColors.successLight),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                "Stok: $displayStock",
+                                style: TextStyle(
+                                  color: !isTrackingInventory
+                                      ? AppColors.success
+                                      : (_stockIsLow()
+                                          ? AppColors.danger
+                                          : AppColors.success),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // === Nama Produk dan Harga (dalam container dengan tinggi maksimum)
+                  SizedBox(
+                    height: textHeight,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // === Nama Produk (top left)
+                        Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: !isTrackingInventory
-                                ? AppColors.successLight
-                                : (_stockIsLow()
-                                    ? AppColors.dangerLight
-                                    : AppColors.successLight),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                              horizontal: 12, vertical: 4),
                           child: Text(
-                            "Stok: $displayStock",
-                            style: TextStyle(
-                              color: !isTrackingInventory
-                                  ? AppColors.success
-                                  : (_stockIsLow()
-                                      ? AppColors.danger
-                                      : AppColors.success),
-                              fontWeight: FontWeight.w600,
+                            data.name ?? "-",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // === Harga Produk (bottom left)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          child: Text(
+                            (data.price ?? '0')
+                                .toIntegerFromText
+                                .currencyFormatRp,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
                               fontSize: 14,
+                              color: AppColors.grey,
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // === Nama Produk
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Text(
-                  data.name ?? "-",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                      ],
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              // === Harga Produk
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Text(
-                  (data.price ?? '0').toIntegerFromText.currencyFormatRp,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.grey,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),

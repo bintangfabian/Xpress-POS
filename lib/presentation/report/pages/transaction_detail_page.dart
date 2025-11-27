@@ -400,22 +400,37 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
               _rowSpaceBetween('Status Pembayaran', _getPaymentStatus()),
               const SizedBox(height: 16),
               // Refund button (outlined danger) using shared Button
-              if (_order?.payments != null && _order!.payments!.isNotEmpty)
-                Button.outlined(
-                  onPressed: () => _showRefundDialog(context),
-                  height: 48,
-                  borderRadius: 8,
-                  color: AppColors.dangerLight,
-                  borderColor: AppColors.danger,
-                  textColor: AppColors.danger,
-                  icon: Assets.icons.refund.svg(
-                    colorFilter:
-                        ColorFilter.mode(AppColors.danger, BlendMode.srcIn),
-                    height: 20,
-                    width: 20,
-                  ),
-                  label: 'Refund',
+              // Disabled if order already has refunds
+              if (_order?.payments != null && _order!.payments!.isNotEmpty) ...[
+                Builder(
+                  builder: (context) {
+                    final hasRefunds =
+                        _order?.refunds != null && _order!.refunds!.isNotEmpty;
+                    return Button.outlined(
+                      onPressed:
+                          hasRefunds ? () {} : () => _showRefundDialog(context),
+                      height: 48,
+                      borderRadius: 8,
+                      color: hasRefunds
+                          ? AppColors.greyLight
+                          : AppColors.dangerLight,
+                      borderColor:
+                          hasRefunds ? AppColors.grey : AppColors.danger,
+                      textColor: hasRefunds ? AppColors.grey : AppColors.danger,
+                      icon: Assets.icons.refund.svg(
+                        colorFilter: ColorFilter.mode(
+                          hasRefunds ? AppColors.grey : AppColors.danger,
+                          BlendMode.srcIn,
+                        ),
+                        height: 20,
+                        width: 20,
+                      ),
+                      label: 'Refund',
+                      disabled: hasRefunds,
+                    );
+                  },
                 ),
+              ],
               const SizedBox(height: 8),
               // Print receipt button using PrintButton
               PrintButton(
@@ -513,27 +528,46 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                 for (var item in _order!.items!) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            item.productName ?? 'N/A',
-                            style: TextStyle(fontSize: 20, color: Colors.black),
-                          ),
-                        ),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('${item.quantity ?? 0}x',
+                            Expanded(
+                              child: Text(
+                                item.productName ?? 'N/A',
                                 style: TextStyle(
-                                    fontSize: 20, color: Colors.black)),
-                            SizedBox(width: 12),
-                            Text(
-                                'Rp ${NumberFormat('#,###').format(AmountParser.parse(item.totalPrice))}',
-                                style: TextStyle(
-                                    fontSize: 20, color: Colors.black)),
+                                    fontSize: 20, color: Colors.black),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text('${item.quantity ?? 0}x',
+                                    style: TextStyle(
+                                        fontSize: 20, color: Colors.black)),
+                                SizedBox(width: 12),
+                                Text(
+                                    'Rp ${NumberFormat('#,###').format(AmountParser.parse(item.totalPrice))}',
+                                    style: TextStyle(
+                                        fontSize: 20, color: Colors.black)),
+                              ],
+                            ),
                           ],
                         ),
+                        // Display variants if available
+                        if (item.productOptions != null &&
+                            item.productOptions!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatProductOptions(item.productOptions!),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -716,6 +750,27 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
     }
   }
 
+  String _formatProductOptions(List<dynamic> productOptions) {
+    if (productOptions.isEmpty) return '';
+
+    final List<String> variantNames = [];
+    for (var option in productOptions) {
+      if (option is Map) {
+        // Try different possible keys for variant name
+        final name =
+            option['name'] ?? option['value'] ?? option['display_name'] ?? '';
+        if (name.isNotEmpty) {
+          variantNames.add(name.toString());
+        }
+      } else if (option is String) {
+        variantNames.add(option);
+      }
+    }
+
+    if (variantNames.isEmpty) return '';
+    return 'Variant: ${variantNames.join(', ')}';
+  }
+
   Future<void> _showRefundDialog(BuildContext context) async {
     if (_order == null ||
         _order!.payments == null ||
@@ -766,31 +821,34 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
           ),
         ),
         content: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Jumlah Pembayaran: Rp ${NumberFormat('#,###').format(paymentAmount)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.5,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Jumlah Pembayaran: Rp ${NumberFormat('#,###').format(paymentAmount)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: amountController,
-                  label: 'Jumlah Refund',
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                CustomTextField(
-                  controller: reasonController,
-                  label: 'Alasan Refund',
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: amountController,
+                    label: 'Jumlah Refund',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    controller: reasonController,
+                    label: 'Alasan Refund',
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import '../../data/datasources/printer_local_datasource.dart';
@@ -10,6 +11,9 @@ class PrinterService {
 
   final PrinterLocalDatasource _datasource = PrinterLocalDatasource();
 
+  // Timeout untuk koneksi printer (5 detik)
+  static const Duration _connectionTimeout = Duration(seconds: 5);
+
   /// Get the default printer or first available printer
   Future<PrinterModel?> getActivePrinter() async {
     final defaultPrinter = await _datasource.getDefaultPrinter();
@@ -21,7 +25,13 @@ class PrinterService {
     return null;
   }
 
-  /// Connect to a printer
+  /// Check if printer is available (configured)
+  Future<bool> isPrinterAvailable() async {
+    final printer = await getActivePrinter();
+    return printer != null;
+  }
+
+  /// Connect to a printer with timeout
   Future<bool> connectToPrinter(PrinterModel printer) async {
     if (printer.type != PrinterType.bluetooth) {
       developer.log('Only Bluetooth printers are currently supported');
@@ -34,8 +44,15 @@ class PrinterService {
     }
 
     try {
+      // Tambahkan timeout untuk koneksi
       final result = await PrintBluetoothThermal.connect(
         macPrinterAddress: printer.macAddress,
+      ).timeout(
+        _connectionTimeout,
+        onTimeout: () {
+          developer.log('Printer connection timeout');
+          return false;
+        },
       );
       developer.log('Printer connection result: $result');
       return result;
@@ -45,13 +62,18 @@ class PrinterService {
     }
   }
 
-  /// Ensure printer is connected before printing
+  /// Ensure printer is connected before printing with timeout
   Future<bool> ensureConnected() async {
     // Check if already connected
-    final isConnected = await PrintBluetoothThermal.connectionStatus;
-    if (isConnected) {
-      developer.log('Printer already connected');
-      return true;
+    try {
+      final isConnected = await PrintBluetoothThermal.connectionStatus
+          .timeout(const Duration(seconds: 2));
+      if (isConnected) {
+        developer.log('Printer already connected');
+        return true;
+      }
+    } catch (e) {
+      developer.log('Error checking connection status: $e');
     }
 
     // Get active printer
@@ -61,11 +83,11 @@ class PrinterService {
       return false;
     }
 
-    // Connect to printer
+    // Connect to printer with timeout
     return await connectToPrinter(printer);
   }
 
-  /// Print bytes with auto-connect
+  /// Print bytes with auto-connect and timeout
   Future<bool> printBytes(List<int> bytes) async {
     final connected = await ensureConnected();
     if (!connected) {
@@ -74,7 +96,14 @@ class PrinterService {
     }
 
     try {
-      final result = await PrintBluetoothThermal.writeBytes(bytes);
+      // Tambahkan timeout untuk printing
+      final result = await PrintBluetoothThermal.writeBytes(bytes).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          developer.log('Print operation timeout');
+          return false;
+        },
+      );
       developer.log('Print result: $result');
       return result;
     } catch (e) {
@@ -97,6 +126,12 @@ class PrinterService {
 
   /// Check connection status
   Future<bool> isConnected() async {
-    return await PrintBluetoothThermal.connectionStatus;
+    try {
+      return await PrintBluetoothThermal.connectionStatus
+          .timeout(const Duration(seconds: 2));
+    } catch (e) {
+      developer.log('Error checking connection: $e');
+      return false;
+    }
   }
 }

@@ -34,6 +34,9 @@ import 'package:xpress/presentation/home/pages/confirm_payment_page.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
 import 'package:xpress/core/utils/amount_parser.dart';
+import 'package:xpress/data/datasources/subscription_remote_datasource.dart';
+import 'package:xpress/presentation/home/dialogs/limit_exceeded_dialog.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 
 class HomePage extends StatefulWidget {
   final bool isTable;
@@ -307,6 +310,66 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _createOpenBillOrder(String orderType) async {
     try {
+      // ✅ PRE-CHECK: Check limit before creating open bill order
+      final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+      if (onlineCheckerBloc.isOnline) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+        try {
+          final subscriptionDatasource = SubscriptionRemoteDatasource();
+          final limitResult = await subscriptionDatasource.checkLimitStatus();
+
+          if (!mounted) return;
+          Navigator.of(context).pop(); // Close loading
+
+          bool shouldContinue = true;
+          limitResult.fold(
+            (error) {
+              // Error checking limit - continue anyway
+              _logHome('Warning: Failed to check limit: $error');
+              shouldContinue = true;
+            },
+            (limitResponse) {
+              if (!limitResponse.canCreateOrder ||
+                  limitResponse.warningLevel == 'exceeded') {
+                // Show limit exceeded dialog
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (_) => LimitExceededDialog(
+                      message: limitResponse.message ??
+                          'Anda telah mencapai limit transaksi bulanan. Silakan upgrade plan untuk melanjutkan transaksi.',
+                      recommendedPlan: limitResponse.recommendedPlan,
+                      currentCount: limitResponse.currentCount,
+                      limit: limitResponse.limit,
+                    ),
+                  );
+                }
+                shouldContinue = false; // Stop here, don't create order
+              }
+            },
+          );
+
+          // ✅ EARLY RETURN: Jika limit exceeded, jangan lanjutkan
+          if (!shouldContinue) {
+            return;
+          }
+        } catch (e) {
+          if (mounted) {
+            Navigator.of(context).pop(); // Close loading
+          }
+          _logHome('Error checking limit: $e');
+          // Continue anyway if error
+        }
+      }
+
       // Show loading
       showDialog(
         context: context,

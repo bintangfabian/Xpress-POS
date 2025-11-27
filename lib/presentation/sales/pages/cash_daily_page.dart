@@ -431,28 +431,31 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ),
           content: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CustomTextField(
-                    controller: _expenseAmountCtrl,
-                    label: 'Jumlah pengeluaran (Rp)',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _expenseCategoryCtrl,
-                    label: 'Kategori',
-                  ),
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _expenseNoteCtrl,
-                    label: 'Deskripsi',
-                  ),
-                ],
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomTextField(
+                      controller: _expenseAmountCtrl,
+                      label: 'Jumlah pengeluaran (Rp)',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _expenseCategoryCtrl,
+                      label: 'Kategori',
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _expenseNoteCtrl,
+                      label: 'Deskripsi',
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -602,32 +605,35 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ),
           content: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Masukkan saldo awal kas sebelum shift dimulai.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.grey,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Masukkan saldo awal kas sebelum shift dimulai.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.grey,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _openShiftAmountCtrl,
-                    label: 'Saldo awal (Rp)',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _openShiftNotesCtrl,
-                    label: 'Catatan shift',
-                    textInputAction: TextInputAction.done,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _openShiftAmountCtrl,
+                      label: 'Saldo awal (Rp)',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _openShiftNotesCtrl,
+                      label: 'Catatan shift',
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -744,27 +750,30 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ),
           content: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Saldo ekspektasi: ${expected.currencyFormatRp}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Saldo ekspektasi: ${expected.currencyFormatRp}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _closeShiftAmountCtrl,
-                    label: 'Saldo fisik akhir (Rp)',
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _closeShiftAmountCtrl,
+                      label: 'Saldo fisik akhir (Rp)',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

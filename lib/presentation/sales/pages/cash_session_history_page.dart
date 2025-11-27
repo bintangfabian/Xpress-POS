@@ -50,10 +50,12 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
   }
 
   void _loadData() {
+    // Format start date as beginning of day
     final startDateStr =
         '${widget.startDate.year}-${widget.startDate.month.toString().padLeft(2, '0')}-${widget.startDate.day.toString().padLeft(2, '0')}';
+    // Format end date to include full day (23:59:59) to ensure all sessions opened on that day are included
     final endDateStr =
-        '${widget.endDate.year}-${widget.endDate.month.toString().padLeft(2, '0')}-${widget.endDate.day.toString().padLeft(2, '0')}';
+        '${widget.endDate.year}-${widget.endDate.month.toString().padLeft(2, '0')}-${widget.endDate.day.toString().padLeft(2, '0')} 23:59:59';
 
     context.read<CashSessionHistoryBloc>().add(
           GetCashSessions(

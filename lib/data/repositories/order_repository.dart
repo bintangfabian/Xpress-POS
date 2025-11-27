@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
@@ -56,17 +57,46 @@ class OrderRepository {
       final productId = item.product.productId ?? item.product.id;
       final productUuid = 'product-$productId';
 
-      // Get price from product and convert to double
+      // Get base price from product and convert to double
       final priceStr = item.product.price ?? '0';
-      final price = priceStr.toIntegerFromText.toDouble();
+      final basePrice = priceStr.toIntegerFromText.toDouble();
+
+      // Calculate price including variant adjustments
+      double variantAdjustment = 0.0;
+      if (item.variants != null && item.variants!.isNotEmpty) {
+        variantAdjustment = item.variants!.fold<double>(
+          0.0,
+          (sum, v) => sum + v.priceAdjustment,
+        );
+      }
+      final finalPrice = basePrice + variantAdjustment;
+
+      // Convert variants to JSON string for optionsJson
+      String? optionsJsonString;
+      if (item.variants != null && item.variants!.isNotEmpty) {
+        try {
+          final variantList = item.variants!
+              .map((v) => {
+                    'id': v.id,
+                    'name': v.name,
+                    'price_adjustment': v.priceAdjustment,
+                  })
+              .toList();
+          optionsJsonString = jsonEncode(variantList);
+        } catch (e) {
+          print('⚠️ Error encoding variants to JSON: $e');
+        }
+      }
 
       return OrderItemsCompanion.insert(
         orderUuid: uuid,
         productUuid: productUuid,
         quantity: item.quantity,
-        price: price,
-        cost: price, // Use price as cost if not available
-        optionsJson: const Value.absent(),
+        price: finalPrice,
+        cost: finalPrice, // Use final price as cost
+        optionsJson: optionsJsonString == null
+            ? const Value.absent()
+            : Value(optionsJsonString),
         updatedAt: Value(now),
       );
     }).toList();

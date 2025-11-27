@@ -6,6 +6,7 @@ import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/models/response/summary_response_model.dart';
+import 'package:xpress/data/models/response/order_error_response.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
 import 'package:http/http.dart' as http;
 
@@ -67,7 +68,8 @@ class OrderRemoteDatasource {
   }
 
   //save order to remote server
-  Future<bool> saveOrder(OrderModel orderModel) async {
+  Future<Either<OrderErrorResponse, String?>> saveOrder(
+      OrderModel orderModel) async {
     try {
       final authData = await AuthLocalDataSource().getAuthData();
       final storeId = await AuthLocalDataSource().getStoreId();
@@ -98,15 +100,25 @@ class OrderRemoteDatasource {
           response.statusCode == 200 || response.statusCode == 201;
 
       if (!isOrderSuccess) {
-        return false;
+        // Parse error response
+        try {
+          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          final errorResponse = OrderErrorResponse.fromJson(errorData);
+          return Left(errorResponse);
+        } catch (_) {
+          return Left(OrderErrorResponse(
+            code: 'PARSE_ERROR',
+            message: 'Gagal membuat order. Status: ${response.statusCode}',
+          ));
+        }
       }
 
       final orderId = _extractOrderId(response.body);
 
       if (orderId == null || orderId.isEmpty) {
         // Order created but payment could not be created due to missing order_id
-        // Return true because order creation succeeded
-        return true;
+        // Return Right with null because order creation succeeded
+        return Right(null);
       }
 
       final paymentCreated = await _createPayment(
@@ -118,13 +130,16 @@ class OrderRemoteDatasource {
 
       if (!paymentCreated) {
         // Order created but payment creation failed
-        // Return true because order creation succeeded
-        return true;
+        // Return Right with orderId because order creation succeeded
+        return Right(orderId);
       }
 
-      return true;
+      return Right(orderId);
     } catch (e) {
-      return false;
+      return Left(OrderErrorResponse(
+        code: 'EXCEPTION',
+        message: 'Terjadi kesalahan: $e',
+      ));
     }
   }
 
