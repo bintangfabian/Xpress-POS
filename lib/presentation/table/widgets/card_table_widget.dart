@@ -10,6 +10,7 @@ import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/presentation/table/dialogs/table_status_dialog.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 import 'package:xpress/data/datasources/table_remote_datasource.dart';
+import 'package:xpress/core/utils/snackbar_helper.dart';
 
 class CardTableWidget extends StatefulWidget {
   final TableModel table;
@@ -162,13 +163,13 @@ class _CardTableWidgetState extends State<CardTableWidget> {
           updateResult.fold(
             (error) {
               log('Update FAILED with error: $error');
-              // Show error
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error: $error'),
-                  backgroundColor: AppColors.danger,
-                  duration: const Duration(seconds: 5),
-                ),
+              // Show error or offline info
+              SnackbarHelper.showErrorOrOffline(
+                context,
+                'Error: $error',
+                offlineMessage:
+                    'Update status meja tidak tersedia dalam mode offline. '
+                    'Silahkan hubungkan kembali koneksi internet.',
               );
             },
             (_) {

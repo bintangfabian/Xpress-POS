@@ -21,6 +21,7 @@ import 'package:xpress/data/datasources/subscription_remote_datasource.dart';
 import 'package:xpress/presentation/auth/dialogs/subscription_limit_dialog.dart';
 
 import '../../../core/assets/assets.gen.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../bloc/online_checker/online_checker_bloc.dart';
 import '../widgets/nav_item.dart';
 
@@ -196,11 +197,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
               failure: (message) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    backgroundColor: AppColors.danger,
-                  ),
+                SnackbarHelper.showErrorOrOffline(
+                  context,
+                  message,
+                  offlineMessage:
+                      'Sinkronisasi tidak tersedia dalam mode offline. '
+                      'Silahkan hubungkan kembali koneksi internet.',
                 );
               },
             );

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
 import 'package:xpress/data/datasources/member_remote_datasource.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 
 import '../../../core/components/buttons.dart';
 import '../../../core/components/custom_date_picker.dart';
@@ -126,6 +130,20 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+                    builder: (context, state) {
+                      final isOnline = state.maybeWhen(
+                          online: () => true, orElse: () => false);
+                      if (!isOnline) {
+                        return const OfflineFeatureBanner(
+                          featureName: 'Tambah Member',
+                          margin: EdgeInsets.only(bottom: 16),
+                          padding: EdgeInsets.all(12),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   _FieldRow(
                     label: 'Nama',
                     child: TextFormField(
@@ -251,10 +269,19 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                         ),
                       ),
                     )
-                  : Button.filled(
-                      label: 'Simpan',
-                      color: AppColors.success,
-                      onPressed: _submit,
+                  : FeatureGuard(
+                      featureCode: 'add_member',
+                      child: Button.filled(
+                        label: 'Simpan',
+                        color: AppColors.success,
+                        onPressed: _submit,
+                      ),
+                      disabledChild: Button.filled(
+                        label: 'Simpan',
+                        color: AppColors.success,
+                        onPressed: () {},
+                        disabled: true,
+                      ),
                     ),
             ),
           ],

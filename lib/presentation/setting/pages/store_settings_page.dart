@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/widgets/offline_info_banner.dart';
+import 'package:xpress/data/datasources/store_local_datasource.dart';
 import 'package:xpress/data/datasources/store_remote_datasource.dart';
 import 'package:xpress/data/models/response/store_response_model.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 
 class StoreSettingPage extends StatefulWidget {
   const StoreSettingPage({super.key});
@@ -32,23 +36,59 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
       _errorMessage = null;
     });
 
-    final result = await StoreRemoteDatasource().getCurrentStore();
-    if (!mounted) return;
+    // Load from local first (like user profile)
+    final localDatasource = StoreLocalDatasource();
+    final cachedStore = await localDatasource.getStoreDetail();
 
-    result.fold(
-      (failure) {
+    if (cachedStore != null && mounted) {
+      setState(() {
+        _store = cachedStore;
+        _isLoading = false;
+      });
+    }
+
+    // Try to fetch from remote if online
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+    if (onlineCheckerBloc.isOnline) {
+      final result = await StoreRemoteDatasource().getCurrentStore();
+      if (!mounted) return;
+
+      result.fold(
+        (failure) {
+          // If we have cached data, don't show error
+          if (cachedStore == null && mounted) {
+            setState(() {
+              _errorMessage = failure;
+              _isLoading = false;
+            });
+          } else if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        },
+        (detail) async {
+          // Save to local
+          await localDatasource.saveStoreDetail(detail);
+          if (!mounted) return;
+          setState(() {
+            _store = detail;
+            _isLoading = false;
+            _errorMessage = null;
+          });
+        },
+      );
+    } else {
+      // Offline mode - use cached data if available
+      if (mounted) {
         setState(() {
-          _errorMessage = failure;
           _isLoading = false;
+          if (cachedStore == null) {
+            _errorMessage = null; // Don't show error, show offline info instead
+          }
         });
-      },
-      (detail) {
-        setState(() {
-          _store = detail;
-          _isLoading = false;
-        });
-      },
-    );
+      }
+    }
   }
 
   @override
@@ -87,7 +127,28 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
       return const _SkeletonLayout();
     }
 
-    if (_store == null && _errorMessage != null) {
+    // Show offline info instead of error
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+    final isOnline = onlineCheckerBloc.isOnline;
+
+    if (_store == null && !isOnline) {
+      return Column(
+        children: [
+          const OfflineInfoBanner(
+            customMessage: 'Data toko tidak tersedia dalam mode offline. '
+                'Silahkan hubungkan kembali koneksi internet.',
+          ),
+          const SizedBox(height: 16),
+          Button.filled(
+            onPressed: _fetchStore,
+            label: 'Coba Lagi',
+            color: AppColors.primary,
+          ),
+        ],
+      );
+    }
+
+    if (_store == null && _errorMessage != null && isOnline) {
       return _ErrorState(
         message: _errorMessage!,
         onRetry: _fetchStore,
@@ -110,11 +171,26 @@ class _StoreSettingPageState extends State<StoreSettingPage> {
               child: const LinearProgressIndicator(minHeight: 4),
             ),
           ),
-        if (_errorMessage != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _InlineWarning(message: _errorMessage!),
-          ),
+        // Show offline info banner instead of error message
+        BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+          builder: (context, state) {
+            final isOnline =
+                state.maybeWhen(online: () => true, orElse: () => false);
+            if (!isOnline && _errorMessage != null) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: OfflineInfoBanner(),
+              );
+            }
+            if (_errorMessage != null && isOnline) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _InlineWarning(message: _errorMessage!),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         _buildHeroCard(store),
         const SizedBox(height: 24),
         _buildIdentitySection(store),

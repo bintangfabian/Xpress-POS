@@ -36,6 +36,8 @@ import 'package:xpress/data/datasources/local/database/database.dart';
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/core/utils/amount_parser.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart'
     as discount_model;
 import 'package:dartz/dartz.dart' hide State;
@@ -1080,6 +1082,30 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                 ),
                                 const SpaceHeight(12),
 
+                                // 🔹 Banner offline untuk QRIS
+                                BlocBuilder<OnlineCheckerBloc,
+                                    OnlineCheckerState>(
+                                  builder: (context, state) {
+                                    final isOnline = state.maybeWhen(
+                                        online: () => true,
+                                        orElse: () => false);
+                                    if (!isOnline && !isCash) {
+                                      return const Padding(
+                                        padding: EdgeInsets.only(bottom: 12),
+                                        child: OfflineFeatureBanner(
+                                          featureName: 'Pembayaran QRIS',
+                                          customMessage:
+                                              'Pembayaran QRIS akan segera hadir dalam mode offline. '
+                                              'Silakan gunakan metode pembayaran tunai.',
+                                          margin: EdgeInsets.zero,
+                                          padding: EdgeInsets.all(12),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+
                                 // 🔹 Tombol Tunai & QRIS
                                 Row(
                                   children: [
@@ -1097,15 +1123,30 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                     ),
                                     const SpaceWidth(8),
                                     Expanded(
-                                      child: CustomButton(
-                                        svgIcon: Assets.icons.qr,
-                                        filled: !isCash,
-                                        label: "QRIS",
-                                        onPressed: () {
-                                          setState(() {
-                                            isCash = false;
-                                          });
-                                        },
+                                      child: FeatureGuard(
+                                        featureCode: 'qris_payment',
+                                        child: CustomButton(
+                                          svgIcon: Assets.icons.qr,
+                                          filled: !isCash,
+                                          label: "QRIS",
+                                          onPressed: () {
+                                            setState(() {
+                                              isCash = false;
+                                            });
+                                          },
+                                        ),
+                                        disabledChild: CustomButton(
+                                          svgIcon: Assets.icons.qr,
+                                          filled: false,
+                                          label: "QRIS",
+                                          onPressed: () {
+                                            setState(() {
+                                              isCash =
+                                                  true; // Auto switch to cash
+                                            });
+                                          },
+                                          disabled: true,
+                                        ),
                                       ),
                                     ),
                                   ],

@@ -5,10 +5,12 @@ import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/widgets/offline_info_banner.dart';
 import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/models/response/cash_session_response_model.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_event.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session_history/cash_session_history_state.dart';
@@ -103,32 +105,53 @@ class _CashSessionHistoryPageState extends State<CashSessionHistoryPage> {
           }
           return const Center(child: CircularProgressIndicator());
         } else if (state is CashSessionHistoryError) {
-          return RefreshIndicator(
-            onRefresh: () async => _loadData(),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: AppColors.danger),
-                    const SpaceHeight(16),
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.danger),
+          return BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+            builder: (context, onlineState) {
+              final isOnline = onlineState.maybeWhen(
+                  online: () => true, orElse: () => false);
+              if (!isOnline) {
+                return RefreshIndicator(
+                  onRefresh: () async => _loadData(),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: const Center(
+                      child: OfflineInfoBanner(
+                        customMessage:
+                            'Data riwayat kas harian tidak tersedia dalam mode offline. '
+                            'Silahkan hubungkan kembali koneksi internet.',
+                      ),
                     ),
-                    const SpaceHeight(16),
-                    Button.filled(
-                      onPressed: _loadData,
-                      label: 'Coba Lagi',
-                      color: AppColors.primary,
+                  ),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () async => _loadData(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: AppColors.danger),
+                        const SpaceHeight(16),
+                        Text(
+                          state.message,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.danger),
+                        ),
+                        const SpaceHeight(16),
+                        Button.filled(
+                          onPressed: _loadData,
+                          label: 'Coba Lagi',
+                          color: AppColors.primary,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         } else if (state is CashSessionsSuccess) {
           final sessions = state.sessions;
