@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/build_context_ext.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
 import 'package:xpress/data/datasources/member_remote_datasource.dart';
 import 'package:xpress/data/models/response/member_response_model.dart';
+import 'package:xpress/core/utils/snackbar_helper.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/setting/dialogs/member_form_dialog.dart';
 import 'package:xpress/presentation/setting/widgets/manage_member_card.dart';
 import 'package:xpress/presentation/setting/widgets/loading_list_placeholder.dart';
@@ -72,6 +77,22 @@ class _MembersPageState extends State<MembersPage> {
       children: [
         const ContentTitle('Kelola Member'),
         const SizedBox(height: 24),
+        BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+          builder: (context, state) {
+            final isOnline =
+                state.maybeWhen(online: () => true, orElse: () => false);
+            if (!isOnline) {
+              return const OfflineFeatureBanner(
+                featureName: 'Kelola Member',
+                customMessage:
+                    'Fitur tambah, edit, dan hapus member akan segera hadir dalam mode offline. '
+                    'Silakan hubungkan ke internet untuk menggunakan fitur ini.',
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -84,11 +105,21 @@ class _MembersPageState extends State<MembersPage> {
             const SizedBox(width: 16),
             SizedBox(
               width: 220,
-              child: Button.filled(
-                icon: Assets.icons.addPerson.svg(height: 20, width: 20),
-                label: 'Tambah Member',
-                fontSize: 16,
-                onPressed: _openCreateMemberDialog,
+              child: FeatureGuard(
+                featureCode: 'add_member',
+                child: Button.filled(
+                  icon: Assets.icons.addPerson.svg(height: 20, width: 20),
+                  label: 'Tambah Member',
+                  fontSize: 16,
+                  onPressed: _openCreateMemberDialog,
+                ),
+                disabledChild: Button.filled(
+                  icon: Assets.icons.addPerson.svg(height: 20, width: 20),
+                  label: 'Tambah Member',
+                  fontSize: 16,
+                  onPressed: () {},
+                  disabled: true,
+                ),
               ),
             ),
           ],
@@ -149,11 +180,14 @@ class _MembersPageState extends State<MembersPage> {
                             const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final item = members[index];
-                          return ManageMemberCard(
-                            data: item,
-                            onEditTap: () {},
-                            onDeleteTap: () => _confirmDelete(item),
-                            onRefresh: _refreshMembers,
+                          return FeatureGuard(
+                            featureCode: 'edit_member',
+                            child: ManageMemberCard(
+                              data: item,
+                              onEditTap: () {},
+                              onDeleteTap: () => _confirmDelete(item),
+                              onRefresh: _refreshMembers,
+                            ),
                           );
                         },
                       ),
@@ -283,7 +317,15 @@ class _MembersPageState extends State<MembersPage> {
       if (!mounted) return;
       messenger.hideCurrentSnackBar();
       result.fold(
-        (message) => messenger.showSnackBar(SnackBar(content: Text(message))),
+        (message) {
+          SnackbarHelper.showErrorOrOffline(
+            context,
+            message,
+            offlineMessage:
+                'Menonaktifkan member tidak tersedia dalam mode offline. '
+                'Silahkan hubungkan kembali koneksi internet.',
+          );
+        },
         (_) {
           messenger.showSnackBar(
             const SnackBar(content: Text('Member berhasil dinonaktifkan')),

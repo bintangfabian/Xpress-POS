@@ -93,15 +93,24 @@ class OrderBloc extends Bloc<OrderEvent, OrderState> {
       // ✅ Try to sync if online, otherwise queue for later
       if (_onlineCheckerBloc.isOnline) {
         try {
-          final value = await orderRemoteDatasource.saveOrder(newOrder);
-          if (value) {
-            // Mark as synced in both databases
-            await _orderRepository.markAsSynced(orderUuid);
-            if (sqfliteId > 0) {
-              await ProductLocalDatasource.instance
-                  .updateOrderIsSync(sqfliteId);
-            }
-          }
+          final result = await orderRemoteDatasource.saveOrder(newOrder);
+          result.fold(
+            // Left = Error
+            (errorResponse) {
+              log('Order creation failed: ${errorResponse.message}');
+              // Order remains in local database with pending status
+              // Error will be handled in UI layer when user tries to sync
+            },
+            // Right = Success
+            (orderId) async {
+              // Mark as synced in both databases
+              await _orderRepository.markAsSynced(orderUuid);
+              if (sqfliteId > 0) {
+                await ProductLocalDatasource.instance
+                    .updateOrderIsSync(sqfliteId);
+              }
+            },
+          );
         } catch (e) {
           log('Failed to sync order immediately: $e');
           // Order remains in local database with pending status

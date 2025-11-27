@@ -5,7 +5,9 @@ import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
 import 'package:xpress/data/datasources/sales_remote_datasource.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/day_sales/day_sales_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_recap/sales_recap_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/best_sellers/best_sellers_bloc.dart';
@@ -216,16 +218,38 @@ class _SalesPageState extends State<SalesPage> {
                 color: AppColors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: IndexedStack(
-                index: currentIndex,
+              child: Column(
                 children: [
-                  CashDailyPage(startDate: startDate, endDate: endDate),
-                  CashSessionHistoryPage(
-                      startDate: startDate, endDate: endDate),
-                  SalesRecapPage(startDate: startDate, endDate: endDate),
-                  TopSellingPage(startDate: startDate, endDate: endDate),
-                  SummaryPage(startDate: startDate, endDate: endDate),
-                  const InventoryPage(),
+                  BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+                    builder: (context, state) {
+                      final isOnline = state.maybeWhen(
+                          online: () => true, orElse: () => false);
+                      if (!isOnline) {
+                        return const OfflineFeatureBanner(
+                          featureName: 'Laporan Penjualan',
+                          customMessage:
+                              'Fitur laporan penjualan akan segera hadir dalam mode offline. '
+                              'Silakan hubungkan ke internet untuk melihat laporan lengkap.',
+                          margin: EdgeInsets.only(bottom: 16),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                  Expanded(
+                    child: IndexedStack(
+                      index: currentIndex,
+                      children: [
+                        CashDailyPage(startDate: startDate, endDate: endDate),
+                        CashSessionHistoryPage(
+                            startDate: startDate, endDate: endDate),
+                        SalesRecapPage(startDate: startDate, endDate: endDate),
+                        TopSellingPage(startDate: startDate, endDate: endDate),
+                        SummaryPage(startDate: startDate, endDate: endDate),
+                        const InventoryPage(),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

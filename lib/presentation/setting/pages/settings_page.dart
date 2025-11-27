@@ -9,6 +9,7 @@ import 'package:xpress/presentation/setting/pages/members_page.dart';
 
 import '../../../core/assets/assets.gen.dart';
 import '../../../core/components/components.dart';
+import '../../../core/components/buttons.dart';
 import '../../../core/constants/colors.dart';
 import '../../auth/pages/login_page.dart';
 
@@ -113,14 +114,99 @@ class _SettingsPageState extends State<SettingsPage> {
                         active: false,
                         isLogout: true,
                         onTap: () async {
-                          // Clear local auth and navigate to Login
-                          await AuthLocalDataSource().removeAuthData();
-                          if (!context.mounted) return;
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                                builder: (_) => const LoginPage()),
-                            (route) => false,
+                          // Show confirmation dialog
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: AppColors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              title: Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Konfirmasi Logout',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Assets.icons.cancel.svg(
+                                        colorFilter: const ColorFilter.mode(
+                                          AppColors.grey,
+                                          BlendMode.srcIn,
+                                        ),
+                                        height: 32,
+                                        width: 32,
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              content: SingleChildScrollView(
+                                child: SizedBox(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.5,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Apakah Anda yakin ingin keluar dari akun?',
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              actions: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Button.outlined(
+                                        label: 'Batal',
+                                        color: AppColors.white,
+                                        borderColor: AppColors.grey,
+                                        textColor: AppColors.grey,
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Button.filled(
+                                        label: 'Logout',
+                                        color: AppColors.danger,
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           );
+
+                          if (confirmed == true) {
+                            // Clear local auth and navigate to Login
+                            await AuthLocalDataSource().removeAuthData();
+                            if (!context.mounted) return;
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                  builder: (_) => const LoginPage()),
+                              (route) => false,
+                            );
+                          }
                         },
                       ),
                     ],

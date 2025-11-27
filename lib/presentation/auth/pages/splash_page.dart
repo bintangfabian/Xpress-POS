@@ -71,8 +71,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         // Setelah splash selesai, mulai animasi transisi
         _transitionController.forward().then((_) {
           if (mounted && !_hasNavigated) {
-            // ✅ Tambahkan delay 5 detik setelah transisi selesai
-            Future.delayed(const Duration(seconds: 5), () {
+            // ✅ Tambahkan delay 3 detik setelah transisi selesai
+            Future.delayed(const Duration(seconds: 3), () {
               if (mounted && !_hasNavigated) {
                 _bootstrap();
               }

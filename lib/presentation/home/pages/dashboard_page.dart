@@ -17,8 +17,11 @@ import 'package:xpress/presentation/sales/pages/sales_page.dart';
 import 'package:xpress/presentation/setting/pages/settings_page.dart';
 import 'package:xpress/presentation/table/pages/table_page.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
+import 'package:xpress/data/datasources/subscription_remote_datasource.dart';
+import 'package:xpress/presentation/auth/dialogs/subscription_limit_dialog.dart';
 
 import '../../../core/assets/assets.gen.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../bloc/online_checker/online_checker_bloc.dart';
 import '../widgets/nav_item.dart';
 
@@ -77,6 +80,50 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     });
     _sessionService.startMonitoring();
+
+    // ✅ Check limit status after login (only if online)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLimitAfterLogin();
+    });
+  }
+
+  /// Check limit status after login and show dialog if needed
+  Future<void> _checkLimitAfterLogin() async {
+    final onlineCheckerBloc = context.read<OnlineCheckerBloc>();
+    if (!onlineCheckerBloc.isOnline) {
+      return; // Skip if offline
+    }
+
+    if (!mounted) return;
+
+    try {
+      final subscriptionDatasource = SubscriptionRemoteDatasource();
+      final limitResult = await subscriptionDatasource.checkLimitStatus();
+
+      if (!mounted) return;
+
+      limitResult.fold(
+        (error) {
+          // Error checking limit - skip silently
+          print('Warning: Failed to check limit after login: $error');
+        },
+        (limitResponse) {
+          // Show dialog only if limit exceeded or warning/critical
+          if (limitResponse.shouldShowWarning && mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => SubscriptionLimitDialog(
+                limitResponse: limitResponse,
+              ),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      print('Error checking limit after login: $e');
+      // Continue anyway if check fails
+    }
   }
 
   @override
@@ -150,11 +197,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
               failure: (message) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    backgroundColor: AppColors.danger,
-                  ),
+                SnackbarHelper.showErrorOrOffline(
+                  context,
+                  message,
+                  offlineMessage:
+                      'Sinkronisasi tidak tersedia dalam mode offline. '
+                      'Silahkan hubungkan kembali koneksi internet.',
                 );
               },
             );

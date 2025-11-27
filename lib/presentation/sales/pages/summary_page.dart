@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/widgets/offline_info_banner.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_summary/sales_summary_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_summary/sales_summary_event.dart';
 import 'package:xpress/presentation/sales/blocs/sales_summary/sales_summary_state.dart';
@@ -68,16 +70,31 @@ class _SummaryPageState extends State<SummaryPage> {
         } else if (state is SalesSummaryLoading) {
           return const Center(child: CircularProgressIndicator());
         } else if (state is SalesSummaryError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.danger),
-                const SpaceHeight(16),
-                Text(state.message),
-              ],
-            ),
+          return BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+            builder: (context, onlineState) {
+              final isOnline = onlineState.maybeWhen(
+                  online: () => true, orElse: () => false);
+              if (!isOnline) {
+                return const Center(
+                  child: OfflineInfoBanner(
+                    customMessage:
+                        'Data ringkasan penjualan tidak tersedia dalam mode offline. '
+                        'Silahkan hubungkan kembali koneksi internet.',
+                  ),
+                );
+              }
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: AppColors.danger),
+                    const SpaceHeight(16),
+                    Text(state.message),
+                  ],
+                ),
+              );
+            },
           );
         } else if (state is SalesSummarySuccess) {
           final data = state.data;

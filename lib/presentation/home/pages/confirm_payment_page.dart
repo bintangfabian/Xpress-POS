@@ -6,6 +6,7 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
+import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/data/datasources/store_local_datasource.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/models/response/table_model.dart';
@@ -35,8 +36,24 @@ import 'package:xpress/data/datasources/local/database/database.dart';
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/core/utils/amount_parser.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart'
     as discount_model;
+import 'package:dartz/dartz.dart' hide State;
+import 'package:xpress/data/models/response/order_error_response.dart';
+import 'package:xpress/data/models/response/subscription_limit_response.dart';
+import 'package:xpress/data/datasources/subscription_remote_datasource.dart';
+import 'package:xpress/presentation/home/dialogs/limit_exceeded_dialog.dart';
+
+// Custom exception for limit exceeded
+class LimitExceededException implements Exception {
+  final OrderErrorResponse errorResponse;
+  LimitExceededException(this.errorResponse);
+
+  @override
+  String toString() => errorResponse.message;
+}
 
 class _CheckoutAmounts {
   final int subtotal;
@@ -239,58 +256,94 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
       OrderModel? localOrderModel;
       String? localOrderUuid;
 
-      await checkoutState.maybeWhen(
-        loaded: (
-          products,
-          discountModel,
-          discount,
-          discountAmount,
-          tax,
-          serviceCharge,
-          totalQuantity,
-          totalPrice,
-          draftName,
-          orderType,
-        ) async {
-          final amounts =
-              _resolveAmounts(products, discountModel, tax, serviceCharge);
-
-          localOrderModel = OrderModel(
-            paymentAmount: _currentTotalPay(),
-            subTotal: amounts.subtotal,
-            tax: amounts.tax,
-            discount: discountAmount,
-            discountAmount: amounts.discount,
-            serviceCharge: amounts.service,
-            total: amounts.total,
-            paymentMethod: isCash ? 'cash' : 'qris',
-            totalItem: totalQuantity,
-            idKasir: auth.user?.id ?? 1,
-            namaKasir: auth.user?.name ?? 'Kasir A',
-            transactionTime: TimezoneHelper.now().toIso8601String(),
-            customerName: customerController.text,
-            tableNumber: _selectedTableNumber ??
-                _parseTableNumber(widget.table?.tableNumber) ??
-                0,
-            status: 'completed',
-            paymentStatus: 'paid',
-            isSync: isOnline ? 1 : 0,
-            operationMode:
-                normalizeOperationMode(orderType ?? widget.orderType),
-            orderItems: products,
-          );
-
-          localOrderUuid =
-              await orderRepository.createOrderLocal(localOrderModel!);
-          print('✅ Order saved locally (UUID: $localOrderUuid)');
-        },
-        orElse: () async {
-          print('⚠️ No checkout state available');
-        },
+      // Check if checkout state is loaded
+      final isLoaded = checkoutState.maybeWhen(
+        loaded: (_, __, ___, ____, _____, ______, _______, ________, __________,
+                ___________) =>
+            true,
+        orElse: () => false,
       );
+
+      if (!isLoaded) {
+        print('❌ ERROR: Checkout state is not loaded!');
+        print('   State: ${checkoutState.runtimeType}');
+        return false;
+      }
+
+      try {
+        await checkoutState.maybeWhen(
+          loaded: (
+            products,
+            discountModel,
+            discount,
+            discountAmount,
+            tax,
+            serviceCharge,
+            totalQuantity,
+            totalPrice,
+            draftName,
+            orderType,
+          ) async {
+            print('   Products count: ${products.length}');
+            print('   Total quantity: $totalQuantity');
+            print('   Discount: $discountAmount');
+            print('   Tax: $tax');
+            print('   Service charge: $serviceCharge');
+
+            final amounts =
+                _resolveAmounts(products, discountModel, tax, serviceCharge);
+
+            print('   Calculated amounts:');
+            print('     Subtotal: ${amounts.subtotal}');
+            print('     Discount: ${amounts.discount}');
+            print('     Tax: ${amounts.tax}');
+            print('     Service: ${amounts.service}');
+            print('     Total: ${amounts.total}');
+
+            localOrderModel = OrderModel(
+              paymentAmount: _currentTotalPay(),
+              subTotal: amounts.subtotal,
+              tax: amounts.tax,
+              discount: discountAmount,
+              discountAmount: amounts.discount,
+              serviceCharge: amounts.service,
+              total: amounts.total,
+              paymentMethod: isCash ? 'cash' : 'qris',
+              totalItem: totalQuantity,
+              idKasir: auth.user?.id ?? 1,
+              namaKasir: auth.user?.name ?? 'Kasir A',
+              transactionTime: TimezoneHelper.now().toIso8601String(),
+              customerName: customerController.text,
+              tableNumber: _selectedTableNumber ??
+                  _parseTableNumber(widget.table?.tableNumber) ??
+                  0,
+              status: 'completed',
+              paymentStatus: 'paid',
+              isSync: isOnline ? 1 : 0,
+              operationMode:
+                  normalizeOperationMode(orderType ?? widget.orderType),
+              orderItems: products,
+            );
+
+            print('   Creating order in local database...');
+            localOrderUuid =
+                await orderRepository.createOrderLocal(localOrderModel!);
+            print('✅ Order saved locally (UUID: $localOrderUuid)');
+          },
+          orElse: () async {
+            print('⚠️ No checkout state available - state is not loaded');
+          },
+        );
+      } catch (e, stackTrace) {
+        print('❌ ERROR saving order to local database: $e');
+        print('   Stack trace: $stackTrace');
+        return false;
+      }
 
       if (localOrderModel == null || localOrderUuid == null) {
         print('❌ Failed to save order locally');
+        print('   localOrderModel: ${localOrderModel != null ? "OK" : "NULL"}');
+        print('   localOrderUuid: ${localOrderUuid ?? "NULL"}');
         return false;
       }
 
@@ -431,6 +484,28 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   headers: headers,
                   body: jsonEncode(submissionData.body),
                 );
+              }
+
+              // Check for error response (LIMIT_EXCEEDED or other errors)
+              if (res.statusCode != 200 && res.statusCode != 201) {
+                try {
+                  final errorData =
+                      jsonDecode(res.body) as Map<String, dynamic>;
+                  final errorResponse = OrderErrorResponse.fromJson(errorData);
+
+                  if (errorResponse.isLimitExceeded) {
+                    // Throw special exception to be caught by caller
+                    throw LimitExceededException(errorResponse);
+                  } else {
+                    throw Exception(errorResponse.message);
+                  }
+                } catch (e) {
+                  if (e is LimitExceededException) {
+                    rethrow;
+                  }
+                  throw Exception(
+                      'Gagal membuat order. Status: ${res.statusCode}');
+                }
               }
 
               if (res.statusCode == 200 || res.statusCode == 201) {
@@ -1007,6 +1082,30 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                 ),
                                 const SpaceHeight(12),
 
+                                // 🔹 Banner offline untuk QRIS
+                                BlocBuilder<OnlineCheckerBloc,
+                                    OnlineCheckerState>(
+                                  builder: (context, state) {
+                                    final isOnline = state.maybeWhen(
+                                        online: () => true,
+                                        orElse: () => false);
+                                    if (!isOnline && !isCash) {
+                                      return const Padding(
+                                        padding: EdgeInsets.only(bottom: 12),
+                                        child: OfflineFeatureBanner(
+                                          featureName: 'Pembayaran QRIS',
+                                          customMessage:
+                                              'Pembayaran QRIS akan segera hadir dalam mode offline. '
+                                              'Silakan gunakan metode pembayaran tunai.',
+                                          margin: EdgeInsets.zero,
+                                          padding: EdgeInsets.all(12),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+
                                 // 🔹 Tombol Tunai & QRIS
                                 Row(
                                   children: [
@@ -1024,15 +1123,30 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                     ),
                                     const SpaceWidth(8),
                                     Expanded(
-                                      child: CustomButton(
-                                        svgIcon: Assets.icons.qr,
-                                        filled: !isCash,
-                                        label: "QRIS",
-                                        onPressed: () {
-                                          setState(() {
-                                            isCash = false;
-                                          });
-                                        },
+                                      child: FeatureGuard(
+                                        featureCode: 'qris_payment',
+                                        child: CustomButton(
+                                          svgIcon: Assets.icons.qr,
+                                          filled: !isCash,
+                                          label: "QRIS",
+                                          onPressed: () {
+                                            setState(() {
+                                              isCash = false;
+                                            });
+                                          },
+                                        ),
+                                        disabledChild: CustomButton(
+                                          svgIcon: Assets.icons.qr,
+                                          filled: false,
+                                          label: "QRIS",
+                                          onPressed: () {
+                                            setState(() {
+                                              isCash =
+                                                  true; // Auto switch to cash
+                                            });
+                                          },
+                                          disabled: true,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1290,6 +1404,86 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                           onPressed: () async {
                                             if (!isEnabled) return;
 
+                                            // ✅ PRE-CHECK: Check limit before creating order
+                                            final onlineCheckerBloc = context
+                                                .read<OnlineCheckerBloc>();
+                                            if (onlineCheckerBloc.isOnline) {
+                                              if (!context.mounted) return;
+                                              showDialog(
+                                                context: context,
+                                                barrierDismissible: false,
+                                                builder: (_) => const Center(
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                ),
+                                              );
+
+                                              try {
+                                                final subscriptionDatasource =
+                                                    SubscriptionRemoteDatasource();
+                                                final limitResult =
+                                                    await subscriptionDatasource
+                                                        .checkLimitStatus();
+
+                                                if (!context.mounted) return;
+                                                Navigator.of(context)
+                                                    .pop(); // Close loading
+
+                                                bool shouldContinue = true;
+                                                limitResult.fold(
+                                                  (error) {
+                                                    // Error checking limit - continue anyway
+                                                    print(
+                                                        'Warning: Failed to check limit: $error');
+                                                    shouldContinue = true;
+                                                  },
+                                                  (limitResponse) {
+                                                    if (!limitResponse
+                                                            .canCreateOrder ||
+                                                        limitResponse
+                                                                .warningLevel ==
+                                                            'exceeded') {
+                                                      // Show limit exceeded dialog
+                                                      if (context.mounted) {
+                                                        showDialog(
+                                                          context: context,
+                                                          builder: (_) =>
+                                                              LimitExceededDialog(
+                                                            message: limitResponse
+                                                                    .message ??
+                                                                'Anda telah mencapai limit transaksi bulanan. Silakan upgrade plan untuk melanjutkan transaksi.',
+                                                            recommendedPlan:
+                                                                limitResponse
+                                                                    .recommendedPlan,
+                                                            currentCount:
+                                                                limitResponse
+                                                                    .currentCount,
+                                                            limit: limitResponse
+                                                                .limit,
+                                                          ),
+                                                        );
+                                                      }
+                                                      shouldContinue =
+                                                          false; // Stop here, don't create order
+                                                    }
+                                                  },
+                                                );
+
+                                                // ✅ EARLY RETURN: Jika limit exceeded, jangan lanjutkan
+                                                if (!shouldContinue) {
+                                                  return;
+                                                }
+                                              } catch (e) {
+                                                if (context.mounted) {
+                                                  Navigator.of(context)
+                                                      .pop(); // Close loading
+                                                }
+                                                print(
+                                                    'Error checking limit: $e');
+                                                // Continue anyway if check fails
+                                              }
+                                            }
+
                                             // Show loading dialog
                                             if (!context.mounted) return;
                                             showDialog(
@@ -1303,40 +1497,452 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
                                             try {
                                               // ✅ STEP 1: Create order & payment FIRST
-                                              final success =
-                                                  await _submitOrder();
+                                              bool orderSuccess = false;
+                                              OrderErrorResponse? orderError;
+
+                                              try {
+                                                orderSuccess =
+                                                    await _submitOrder();
+                                              } on LimitExceededException catch (e) {
+                                                print(
+                                                    '❌ Limit exceeded: ${e.errorResponse.message}');
+                                                orderError = e.errorResponse;
+                                                orderSuccess = false;
+                                              } catch (e) {
+                                                print(
+                                                    '❌ Error in _submitOrder: $e');
+                                                orderSuccess = false;
+                                              }
 
                                               if (!context.mounted) return;
                                               Navigator.of(context)
                                                   .pop(); // Close loading
 
-                                              if (!success) {
+                                              if (!orderSuccess) {
                                                 // Show error dialog
                                                 if (context.mounted) {
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (_) => AlertDialog(
-                                                      title:
-                                                          const Text('Error'),
-                                                      content: const Text(
-                                                          'Gagal membuat order. Silakan coba lagi.'),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  context),
-                                                          child:
-                                                              const Text('OK'),
+                                                  if (orderError != null &&
+                                                      orderError
+                                                          .isLimitExceeded) {
+                                                    // Show limit exceeded dialog
+                                                    await showDialog(
+                                                      context: context,
+                                                      builder: (_) =>
+                                                          LimitExceededDialog(
+                                                        message: orderError
+                                                                ?.message ??
+                                                            'Limit tercapai',
+                                                        recommendedPlan:
+                                                            orderError
+                                                                ?.recommendedPlan,
+                                                        currentCount: orderError
+                                                            ?.currentCount,
+                                                        limit:
+                                                            orderError?.limit,
+                                                      ),
+                                                    );
+                                                  } else {
+                                                    // Show generic error dialog
+                                                    await showDialog(
+                                                      context: context,
+                                                      builder: (_) =>
+                                                          AlertDialog(
+                                                        title:
+                                                            const Text('Error'),
+                                                        content: Text(
+                                                          orderError?.message ??
+                                                              'Gagal membuat order. Silakan coba lagi.',
                                                         ),
-                                                      ],
-                                                    ),
-                                                  );
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    context),
+                                                            child: const Text(
+                                                                'OK'),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }
                                                 }
                                                 return;
                                               }
 
-                                              // ✅ STEP 2: Auto print receipt
-                                              await _autoPrintReceipt();
+                                              // ✅ STEP 2: Try to print receipt (non-blocking)
+                                              // Cek printer availability terlebih dahulu
+                                              bool shouldPrint = false;
+                                              try {
+                                                final printerService =
+                                                    PrinterService();
+                                                final isPrinterAvailable =
+                                                    await printerService
+                                                        .isPrinterAvailable();
+
+                                                if (isPrinterAvailable) {
+                                                  // Tampilkan dialog konfirmasi print
+                                                  if (context.mounted) {
+                                                    final printResult =
+                                                        await showDialog<bool>(
+                                                      context: context,
+                                                      barrierDismissible: false,
+                                                      builder:
+                                                          (dialogContext) =>
+                                                              AlertDialog(
+                                                        backgroundColor:
+                                                            AppColors.white,
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                        ),
+                                                        title: Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  left: 8.0),
+                                                          child: Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceBetween,
+                                                            children: [
+                                                              const Text(
+                                                                'Cetak Struk',
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 20,
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                icon: Assets
+                                                                    .icons
+                                                                    .cancel
+                                                                    .svg(
+                                                                  colorFilter:
+                                                                      ColorFilter
+                                                                          .mode(
+                                                                    AppColors
+                                                                        .grey,
+                                                                    BlendMode
+                                                                        .srcIn,
+                                                                  ),
+                                                                  height: 32,
+                                                                  width: 32,
+                                                                ),
+                                                                onPressed: () =>
+                                                                    Navigator.pop(
+                                                                        dialogContext,
+                                                                        false),
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        content: SizedBox(
+                                                          width: dialogContext
+                                                                  .deviceWidth /
+                                                              3,
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(8.0),
+                                                            child: Column(
+                                                              mainAxisSize:
+                                                                  MainAxisSize
+                                                                      .min,
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                const Text(
+                                                                  'Apakah Anda ingin mencetak struk sekarang?',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        14,
+                                                                  ),
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .left,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        actions: [
+                                                          Row(
+                                                            children: [
+                                                              Expanded(
+                                                                child: Button
+                                                                    .outlined(
+                                                                  onPressed: () =>
+                                                                      Navigator.pop(
+                                                                          dialogContext,
+                                                                          false),
+                                                                  label:
+                                                                      'Lewati',
+                                                                  height: 50,
+                                                                  color: AppColors
+                                                                      .greyLight,
+                                                                  borderColor:
+                                                                      AppColors
+                                                                          .grey,
+                                                                  textColor:
+                                                                      AppColors
+                                                                          .grey,
+                                                                  borderRadius:
+                                                                      8.0,
+                                                                  fontSize:
+                                                                      16.0,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                  width: 12),
+                                                              Expanded(
+                                                                child: Button
+                                                                    .filled(
+                                                                  onPressed: () =>
+                                                                      Navigator.pop(
+                                                                          dialogContext,
+                                                                          true),
+                                                                  label:
+                                                                      'Cetak',
+                                                                  height: 50,
+                                                                  color: AppColors
+                                                                      .primary,
+                                                                  textColor:
+                                                                      AppColors
+                                                                          .white,
+                                                                  borderRadius:
+                                                                      8.0,
+                                                                  fontSize:
+                                                                      16.0,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                    shouldPrint =
+                                                        printResult ?? false;
+                                                  }
+                                                } else {
+                                                  // Printer tidak tersedia, tampilkan dialog info
+                                                  if (context.mounted) {
+                                                    await showDialog(
+                                                      context: context,
+                                                      builder:
+                                                          (dialogContext) =>
+                                                              AlertDialog(
+                                                        backgroundColor:
+                                                            AppColors.white,
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                        ),
+                                                        title: Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  left: 8.0),
+                                                          child: Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceBetween,
+                                                            children: [
+                                                              const Text(
+                                                                'Printer Tidak Tersedia',
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 20,
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                icon: Assets
+                                                                    .icons
+                                                                    .cancel
+                                                                    .svg(
+                                                                  colorFilter:
+                                                                      ColorFilter
+                                                                          .mode(
+                                                                    AppColors
+                                                                        .grey,
+                                                                    BlendMode
+                                                                        .srcIn,
+                                                                  ),
+                                                                  height: 32,
+                                                                  width: 32,
+                                                                ),
+                                                                onPressed: () =>
+                                                                    Navigator.pop(
+                                                                        dialogContext),
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        content: SizedBox(
+                                                          width: dialogContext
+                                                                  .deviceWidth /
+                                                              3,
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(8.0),
+                                                            child: Column(
+                                                              mainAxisSize:
+                                                                  MainAxisSize
+                                                                      .min,
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                const Text(
+                                                                  'Tidak ada printer yang terhubung. Pesanan tetap berhasil dibuat. Anda dapat mencetak struk nanti dari menu transaksi.',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        14,
+                                                                  ),
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .left,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        actions: [
+                                                          Button.filled(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    dialogContext),
+                                                            label: 'Mengerti',
+                                                            height: 50,
+                                                            color: AppColors
+                                                                .primary,
+                                                            textColor:
+                                                                AppColors.white,
+                                                            borderRadius: 8.0,
+                                                            fontSize: 16.0,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              } catch (e) {
+                                                // Jika ada error saat cek printer, skip printing
+                                                print(
+                                                    '⚠️ Error checking printer: $e');
+                                                shouldPrint = false;
+                                              }
+
+                                              // Print di background jika user memilih print
+                                              if (shouldPrint &&
+                                                  context.mounted) {
+                                                // Tampilkan loading indicator untuk printing
+                                                showDialog(
+                                                  context: context,
+                                                  barrierDismissible: false,
+                                                  builder: (printContext) =>
+                                                      PopScope(
+                                                    canPop: false,
+                                                    child: AlertDialog(
+                                                      content: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          const CircularProgressIndicator(),
+                                                          const SizedBox(
+                                                              height: 16),
+                                                          const Text(
+                                                              'Mencetak struk...'),
+                                                          const SizedBox(
+                                                              height: 8),
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.of(
+                                                                      printContext)
+                                                                  .pop();
+                                                            },
+                                                            child: const Text(
+                                                                'Batal'),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+
+                                                // Print di background dengan timeout
+                                                _autoPrintReceipt().then((_) {
+                                                  if (context.mounted) {
+                                                    Navigator.of(context)
+                                                        .pop(); // Close print loading
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      const SnackBar(
+                                                        content: Row(
+                                                          children: [
+                                                            Icon(
+                                                                Icons
+                                                                    .check_circle,
+                                                                color: Colors
+                                                                    .white),
+                                                            SizedBox(width: 8),
+                                                            Text(
+                                                                'Struk berhasil dicetak'),
+                                                          ],
+                                                        ),
+                                                        backgroundColor:
+                                                            AppColors.success,
+                                                        duration: Duration(
+                                                            seconds: 2),
+                                                      ),
+                                                    );
+                                                  }
+                                                }).catchError((error) {
+                                                  if (context.mounted) {
+                                                    Navigator.of(context)
+                                                        .pop(); // Close print loading
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Row(
+                                                          children: [
+                                                            const Icon(
+                                                                Icons.error,
+                                                                color: Colors
+                                                                    .white),
+                                                            const SizedBox(
+                                                                width: 8),
+                                                            Expanded(
+                                                              child: Text(
+                                                                  'Gagal mencetak struk: ${error.toString()}'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        backgroundColor:
+                                                            AppColors.danger,
+                                                        duration:
+                                                            const Duration(
+                                                                seconds: 3),
+                                                      ),
+                                                    );
+                                                  }
+                                                });
+                                              }
 
                                               // ✅ STEP 3: Show success dialog (info only)
                                               final total =
@@ -2023,6 +2629,13 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     try {
       final checkoutState = context.read<CheckoutBloc>().state;
       final auth = await AuthLocalDataSource().getAuthData();
+      final printerService = PrinterService();
+
+      // Cek printer availability terlebih dahulu
+      final isAvailable = await printerService.isPrinterAvailable();
+      if (!isAvailable) {
+        throw Exception('Printer tidak tersedia');
+      }
 
       await checkoutState.maybeWhen(
         loaded: (
@@ -2048,6 +2661,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           // Get operation mode from orderType
           final operationMode = orderType == 'dinein' ? 'dine_in' : 'takeaway';
 
+          // Generate print data
           final printValue = await PrintDataoutputs.instance.printOrderV3(
             products,
             totalQuantity,
@@ -2065,16 +2679,21 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             operationMode: operationMode,
           );
 
-          final printerService = PrinterService();
-          await printerService.printBytes(printValue);
+          // Print dengan error handling yang lebih baik
+          final printSuccess = await printerService.printBytes(printValue);
+          if (!printSuccess) {
+            throw Exception(
+                'Gagal mencetak struk. Pastikan printer terhubung dan siap digunakan.');
+          }
         },
         orElse: () async {
-          // No data to print
+          throw Exception('Tidak ada data untuk dicetak');
         },
       );
     } catch (e) {
-      // Silently fail - don't block user flow if print fails
+      // Re-throw error agar bisa ditangani di caller
       print('Auto print failed: $e');
+      rethrow;
     }
   }
 }

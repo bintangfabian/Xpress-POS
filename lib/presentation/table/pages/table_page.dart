@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 import 'package:xpress/presentation/table/widgets/card_table_widget.dart';
 
@@ -37,6 +39,22 @@ class _TablePageState extends State<TablePage> {
               // 🔹 Header
               const PageTitle(title: 'Dasbor Meja'),
               SpaceHeight(24.0),
+              BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+                builder: (context, state) {
+                  final isOnline =
+                      state.maybeWhen(online: () => true, orElse: () => false);
+                  if (!isOnline) {
+                    return const OfflineFeatureBanner(
+                      featureName: 'Kelola Meja',
+                      customMessage:
+                          'Fitur generate dan update status meja akan segera hadir dalam mode offline. '
+                          'Silakan hubungkan ke internet untuk menggunakan fitur ini.',
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+              const SizedBox(height: 16),
 
               // 🔹 GridView meja -> Expanded biar scrollable
               Expanded(

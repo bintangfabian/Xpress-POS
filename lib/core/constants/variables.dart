@@ -9,6 +9,8 @@ class Variables {
       // defaultValue:
       //     'http://192.168.1.9:8000'); //local database for eksternal device | wifi grhp
   // defaultValue: 'http://192.168.123.85:8000'); //local database for eksternal device | wifi els coffie
+  // defaultValue: 'http://192.168.100.246:8000'); //local database for eksternal device | wifi cnb lt 2
+  
 
   // Dynamic base URL per platform
   static String get baseUrl => envBaseUrl;

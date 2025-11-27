@@ -3,7 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
+import 'package:xpress/core/utils/snackbar_helper.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
 import 'package:xpress/data/models/response/discount_response_model.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/delete_discount/delete_discount_cubit.dart';
 import 'package:xpress/presentation/setting/bloc/discount/discount_bloc.dart';
 import '../dialogs/discount_form_dialog.dart';
@@ -95,11 +99,13 @@ class _DiscountPageState extends State<DiscountPage> {
           context.read<DiscountBloc>().add(const DiscountEvent.getDiscounts());
         } else if (state.status == DeleteDiscountStatus.error &&
             state.message != null) {
-          messenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(content: Text(state.message!)),
-            );
+          SnackbarHelper.showErrorOrOffline(
+            context,
+            state.message!,
+            offlineMessage:
+                'Menghapus diskon tidak tersedia dalam mode offline. '
+                'Silahkan hubungkan kembali koneksi internet.',
+          );
         }
       },
       child: Column(
@@ -107,15 +113,41 @@ class _DiscountPageState extends State<DiscountPage> {
         children: [
           const ContentTitle('Kelola Diskon'),
           const SizedBox(height: 24),
+          BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+            builder: (context, state) {
+              final isOnline =
+                  state.maybeWhen(online: () => true, orElse: () => false);
+              if (!isOnline) {
+                return const OfflineFeatureBanner(
+                  featureName: 'Kelola Diskon',
+                  customMessage:
+                      'Fitur tambah, edit, dan hapus diskon akan segera hadir dalam mode offline. '
+                      'Silakan hubungkan ke internet untuk menggunakan fitur ini.',
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerRight,
             child: SizedBox(
               width: 220,
-              child: Button.filled(
-                icon: Assets.icons.plus.svg(height: 24, width: 24),
-                label: 'Tambah Diskon',
-                fontSize: 16,
-                onPressed: onAddDataTap,
+              child: FeatureGuard(
+                featureCode: 'add_discount',
+                child: Button.filled(
+                  icon: Assets.icons.plus.svg(height: 24, width: 24),
+                  label: 'Tambah Diskon',
+                  fontSize: 16,
+                  onPressed: onAddDataTap,
+                ),
+                disabledChild: Button.filled(
+                  icon: Assets.icons.plus.svg(height: 24, width: 24),
+                  label: 'Tambah Diskon',
+                  fontSize: 16,
+                  onPressed: () {},
+                  disabled: true,
+                ),
               ),
             ),
           ),
@@ -158,10 +190,13 @@ class _DiscountPageState extends State<DiscountPage> {
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final item = discounts[index];
-                                return ManageDiscountCard(
-                                  data: item,
-                                  onEditTap: onEditTap,
-                                  onDeleteTap: () => _confirmDelete(item),
+                                return FeatureGuard(
+                                  featureCode: 'edit_discount',
+                                  child: ManageDiscountCard(
+                                    data: item,
+                                    onEditTap: onEditTap,
+                                    onDeleteTap: () => _confirmDelete(item),
+                                  ),
                                 );
                               },
                             ),
@@ -335,7 +370,8 @@ class _DiscountEmptyState extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black.withAlpha((0.08 * 255).round())),
+                    border: Border.all(
+                        color: Colors.black.withAlpha((0.08 * 255).round())),
                   ),
                   child: Center(
                     child: Text(

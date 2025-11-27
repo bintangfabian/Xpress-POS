@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/build_context_ext.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_feature_banner.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/add_discount/add_discount_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/discount/discount_bloc.dart';
 
@@ -68,6 +71,20 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+                  builder: (context, state) {
+                    final isOnline = state.maybeWhen(
+                        online: () => true, orElse: () => false);
+                    if (!isOnline) {
+                      return const OfflineFeatureBanner(
+                        featureName: 'Tambah Diskon',
+                        margin: EdgeInsets.only(bottom: 16),
+                        padding: EdgeInsets.all(12),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
                 Row(
                   children: [
                     Expanded(
@@ -236,22 +253,34 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
                       builder: (context, state) {
                         return state.maybeWhen(orElse: () {
                           return Expanded(
-                            child: Button.filled(
-                              color: AppColors.success,
-                              label: 'Tambah',
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              onPressed: () {
-                                context.read<AddDiscountBloc>().add(
-                                      AddDiscountEvent.addDiscount(
-                                        name: nameController.text,
-                                        description: descriptionController.text,
-                                        value:
-                                            int.parse(discountController.text),
-                                        type: _selectedType,
-                                      ),
-                                    );
-                              },
+                            child: FeatureGuard(
+                              featureCode: 'add_discount',
+                              child: Button.filled(
+                                color: AppColors.success,
+                                label: 'Tambah',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                onPressed: () {
+                                  context.read<AddDiscountBloc>().add(
+                                        AddDiscountEvent.addDiscount(
+                                          name: nameController.text,
+                                          description:
+                                              descriptionController.text,
+                                          value: int.parse(
+                                              discountController.text),
+                                          type: _selectedType,
+                                        ),
+                                      );
+                                },
+                              ),
+                              disabledChild: Button.filled(
+                                color: AppColors.success,
+                                label: 'Tambah',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                onPressed: () {},
+                                disabled: true,
+                              ),
                             ),
                           );
                         }, loading: () {

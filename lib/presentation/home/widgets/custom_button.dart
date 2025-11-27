@@ -48,21 +48,24 @@ class CustomButton extends StatelessWidget {
       );
     } else {
       // 🔹 Outlined style (blueLight bg + primary border + primary text/icon)
+      // When disabled: greyLight bg + grey border + grey text + white icon
       return Button.outlined(
         onPressed: onPressed,
         label: label ?? '',
         width: width,
         height: height,
-        color: AppColors.primaryLight,
-        borderColor: AppColors.primary,
-        textColor: AppColors.primary,
+        color: disabled ? AppColors.greyLight : AppColors.primaryLight,
+        borderColor: disabled ? AppColors.grey : AppColors.primary,
+        textColor: disabled ? AppColors.grey : AppColors.primary,
         borderWidth: 2,
         padding: EdgeInsets.symmetric(horizontal: 8),
         icon: svgIcon?.svg(
           width: 20,
           height: 20,
-          colorFilter:
-              ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+          colorFilter: ColorFilter.mode(
+            disabled ? Colors.white : AppColors.primary,
+            BlendMode.srcIn,
+          ),
         ),
         fontWeight: FontWeight.bold,
         disabled: disabled,

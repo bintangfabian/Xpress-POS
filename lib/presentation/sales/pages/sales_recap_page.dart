@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/widgets/offline_info_banner.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_recap/sales_recap_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/sales_recap/sales_recap_event.dart';
 import 'package:xpress/presentation/sales/blocs/sales_recap/sales_recap_state.dart';
@@ -60,16 +62,31 @@ class _SalesRecapPageState extends State<SalesRecapPage> {
         } else if (state is SalesRecapLoading) {
           return const Center(child: CircularProgressIndicator());
         } else if (state is SalesRecapError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.danger),
-                const SpaceHeight(16),
-                Text(state.message),
-              ],
-            ),
+          return BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+            builder: (context, onlineState) {
+              final isOnline = onlineState.maybeWhen(
+                  online: () => true, orElse: () => false);
+              if (!isOnline) {
+                return const Center(
+                  child: OfflineInfoBanner(
+                    customMessage:
+                        'Data rekap penjualan tidak tersedia dalam mode offline. '
+                        'Silahkan hubungkan kembali koneksi internet.',
+                  ),
+                );
+              }
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: AppColors.danger),
+                    const SpaceHeight(16),
+                    Text(state.message),
+                  ],
+                ),
+              );
+            },
           );
         } else if (state is SalesRecapSuccess) {
           final data = state.data;

@@ -5,7 +5,11 @@ import 'package:xpress/core/components/components.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
+import 'package:xpress/core/utils/snackbar_helper.dart';
+import 'package:xpress/core/widgets/feature_guard.dart';
+import 'package:xpress/core/widgets/offline_info_banner.dart';
 import 'package:xpress/data/models/response/cash_session_response_model.dart';
+import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_bloc.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_event.dart';
 import 'package:xpress/presentation/sales/blocs/cash_session/cash_session_state.dart';
@@ -155,29 +159,44 @@ class _CashDailyPageState extends State<CashDailyPage> {
   }
 
   Widget _errorBanner(String message) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.dangerLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.dangerLightActive),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.danger),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppColors.dangerActive,
-              ),
-            ),
+    // Check if offline, show info banner instead of error
+    return BlocBuilder<OnlineCheckerBloc, OnlineCheckerState>(
+      builder: (context, state) {
+        final isOnline =
+            state.maybeWhen(online: () => true, orElse: () => false);
+        if (!isOnline) {
+          return const OfflineInfoBanner(
+            customMessage: 'Data kas harian tidak tersedia dalam mode offline. '
+                'Silahkan hubungkan kembali koneksi internet.',
+            margin: EdgeInsets.only(bottom: 16),
+          );
+        }
+        // Show error only when online
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.dangerLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.dangerLightActive),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              const Icon(Icons.error_outline, color: AppColors.danger),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.dangerActive,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -271,19 +290,29 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ],
           const SizedBox(height: 16),
-          Button.filled(
-            onPressed: () {
-              if (!isOpen) {
-                _openShiftDialog();
-                return;
-              }
-              if (session != null) {
-                _closeShiftDialog(session);
-              }
-            },
-            label: isOpen ? 'Tutup Shift' : 'Buka Shift',
-            color: isOpen ? AppColors.danger : AppColors.primary,
-            disabled: isRefreshing || (isOpen ? !canCloseShift : !canOpenShift),
+          FeatureGuard(
+            featureCode: 'cash_session',
+            child: Button.filled(
+              onPressed: () {
+                if (!isOpen) {
+                  _openShiftDialog();
+                  return;
+                }
+                if (session != null) {
+                  _closeShiftDialog(session);
+                }
+              },
+              label: isOpen ? 'Tutup Shift' : 'Buka Shift',
+              color: isOpen ? AppColors.danger : AppColors.success,
+              disabled:
+                  isRefreshing || (isOpen ? !canCloseShift : !canOpenShift),
+            ),
+            disabledChild: Button.filled(
+              onPressed: () {},
+              label: isOpen ? 'Tutup Shift' : 'Buka Shift',
+              color: isOpen ? AppColors.danger : AppColors.success,
+              disabled: true,
+            ),
           ),
         ],
       ),
@@ -431,28 +460,31 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ),
           content: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CustomTextField(
-                    controller: _expenseAmountCtrl,
-                    label: 'Jumlah pengeluaran (Rp)',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _expenseCategoryCtrl,
-                    label: 'Kategori',
-                  ),
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _expenseNoteCtrl,
-                    label: 'Deskripsi',
-                  ),
-                ],
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomTextField(
+                      controller: _expenseAmountCtrl,
+                      label: 'Jumlah pengeluaran (Rp)',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _expenseCategoryCtrl,
+                      label: 'Kategori',
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _expenseNoteCtrl,
+                      label: 'Deskripsi',
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -602,32 +634,35 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ),
           content: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Masukkan saldo awal kas sebelum shift dimulai.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.grey,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Masukkan saldo awal kas sebelum shift dimulai.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.grey,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _openShiftAmountCtrl,
-                    label: 'Saldo awal (Rp)',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _openShiftNotesCtrl,
-                    label: 'Catatan shift',
-                    textInputAction: TextInputAction.done,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _openShiftAmountCtrl,
+                      label: 'Saldo awal (Rp)',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _openShiftNotesCtrl,
+                      label: 'Catatan shift',
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -744,27 +779,30 @@ class _CashDailyPageState extends State<CashDailyPage> {
             ),
           ),
           content: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Saldo ekspektasi: ${expected.currencyFormatRp}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Saldo ekspektasi: ${expected.currencyFormatRp}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _closeShiftAmountCtrl,
-                    label: 'Saldo fisik akhir (Rp)',
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _closeShiftAmountCtrl,
+                      label: 'Saldo fisik akhir (Rp)',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -899,12 +937,23 @@ class _CashDailyPageState extends State<CashDailyPage> {
 
   void _showSnackBar(String message, {bool isError = true}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? AppColors.danger : AppColors.success,
-      ),
-    );
+    if (isError) {
+      // Gunakan helper untuk error (akan otomatis cek offline)
+      SnackbarHelper.showErrorOrOffline(
+        context,
+        message,
+        offlineMessage: 'Operasi tidak tersedia dalam mode offline. '
+            'Silahkan hubungkan kembali koneksi internet.',
+      );
+    } else {
+      // Success message tetap normal
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
   }
 
   String _formatDateTime(DateTime? date) =>

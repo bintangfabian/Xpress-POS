@@ -6,6 +6,7 @@ import 'package:xpress/presentation/table/blocs/generate_table/generate_table_bl
 import 'package:xpress/presentation/table/blocs/get_table/get_table_bloc.dart';
 import '../../../core/components/components.dart';
 import '../../../core/assets/assets.gen.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class FormTableDialog extends StatefulWidget {
   const FormTableDialog({super.key});
@@ -109,11 +110,12 @@ class _FormTableDialogState extends State<FormTableDialog> {
                     success: (message) {
                       if (message.startsWith('ERROR: ')) {
                         final msg = message.substring(7);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(msg),
-                            backgroundColor: AppColors.danger,
-                          ),
+                        SnackbarHelper.showErrorOrOffline(
+                          context,
+                          msg,
+                          offlineMessage:
+                              'Generate meja tidak tersedia dalam mode offline. '
+                              'Silahkan hubungkan kembali koneksi internet.',
                         );
                         return;
                       }

@@ -26,12 +26,20 @@ class SyncOrderBloc extends Bloc<SyncOrderEvent, SyncOrderState> {
         final newOrder = order.copyWith(orderItems: orderItem);
         log("Order: ${newOrder.toMap()}");
         final result = await orderRemoteDatasource.saveOrder(newOrder);
-        if (result) {
-          await ProductLocalDatasource.instance.updateOrderIsSync(order.id!);
-        } else {
-          emit(const _Error('Sync Order Failed'));
-          return;
-        }
+        result.fold(
+          // Left = Error
+          (errorResponse) {
+            final errorMessage = errorResponse.isLimitExceeded
+                ? 'Sync Order Failed: ${errorResponse.message}'
+                : 'Sync Order Failed: ${errorResponse.message}';
+            emit(_Error(errorMessage));
+            return;
+          },
+          // Right = Success
+          (orderId) async {
+            await ProductLocalDatasource.instance.updateOrderIsSync(order.id!);
+          },
+        );
       }
       emit(const _Loaded());
     });

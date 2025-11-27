@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
+import 'package:xpress/data/datasources/subscription_remote_datasource.dart';
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 
 import '../../../core/assets/assets.gen.dart';
@@ -9,6 +10,7 @@ import '../../../core/components/spaces.dart';
 import '../../../core/constants/colors.dart';
 import '../../home/pages/dashboard_page.dart';
 import '../bloc/login/login_bloc.dart';
+import '../dialogs/subscription_limit_dialog.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -338,13 +340,61 @@ class _LoginPageState extends State<LoginPage> {
                           if (storeUuid != null && storeUuid.isNotEmpty) {
                             await ds.saveStoreUuid(storeUuid);
                           }
+
+                          // ✅ Check limit status after login
                           if (!context.mounted) return;
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const DashboardPage(),
-                            ),
-                          );
+                          try {
+                            final subscriptionDatasource =
+                                SubscriptionRemoteDatasource();
+                            final limitResult =
+                                await subscriptionDatasource.checkLimitStatus();
+
+                            limitResult.fold(
+                              (error) {
+                                // Error checking limit - continue anyway
+                                print('Warning: Failed to check limit: $error');
+                              },
+                              (limitResponse) {
+                                // Show dialog only if limit exceeded or warning/critical
+                                if (limitResponse.shouldShowWarning &&
+                                    context.mounted) {
+                                  // Show dialog before navigating
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (_) => SubscriptionLimitDialog(
+                                      limitResponse: limitResponse,
+                                    ),
+                                  ).then((_) {
+                                    // Navigate after dialog is closed
+                                    if (context.mounted) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const DashboardPage(),
+                                        ),
+                                      );
+                                    }
+                                  });
+                                  return; // Don't navigate yet, wait for dialog
+                                }
+                              },
+                            );
+                          } catch (e) {
+                            print('Error checking limit: $e');
+                            // Continue anyway if check fails
+                          }
+
+                          // Navigate if dialog wasn't shown
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const DashboardPage(),
+                              ),
+                            );
+                          }
                         },
                         error: (message) {
                           // ✅ Parse error message untuk menentukan field mana yang error
