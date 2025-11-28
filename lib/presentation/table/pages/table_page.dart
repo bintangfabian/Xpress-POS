@@ -138,13 +138,28 @@ class _TablePageState extends State<TablePage> {
                       },
                       success: (tables) {
                         // Filter tables by selected category
+                        final List<String> mainCategories = [
+                          'Dalam Ruangan',
+                          'Luar Ruangan',
+                          'Teras',
+                          'Area VIP',
+                          'Area Bar',
+                        ];
+
                         final filteredTables = _selectedCategory == 'Semua'
                             ? tables
-                            : tables.where((table) {
-                                final tableLocation =
-                                    table.location ?? 'Lainnya';
-                                return tableLocation == _selectedCategory;
-                              }).toList();
+                            : _selectedCategory == 'Lainnya'
+                                ? tables.where((table) {
+                                    final tableLocation = table.location;
+                                    // Tampilkan meja yang location-nya null atau tidak masuk kategori utama
+                                    return tableLocation == null ||
+                                        !mainCategories.contains(tableLocation);
+                                  }).toList()
+                                : tables.where((table) {
+                                    final tableLocation =
+                                        table.location ?? 'Lainnya';
+                                    return tableLocation == _selectedCategory;
+                                  }).toList();
 
                         if (filteredTables.isEmpty) {
                           return _emptyTable();

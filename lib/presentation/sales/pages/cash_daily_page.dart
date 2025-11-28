@@ -267,6 +267,8 @@ class _CashDailyPageState extends State<CashDailyPage> {
             const SizedBox(height: 8),
             _infoRow('Ditutup pada', _formatDateTime(session.closedAt)),
             const SizedBox(height: 8),
+            _infoRow('Durasi', _formatDuration(session)),
+            const SizedBox(height: 8),
             _infoRow('Saldo awal', session.openingBalance.currencyFormatRp),
           ] else
             const Text(
@@ -325,13 +327,11 @@ class _CashDailyPageState extends State<CashDailyPage> {
     final int? closingBalance = session?.closingBalance;
     final int expectedBalance =
         session == null ? 0 : _calculateExpectedBalance(session);
-    final int? variance = session == null
+
+    // Hitung selisih: (saldo awal + penjualan tunai) - pengeluaran
+    final int? selisih = session == null
         ? null
-        : (session.status == 'closed'
-            ? session.variance
-            : (closingBalance != null
-                ? (closingBalance - expectedBalance)
-                : null));
+        : (session.openingBalance + session.cashSales) - session.cashExpenses;
 
     return _section(
       title: 'Ringkasan Kas Harian',
@@ -352,12 +352,8 @@ class _CashDailyPageState extends State<CashDailyPage> {
           ),
           _summaryTile(
             'Selisih',
-            variance == null ? '-' : variance.currencyFormatRp,
-            valueColor: variance == null
-                ? AppColors.grey
-                : variance == 0
-                    ? AppColors.success
-                    : (variance > 0 ? Colors.green : AppColors.danger),
+            _formatSelisih(selisih),
+            valueColor: _getSelisihColor(session),
           ),
         ],
       ),
@@ -954,8 +950,65 @@ class _CashDailyPageState extends State<CashDailyPage> {
     }
   }
 
+  Color _getSelisihColor(CashSessionData? session) {
+    if (session == null) {
+      return AppColors.grey;
+    }
+
+    final int openingBalance = session.openingBalance;
+    final int cashSales = session.cashSales;
+    final int cashExpenses = session.cashExpenses;
+
+    final int totalAvailable = openingBalance + cashSales;
+
+    // Jika pengeluaran lebih besar dari (saldo awal + penjualan tunai) -> merah
+    if (cashExpenses > totalAvailable) {
+      return AppColors.danger;
+    }
+
+    // Jika pengeluaran lebih kecil dari (saldo awal + penjualan tunai) -> hijau
+    if (cashExpenses < totalAvailable) {
+      return Colors.green;
+    }
+
+    // Jika sama -> abu-abu
+    return AppColors.grey;
+  }
+
   String _formatDateTime(DateTime? date) =>
       date == null ? '-' : date.toFormattedDate3();
+
+  String _formatDuration(CashSessionData session) {
+    if (session.openedAt == null) return '-';
+
+    final endTime = session.closedAt ?? DateTime.now();
+    final duration = endTime.difference(session.openedAt!);
+
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+
+    if (hours > 0) {
+      return '$hours jam $minutes menit';
+    } else {
+      return '$minutes menit';
+    }
+  }
+
+  String _formatSelisih(int? selisih) {
+    if (selisih == null) return '-';
+    // Selisih = (saldo awal + penjualan tunai) - pengeluaran
+    // Jika positif: pengeluaran kurang, kas lebih = "+"
+    // Jika negatif: pengeluaran lebih, kas kurang = "-" (sudah otomatis dari currencyFormatRp)
+    if (selisih > 0) {
+      // Kas lebih (pengeluaran kurang) → "+"
+      return '+${selisih.currencyFormatRp}';
+    } else if (selisih < 0) {
+      // Kas kurang (pengeluaran lebih) → "-" (otomatis dari currencyFormatRp)
+      return selisih.currencyFormatRp;
+    }
+    // Kas sama (selisih = 0)
+    return selisih.currencyFormatRp;
+  }
 
   Widget _summaryTile(String title, String value, {Color? valueColor}) {
     return Container(

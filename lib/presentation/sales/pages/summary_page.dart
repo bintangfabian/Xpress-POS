@@ -186,70 +186,78 @@ class _SummaryPageState extends State<SummaryPage> {
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: dailyStats.asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final stat = entry.value;
-                                final percentage = maxValue > 0
-                                    ? (stat.totalSales / maxValue)
-                                    : 0.0;
-                                // Reduce max height to 85 to leave space for text and spacing
-                                final barHeight = 85 * percentage;
-                                final isSelected = selectedIndex == index;
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children:
+                                    dailyStats.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final stat = entry.value;
+                                  final percentage = maxValue > 0
+                                      ? (stat.totalSales / maxValue)
+                                      : 0.0;
+                                  // Reduce max height to 85 to leave space for text and spacing
+                                  final barHeight = 85 * percentage;
+                                  final isSelected = selectedIndex == index;
 
-                                return Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 2.0),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedDateIndex = index;
-                                        });
-                                      },
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            height: barHeight.toDouble(),
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? AppColors.primary
-                                                      .withOpacity(0.8)
-                                                  : AppColors.primary,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                              border: isSelected
-                                                  ? Border.all(
-                                                      color: AppColors.primary,
-                                                      width: 2,
-                                                    )
-                                                  : null,
+                                  return SizedBox(
+                                    width: 50,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 2.0),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedDateIndex = index;
+                                          });
+                                        },
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 40,
+                                              height: barHeight.toDouble(),
+                                              decoration: BoxDecoration(
+                                                color: isSelected
+                                                    ? AppColors.primary
+                                                        .withOpacity(0.8)
+                                                    : AppColors.primary,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                border: isSelected
+                                                    ? Border.all(
+                                                        color:
+                                                            AppColors.primary,
+                                                        width: 2,
+                                                      )
+                                                    : null,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            stat.date.split('-').last,
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: isSelected
-                                                  ? AppColors.primary
-                                                  : AppColors.grey,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w700
-                                                  : FontWeight.normal,
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              stat.date.split('-').last,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isSelected
+                                                    ? AppColors.primary
+                                                    : AppColors.grey,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w700
+                                                    : FontWeight.normal,
+                                              ),
+                                              textAlign: TextAlign.center,
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                         ),

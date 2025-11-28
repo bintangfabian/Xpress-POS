@@ -502,17 +502,47 @@ class _CustomDateRangePickerDialogState
         _startDate = clamped;
         _endDate = null;
       } else {
-        if (clamped.isBefore(_startDate!)) {
-          _endDate = _startDate;
-          _startDate = clamped;
+        final currentStartDate = _startDate!;
+        DateTime newStartDate = currentStartDate;
+        DateTime newEndDate;
+
+        if (clamped.isBefore(currentStartDate)) {
+          newEndDate = currentStartDate;
+          newStartDate = clamped;
         } else {
-          _endDate = clamped;
+          newEndDate = clamped;
         }
+
+        // Validasi maksimal 31 hari
+        final daysDifference = newEndDate.difference(newStartDate).inDays;
+        if (daysDifference > 31) {
+          // Tampilkan pesan error dan tidak update tanggal
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Rentang tanggal maksimal 31 hari'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(20),
+              ),
+            );
+          }
+          return;
+        }
+
+        _startDate = newStartDate;
+        _endDate = newEndDate;
       }
     });
   }
 
-  bool get _canSave => _startDate != null;
+  bool get _canSave {
+    if (_startDate == null) return false;
+    if (_endDate == null) return true;
+    final daysDifference = _endDate!.difference(_startDate!).inDays;
+    return daysDifference <= 31;
+  }
 
   DateTimeRange _currentRange() {
     final start = _startDate!;
@@ -761,7 +791,26 @@ class _CustomDateRangePickerDialogState
                 child: Button.filled(
                   label: 'Simpan',
                   disabled: !_canSave,
-                  onPressed: () => Navigator.of(context).pop(_currentRange()),
+                  onPressed: () {
+                    if (_startDate != null && _endDate != null) {
+                      final daysDifference =
+                          _endDate!.difference(_startDate!).inDays;
+                      if (daysDifference > 31) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content:
+                                const Text('Rentang tanggal maksimal 31 hari'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.all(20),
+                          ),
+                        );
+                        return;
+                      }
+                    }
+                    Navigator.of(context).pop(_currentRange());
+                  },
                 ),
               ),
             ),
@@ -893,15 +942,13 @@ class _CalendarGrid extends StatelessWidget {
             final start = rangeStart;
             final end = rangeEnd ?? rangeStart;
             final isRangeMode = start != null;
-            final isRangeStart =
-                isRangeMode && start != null && _isSameDate(date, start);
+            final isRangeStart = isRangeMode && _isSameDate(date, start);
             final isRangeEnd =
-                isRangeMode && end != null && _isSameDate(date, end!);
+                isRangeMode && end != null && _isSameDate(date, end);
             final isInBetween = isRangeMode &&
-                start != null &&
                 end != null &&
                 date.isAfter(start) &&
-                date.isBefore(end!);
+                date.isBefore(end);
             final inRange = !date.isBefore(minDate) && !date.isAfter(maxDate);
 
             Color background;
