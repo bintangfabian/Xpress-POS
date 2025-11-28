@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
@@ -27,16 +28,52 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
   final discountController = TextEditingController();
   final List<String> _typeOptions = const ['percentage', 'fixed'];
   String _selectedType = 'percentage';
+  final FocusNode _discountFocusNode = FocusNode();
+  bool _isDiscountFocused = false;
+  String? _discountErrorMessage;
+  static const int _maxDigits = 18;
 
   String get _valueHint => _selectedType == 'percentage'
       ? 'Masukkan Nilai (%)'
       : 'Masukkan Nilai (Rp)';
+
+  String _formatCurrency(String value) {
+    if (value.isEmpty) return '';
+    // Remove non-digit characters
+    final digitsOnly = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (digitsOnly.isEmpty) return '';
+    // Format with thousand separators
+    final number = int.tryParse(digitsOnly) ?? 0;
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _discountFocusNode.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isDiscountFocused = _discountFocusNode.hasFocus;
+        });
+      }
+    });
+    // Listen to controller changes to update prefix visibility
+    discountController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
 
   @override
   void dispose() {
     nameController.dispose();
     descriptionController.dispose();
     discountController.dispose();
+    _discountFocusNode.dispose();
     super.dispose();
   }
 
@@ -210,15 +247,103 @@ class _FormDiscountDialogState extends State<FormDiscountDialog> {
                       flex: 4,
                       child: TextField(
                         controller: discountController,
+                        focusNode: _discountFocusNode,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: _selectedType == 'fixed'
+                            ? [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(_maxDigits +
+                                    10), // Allow extra for formatting
+                              ]
+                            : null,
+                        onChanged: _selectedType == 'fixed'
+                            ? (value) {
+                                // Remove "Rp." prefix and format
+                                String cleanedValue =
+                                    value.replaceAll('Rp.', '').trim();
+                                cleanedValue = cleanedValue.replaceAll('.', '');
+
+                                // Validasi maksimal digit
+                                if (cleanedValue.length > _maxDigits) {
+                                  // Potong ke maxDigits
+                                  cleanedValue =
+                                      cleanedValue.substring(0, _maxDigits);
+                                  setState(() {
+                                    _discountErrorMessage =
+                                        'Maksimal $_maxDigits digit';
+                                  });
+                                } else {
+                                  setState(() {
+                                    _discountErrorMessage = null;
+                                  });
+                                }
+
+                                // Format the value
+                                final formatted = _formatCurrency(cleanedValue);
+
+                                // Update controller without triggering listener
+                                discountController.value = TextEditingValue(
+                                  text: formatted,
+                                  selection: TextSelection.collapsed(
+                                    offset: formatted.length,
+                                  ),
+                                );
+                              }
+                            : null,
                         decoration: InputDecoration(
                           hintText: _valueHint,
+                          prefixText: ((_isDiscountFocused ||
+                                      discountController.text.isNotEmpty) &&
+                                  _selectedType == 'fixed')
+                              ? 'Rp. '
+                              : null,
+                          prefixStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 12),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: _discountErrorMessage != null
+                                  ? Colors.red
+                                  : Colors.grey,
+                            ),
                           ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: _discountErrorMessage != null
+                                  ? Colors.red
+                                  : Colors.grey,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: _discountErrorMessage != null
+                                  ? Colors.red
+                                  : Colors.blue,
+                              width: 2,
+                            ),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide:
+                                const BorderSide(color: Colors.red, width: 2),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide:
+                                const BorderSide(color: Colors.red, width: 2),
+                          ),
+                          errorText: _selectedType == 'fixed'
+                              ? _discountErrorMessage
+                              : null,
+                          errorMaxLines: 2,
                         ),
-                        keyboardType: TextInputType.number,
                       ),
                     ),
                   ],

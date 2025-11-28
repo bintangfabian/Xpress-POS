@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
@@ -107,6 +108,10 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   final noteController = TextEditingController();
   final customerController = TextEditingController();
   final totalPayController = TextEditingController();
+  final FocusNode _totalPayFocusNode = FocusNode();
+  bool _isTotalPayFocused = false;
+  String? _totalPayErrorMessage;
+  static const int _maxDigits = 18;
   bool isCash = true;
   int? _selectedTableNumber;
   String? _selectedMemberId;
@@ -134,12 +139,19 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     totalPayController.addListener(() {
       if (mounted) setState(() {});
     });
+    _totalPayFocusNode.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isTotalPayFocused = _totalPayFocusNode.hasFocus;
+        });
+      }
+    });
 
     // ✅ Fast Checkout: Auto fill total bayar dengan total harga + pajak + layanan
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final due = _calculateDueTotal();
       if (due > 0 && totalPayController.text.toIntegerFromText == 0) {
-        totalPayController.text = due.toString();
+        totalPayController.text = _formatCurrency(due.toString());
       }
     });
   }
@@ -149,6 +161,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     noteController.dispose();
     customerController.dispose();
     totalPayController.dispose();
+    _totalPayFocusNode.dispose();
     super.dispose();
   }
 
@@ -602,6 +615,19 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     }
   }
 
+  String _formatCurrency(String value) {
+    if (value.isEmpty) return '';
+    // Remove non-digit characters
+    final digitsOnly = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (digitsOnly.isEmpty) return '';
+    // Format with thousand separators
+    final number = int.tryParse(digitsOnly) ?? 0;
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
+  }
+
   int _currentTotalPay() {
     return totalPayController.text.toIntegerFromText;
   }
@@ -609,7 +635,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   void _addToTotalPay(int amount) {
     final current = _currentTotalPay();
     final updated = current + amount;
-    totalPayController.text = updated.toString();
+    totalPayController.text = _formatCurrency(updated.toString());
   }
 
   int _calculateDueTotal() {
@@ -1154,7 +1180,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
                                 const SpaceHeight(12),
 
-                                // 🔹 TextField Total + Tombol Uang Pas
+                                // 🔹 TextField Total + Tombol Uang Pas (Baris 3)
                                 Row(
                                   children: [
                                     Expanded(
@@ -1162,10 +1188,66 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                         height: 46,
                                         child: TextField(
                                           controller: totalPayController,
+                                          focusNode: _totalPayFocusNode,
                                           keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                            LengthLimitingTextInputFormatter(
+                                                _maxDigits +
+                                                    10), // Allow extra for formatting
+                                          ],
+                                          onChanged: (value) {
+                                            // Remove "Rp." prefix and format
+                                            String cleanedValue = value
+                                                .replaceAll('Rp.', '')
+                                                .trim();
+                                            cleanedValue = cleanedValue
+                                                .replaceAll('.', '');
+
+                                            // Validasi maksimal digit
+                                            if (cleanedValue.length >
+                                                _maxDigits) {
+                                              // Potong ke maxDigits
+                                              cleanedValue = cleanedValue
+                                                  .substring(0, _maxDigits);
+                                              setState(() {
+                                                _totalPayErrorMessage =
+                                                    'Maksimal $_maxDigits digit';
+                                              });
+                                            } else {
+                                              setState(() {
+                                                _totalPayErrorMessage = null;
+                                              });
+                                            }
+
+                                            // Format the value
+                                            final formatted =
+                                                _formatCurrency(cleanedValue);
+
+                                            // Update controller without triggering listener
+                                            totalPayController.value =
+                                                TextEditingValue(
+                                              text: formatted,
+                                              selection:
+                                                  TextSelection.collapsed(
+                                                offset: formatted.length,
+                                              ),
+                                            );
+                                          },
                                           decoration: InputDecoration(
                                             isDense: true,
                                             hintText: "Total Bayar",
+                                            prefixText: (_isTotalPayFocused ||
+                                                    totalPayController
+                                                        .text.isNotEmpty)
+                                                ? 'Rp. '
+                                                : null,
+                                            prefixStyle: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black87,
+                                            ),
                                             prefixIcon: Padding(
                                               padding:
                                                   const EdgeInsets.all(12.0),
@@ -1181,39 +1263,75 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                               horizontal: 12,
                                               vertical: 12,
                                             ),
-                                            border: const OutlineInputBorder(
-                                              borderRadius: BorderRadius.only(
-                                                topLeft: Radius.circular(8),
-                                                bottomLeft: Radius.circular(8),
-                                                topRight: Radius.circular(0),
-                                                bottomRight: Radius.circular(0),
-                                              ),
-                                            ),
-                                            enabledBorder:
-                                                const OutlineInputBorder(
-                                              borderRadius: BorderRadius.only(
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  const BorderRadius.only(
                                                 topLeft: Radius.circular(8),
                                                 bottomLeft: Radius.circular(8),
                                                 topRight: Radius.circular(0),
                                                 bottomRight: Radius.circular(0),
                                               ),
                                               borderSide: BorderSide(
-                                                color: AppColors.grey,
+                                                color: _totalPayErrorMessage !=
+                                                        null
+                                                    ? Colors.red
+                                                    : Colors.grey,
+                                              ),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                topLeft: Radius.circular(8),
+                                                bottomLeft: Radius.circular(8),
+                                                topRight: Radius.circular(0),
+                                                bottomRight: Radius.circular(0),
+                                              ),
+                                              borderSide: BorderSide(
+                                                color: _totalPayErrorMessage !=
+                                                        null
+                                                    ? Colors.red
+                                                    : AppColors.grey,
                                                 width: 1.0,
                                               ),
                                             ),
-                                            focusedBorder:
-                                                const OutlineInputBorder(
-                                              borderRadius: BorderRadius.only(
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  const BorderRadius.only(
                                                 topLeft: Radius.circular(8),
                                                 bottomLeft: Radius.circular(8),
                                                 topRight: Radius.circular(0),
                                                 bottomRight: Radius.circular(0),
                                               ),
                                               borderSide: BorderSide(
-                                                color: AppColors.primary,
-                                                width: 1.5,
+                                                color: _totalPayErrorMessage !=
+                                                        null
+                                                    ? Colors.red
+                                                    : Colors.blue,
+                                                width: 2,
                                               ),
+                                            ),
+                                            errorBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                topLeft: Radius.circular(8),
+                                                bottomLeft: Radius.circular(8),
+                                                topRight: Radius.circular(0),
+                                                bottomRight: Radius.circular(0),
+                                              ),
+                                              borderSide: const BorderSide(
+                                                  color: Colors.red, width: 2),
+                                            ),
+                                            focusedErrorBorder:
+                                                OutlineInputBorder(
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                topLeft: Radius.circular(8),
+                                                bottomLeft: Radius.circular(8),
+                                                topRight: Radius.circular(0),
+                                                bottomRight: Radius.circular(0),
+                                              ),
+                                              borderSide: const BorderSide(
+                                                  color: Colors.red, width: 2),
                                             ),
                                           ),
                                         ),
@@ -1225,7 +1343,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                         onPressed: () {
                                           final total = _calculateDueTotal();
                                           totalPayController.text =
-                                              total.toString();
+                                              _formatCurrency(total.toString());
                                         },
                                         style: OutlinedButton.styleFrom(
                                           backgroundColor: AppColors.primary,
@@ -1257,6 +1375,21 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                     ),
                                   ],
                                 ),
+
+                                // 🔹 Pesan error (Baris 4)
+                                if (_totalPayErrorMessage != null) ...[
+                                  const SizedBox(height: 4),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 12.0),
+                                    child: Text(
+                                      _totalPayErrorMessage!,
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
 
                                 const SpaceHeight(12),
 

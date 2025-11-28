@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/components/components.dart';
+import 'package:xpress/core/components/currency_text_field.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/extensions/date_time_ext.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
@@ -468,10 +469,9 @@ class _CashDailyPageState extends State<CashDailyPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CustomTextField(
+                    CurrencyTextField(
                       controller: _expenseAmountCtrl,
-                      label: 'Jumlah pengeluaran (Rp)',
-                      keyboardType: TextInputType.number,
+                      label: 'Jumlah pengeluaran',
                     ),
                     const SizedBox(height: 12),
                     CustomTextField(
@@ -650,10 +650,9 @@ class _CashDailyPageState extends State<CashDailyPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    CustomTextField(
+                    CurrencyTextField(
                       controller: _openShiftAmountCtrl,
-                      label: 'Saldo awal (Rp)',
-                      keyboardType: TextInputType.number,
+                      label: 'Saldo awal',
                     ),
                     const SizedBox(height: 12),
                     CustomTextField(
@@ -796,10 +795,9 @@ class _CashDailyPageState extends State<CashDailyPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    CustomTextField(
+                    CurrencyTextField(
                       controller: _closeShiftAmountCtrl,
-                      label: 'Saldo fisik akhir (Rp)',
-                      keyboardType: TextInputType.number,
+                      label: 'Saldo fisik akhir',
                     ),
                   ],
                 ),

@@ -5,6 +5,7 @@ import 'package:xpress/core/assets/assets.gen.dart';
 import 'package:xpress/core/constants/colors.dart';
 import 'package:xpress/core/components/buttons.dart';
 import 'package:xpress/core/components/components.dart';
+import 'package:xpress/core/components/currency_text_field.dart';
 import 'package:xpress/core/widgets/print_button.dart';
 import 'package:xpress/data/models/response/order_response_model.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
@@ -837,10 +838,9 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  CustomTextField(
+                  CurrencyTextField(
                     controller: amountController,
                     label: 'Jumlah Refund',
-                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 12),
                   CustomTextField(
