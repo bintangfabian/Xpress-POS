@@ -16,6 +16,19 @@ class TablePage extends StatefulWidget {
 }
 
 class _TablePageState extends State<TablePage> {
+  // 6 kategori lokasi statik
+  static const List<String> _locationCategories = [
+    'Semua',
+    'Dalam Ruangan',
+    'Luar Ruangan',
+    'Teras',
+    'Area VIP',
+    'Area Bar',
+    'Lainnya',
+  ];
+
+  String _selectedCategory = 'Semua';
+
   @override
   void initState() {
     context.read<GetTableBloc>().add(const GetTableEvent.getTables());
@@ -56,6 +69,60 @@ class _TablePageState extends State<TablePage> {
               ),
               const SizedBox(height: 16),
 
+              // 🔹 Category Tabs (Horizontal Scroll)
+              SizedBox(
+                height: 50,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _locationCategories.length,
+                  itemBuilder: (context, index) {
+                    final category = _locationCategories[index];
+                    final isSelected = _selectedCategory == category;
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index < _locationCategories.length - 1 ? 12 : 0,
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = category;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppColors.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              category,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: isSelected
+                                    ? AppColors.white
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+
               // 🔹 GridView meja -> Expanded biar scrollable
               Expanded(
                 child: BlocBuilder<GetTableBloc, GetTableState>(
@@ -70,7 +137,16 @@ class _TablePageState extends State<TablePage> {
                         );
                       },
                       success: (tables) {
-                        if (tables.isEmpty) {
+                        // Filter tables by selected category
+                        final filteredTables = _selectedCategory == 'Semua'
+                            ? tables
+                            : tables.where((table) {
+                                final tableLocation =
+                                    table.location ?? 'Lainnya';
+                                return tableLocation == _selectedCategory;
+                              }).toList();
+
+                        if (filteredTables.isEmpty) {
                           return _emptyTable();
                         }
                         return GridView.builder(
@@ -82,12 +158,12 @@ class _TablePageState extends State<TablePage> {
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,
                           ),
-                          itemCount: tables.length,
+                          itemCount: filteredTables.length,
                           shrinkWrap: true,
                           physics: const ScrollPhysics(),
                           itemBuilder: (BuildContext context, int index) {
                             return CardTableWidget(
-                              table: tables[index],
+                              table: filteredTables[index],
                             );
                           },
                         );

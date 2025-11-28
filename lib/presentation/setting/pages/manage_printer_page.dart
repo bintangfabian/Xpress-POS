@@ -352,26 +352,6 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: connected
-                              ? AppColors.success
-                              : AppColors.greyLightActive),
-                    ),
-                    child: Text(
-                      connected
-                          ? '✓ Sistem sedang mencari printer yang tersedia...'
-                          : 'Tekan Scan untuk mencari printer yang tersedia',
-                      style: TextStyle(
-                          color:
-                              connected ? AppColors.success : AppColors.grey),
-                    ),
-                  ),
-                  const SpaceHeight(12),
                   SearchInput(
                     controller: searchCtrl,
                     hintText: 'Cari nama printer...',

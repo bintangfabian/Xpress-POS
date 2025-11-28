@@ -15,10 +15,25 @@ class InventoryPage extends StatefulWidget {
   State<InventoryPage> createState() => _InventoryPageState();
 }
 
+enum InventorySortOption {
+  nameAsc('Nama A-Z'),
+  nameDesc('Nama Z-A'),
+  priceAsc('Harga Rendah-Tinggi'),
+  priceDesc('Harga Tinggi-Rendah'),
+  stockAsc('Stok Terendah'),
+  stockDesc('Stok Tertinggi'),
+  soldAsc('Terjual Terendah'),
+  soldDesc('Terjual Tertinggi');
+
+  final String label;
+  const InventorySortOption(this.label);
+}
+
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _selectedCategory = 'Semua';
   Map<int, int> _soldQuantities = {}; // Map productId -> soldQuantity
+  InventorySortOption? _currentSort;
 
   @override
   void initState() {
@@ -58,7 +73,8 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   List<Product> _filterProducts(List<Product> products) {
-    var filtered = products;
+    // Create a mutable copy of the list
+    List<Product> filtered = List<Product>.from(products);
 
     // Filter by search text
     if (_searchCtrl.text.isNotEmpty) {
@@ -76,7 +92,44 @@ class _InventoryPageState extends State<InventoryPage> {
           .toList();
     }
 
-    return filtered;
+    // Sort products - create a new list to ensure it's mutable
+    final sortedList = List<Product>.from(filtered);
+    if (_currentSort != null) {
+      sortedList.sort((a, b) {
+        switch (_currentSort!) {
+          case InventorySortOption.nameAsc:
+            return (a.name ?? '').compareTo(b.name ?? '');
+          case InventorySortOption.nameDesc:
+            return (b.name ?? '').compareTo(a.name ?? '');
+          case InventorySortOption.priceAsc:
+            final priceA = int.tryParse(a.price ?? '0') ?? 0;
+            final priceB = int.tryParse(b.price ?? '0') ?? 0;
+            return priceA.compareTo(priceB);
+          case InventorySortOption.priceDesc:
+            final priceA = int.tryParse(a.price ?? '0') ?? 0;
+            final priceB = int.tryParse(b.price ?? '0') ?? 0;
+            return priceB.compareTo(priceA);
+          case InventorySortOption.stockAsc:
+            final stockA = a.stock ?? 999999;
+            final stockB = b.stock ?? 999999;
+            return stockA.compareTo(stockB);
+          case InventorySortOption.stockDesc:
+            final stockA = a.stock ?? 999999;
+            final stockB = b.stock ?? 999999;
+            return stockB.compareTo(stockA);
+          case InventorySortOption.soldAsc:
+            final soldA = _soldQuantities[a.productId] ?? 0;
+            final soldB = _soldQuantities[b.productId] ?? 0;
+            return soldA.compareTo(soldB);
+          case InventorySortOption.soldDesc:
+            final soldA = _soldQuantities[a.productId] ?? 0;
+            final soldB = _soldQuantities[b.productId] ?? 0;
+            return soldB.compareTo(soldA);
+        }
+      });
+    }
+
+    return sortedList;
   }
 
   @override
@@ -179,29 +232,55 @@ class _InventoryPageState extends State<InventoryPage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Container(
-                            height: 48,
-                            width: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              border: Border.all(color: AppColors.primary),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black
-                                      .withAlpha((0.06 * 255).round()),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
+                          PopupMenuButton<InventorySortOption>(
+                            offset: const Offset(0, 56),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Center(
-                              child: Assets.icons.filter.svg(
-                                height: 20,
-                                width: 20,
-                                colorFilter: const ColorFilter.mode(
-                                  AppColors.primary,
-                                  BlendMode.srcIn,
+                            color: AppColors.white,
+                            itemBuilder: (context) =>
+                                InventorySortOption.values.map((option) {
+                              return PopupMenuItem<InventorySortOption>(
+                                value: option,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 0),
+                                height: 48,
+                                child: Text(
+                                  option.label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: _currentSort == option
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: _currentSort == option
+                                        ? AppColors.primary
+                                        : AppColors.black,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onSelected: (option) {
+                              setState(() {
+                                _currentSort = option;
+                              });
+                            },
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                border: Border.all(
+                                    color: AppColors.primary, width: 2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Center(
+                                child: Assets.icons.sort.svg(
+                                  height: 24,
+                                  width: 24,
+                                  colorFilter: const ColorFilter.mode(
+                                    AppColors.primary,
+                                    BlendMode.srcIn,
+                                  ),
                                 ),
                               ),
                             ),
@@ -211,18 +290,28 @@ class _InventoryPageState extends State<InventoryPage> {
 
                       const SpaceHeight(16),
 
-                      // Category Tabs
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
-                        children: categoryList
-                            .map((category) => _TabChip(
-                                  label: category,
-                                  isActive: _selectedCategory == category,
-                                  onTap: () => setState(
-                                      () => _selectedCategory = category),
-                                ))
-                            .toList(),
+                      // Category Tabs (Horizontal Scroll)
+                      SizedBox(
+                        height: 50,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categoryList.length,
+                          itemBuilder: (context, index) {
+                            final category = categoryList[index];
+                            final isSelected = _selectedCategory == category;
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                right: index < categoryList.length - 1 ? 12 : 0,
+                              ),
+                              child: _TabChip(
+                                label: category,
+                                isActive: isSelected,
+                                onTap: () => setState(
+                                    () => _selectedCategory = category),
+                              ),
+                            );
+                          },
+                        ),
                       ),
 
                       const SpaceHeight(16),
@@ -304,11 +393,14 @@ class _TabChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.primary),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: isActive ? AppColors.white : AppColors.primary,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isActive ? AppColors.white : AppColors.primary,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
       ),

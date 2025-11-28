@@ -132,8 +132,12 @@ class _ReportPageState extends State<ReportPage>
       int maxSearchDays = 30; // Maximum days to search backwards
       int daysSearched = 0;
 
-      // Continue until we have 7 dates with data or reach the limit
-      while (sections.length < _maxDateDays &&
+      // For "Transaksi Online" tab: only fetch today's data (1 day)
+      // For "Transaksi Offline" tab: fetch last 7 days
+      final maxDaysToFetch = isOnline ? 1 : _maxDateDays;
+
+      // Continue until we have maxDaysToFetch dates with data or reach the limit
+      while (sections.length < maxDaysToFetch &&
           !cursor.isBefore(startDate) &&
           daysSearched < maxSearchDays) {
         final dateKey = DateFormat('yyyy-MM-dd').format(cursor);

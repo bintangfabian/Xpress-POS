@@ -8,6 +8,7 @@ class TableModel {
   final int? capacity; // Added capacity field
   final int? isActive; // Added is_active field
   final String? storeId; // Added store_id field
+  final String? location; // Added location field for table location category
   final String startTime;
   final String status;
   final int orderId;
@@ -20,6 +21,7 @@ class TableModel {
     this.capacity,
     this.isActive,
     this.storeId,
+    this.location,
     required this.startTime,
     required this.status,
     required this.orderId,
@@ -39,6 +41,7 @@ class TableModel {
           ? map['is_active']
           : int.tryParse(map['is_active']?.toString() ?? '1'),
       storeId: map['store_id']?.toString(),
+      location: map['location']?.toString(),
       startTime: map['start_time'] ?? TimezoneHelper.now().toIso8601String(),
       status: map['status'] ?? 'available',
       orderId: map['order_id'] is int
@@ -59,6 +62,7 @@ class TableModel {
       if (capacity != null) 'capacity': capacity,
       if (isActive != null) 'is_active': isActive,
       if (storeId != null) 'store_id': storeId,
+      if (location != null) 'location': location,
       'status': status,
       'start_time': startTime,
       'order_id': orderId,
