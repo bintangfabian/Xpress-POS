@@ -306,6 +306,21 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
     }
   }
 
+  Future<void> updatePrinterSize(PrinterModel printer, String size) async {
+    final success = await _printerDatasource.updatePrinterSize(printer, size);
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ukuran kertas berhasil diupdate'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        await loadSavedPrinters();
+      }
+    }
+  }
+
   Future<void> connectToSavedPrinter(PrinterModel printer) async {
     setState(() {
       connected = false;
@@ -336,7 +351,6 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final searchCtrl = TextEditingController();
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(0.0),
@@ -352,27 +366,17 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SearchInput(
-                    controller: searchCtrl,
-                    hintText: 'Cari nama printer...',
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SpaceHeight(12),
                   // List hasil deteksi
-                  ...items
-                      .where((e) => e.name
-                          .toLowerCase()
-                          .contains(searchCtrl.text.toLowerCase()))
-                      .map((e) => _PrinterDetectCard(
-                            name: e.name,
-                            subtitle: 'Bluetooth - Ready',
-                            status: 'READY',
-                            statusColor: AppColors.success,
-                            actionLabel: 'Tambah',
-                            onAction: () async {
-                              await savePrinter(e);
-                            },
-                          )),
+                  ...items.map((e) => _PrinterDetectCard(
+                        name: e.name,
+                        subtitle: 'Bluetooth - Ready',
+                        status: 'READY',
+                        statusColor: AppColors.success,
+                        actionLabel: 'Tambah',
+                        onAction: () async {
+                          await savePrinter(e);
+                        },
+                      )),
                   if (items.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -425,88 +429,14 @@ class _ManagePrinterPageState extends State<ManagePrinterPage> {
                               onSetDefault: () => setAsDefaultPrinter(printer),
                               onConnect: () => connectToSavedPrinter(printer),
                               onDelete: () => deletePrinter(printer),
+                              onUpdateSize: (size) =>
+                                  updatePrinterSize(printer, size),
+                              currentSize: printer.size,
                             ),
                           );
                         }),
                       ],
                     ),
-            ),
-
-            const SpaceHeight(16),
-
-            // Pengaturan umum
-            _section(
-              title: 'Pengaturan umum',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Printer Default'),
-                  const SpaceHeight(8),
-                  SearchInput(
-                    controller: TextEditingController(),
-                    hintText: 'Cari printer tersimpan...',
-                  ),
-                  const SpaceHeight(16),
-                  const Text('Ukuran Kertas Struk'),
-                  const SpaceHeight(8),
-                  Wrap(
-                    spacing: 12,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('58 mm'),
-                        selected: selectedSize == 58,
-                        onSelected: (selected) {
-                          setState(() =>
-                              selectedSize = selected ? 58 : selectedSize);
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('80 mm'),
-                        selected: selectedSize == 80,
-                        onSelected: (selected) {
-                          setState(() =>
-                              selectedSize = selected ? 80 : selectedSize);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SpaceHeight(16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Button.outlined(
-                          onPressed: () {
-                            setState(() => selectedSize = 80);
-                          },
-                          height: 48,
-                          color: AppColors.white,
-                          borderColor: AppColors.grey,
-                          textColor: AppColors.black,
-                          label: 'Reset ke Default',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Button.filled(
-                          onPressed: () async {
-                            if (selectedSize != null) {
-                              await AuthLocalDataSource()
-                                  .saveSizeReceipt('$selectedSize');
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Pengaturan disimpan')),
-                              );
-                            }
-                          },
-                          height: 48,
-                          label: 'Simpan Pengaturan',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -629,6 +559,8 @@ class _SavedPrinterCard extends StatelessWidget {
   final VoidCallback onConnect;
   final VoidCallback onDelete;
   final VoidCallback? onSetDefault;
+  final Function(String)? onUpdateSize;
+  final String currentSize;
   const _SavedPrinterCard({
     required this.name,
     required this.subtitle,
@@ -638,6 +570,8 @@ class _SavedPrinterCard extends StatelessWidget {
     required this.onConnect,
     required this.onDelete,
     this.onSetDefault,
+    this.onUpdateSize,
+    this.currentSize = '58',
   });
 
   @override
@@ -682,18 +616,6 @@ class _SavedPrinterCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          if (!isDefault && onSetDefault != null)
-            Flexible(
-              child: Button.outlined(
-                onPressed: onSetDefault!,
-                height: 40,
-                color: AppColors.white,
-                borderColor: AppColors.grey,
-                textColor: AppColors.black,
-                label: 'Set Default',
-              ),
-            ),
-          if (!isDefault && onSetDefault != null) const SizedBox(width: 8),
           Flexible(
             child: Button.filled(
               onPressed: onConnect,
@@ -702,13 +624,76 @@ class _SavedPrinterCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Flexible(
-            child: Button.filled(
-              onPressed: onDelete,
-              height: 40,
-              color: AppColors.danger,
-              label: 'Hapus',
-            ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'set_default' && onSetDefault != null) {
+                onSetDefault!();
+              } else if (value == 'delete') {
+                onDelete();
+              } else if (value == 'size_58' && onUpdateSize != null) {
+                onUpdateSize!('58');
+              } else if (value == 'size_80' && onUpdateSize != null) {
+                onUpdateSize!('80');
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              if (!isDefault && onSetDefault != null)
+                const PopupMenuItem<String>(
+                  value: 'set_default',
+                  child: Row(
+                    children: [
+                      Icon(Icons.star, size: 20),
+                      SizedBox(width: 8),
+                      Text('Set Default'),
+                    ],
+                  ),
+                ),
+              if (onUpdateSize != null) ...[
+                PopupMenuItem<String>(
+                  value: 'size_58',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check,
+                        size: 20,
+                        color: currentSize == '58'
+                            ? AppColors.primary
+                            : Colors.transparent,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('58 mm'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'size_80',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check,
+                        size: 20,
+                        color: currentSize == '80'
+                            ? AppColors.primary
+                            : Colors.transparent,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('80 mm'),
+                    ],
+                  ),
+                ),
+              ],
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: AppColors.danger),
+                    SizedBox(width: 8),
+                    Text('Hapus'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

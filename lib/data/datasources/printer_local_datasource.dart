@@ -73,6 +73,21 @@ class PrinterLocalDatasource {
     }
   }
 
+  /// Update printer size
+  Future<bool> updatePrinterSize(PrinterModel printer, String size) async {
+    final printers = await getPrinters();
+    final index = printers.indexWhere((p) =>
+        (printer.type == PrinterType.bluetooth &&
+            p.macAddress == printer.macAddress) ||
+        (printer.type == PrinterType.wifi && p.ipAddress == printer.ipAddress));
+
+    if (index != -1) {
+      printers[index] = printer.copyWith(size: size);
+      return savePrinters(printers);
+    }
+    return false;
+  }
+
   /// Clear all saved printers
   Future<bool> clearPrinters() async {
     final prefs = await SharedPreferences.getInstance();
