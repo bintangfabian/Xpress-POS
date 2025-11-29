@@ -110,9 +110,19 @@ class _OpenBillListDialogState extends State<OpenBillListDialog> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.white),
-                    onPressed: () => Navigator.pop(context),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: AppColors.white),
+                        onPressed: _loadOpenBills,
+                        tooltip: 'Refresh',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: AppColors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   )
                 ],
               ),

@@ -23,16 +23,7 @@ class DiscountPage extends StatefulWidget {
 
 class _DiscountPageState extends State<DiscountPage> {
   final ScrollController _listController = ScrollController();
-
-  // final List<DiscountModel> discounts = [
-  //   DiscountModel(
-  //     name: '20',
-  //     code: 'BUKAPUASA',
-  //     description: null,
-  //     discount: 50,
-  //     category: ProductCategory.food,
-  //   ),
-  // ];
+  final TextEditingController _searchController = TextEditingController();
 
   void onEditTap() {
     showDialog(
@@ -41,11 +32,25 @@ class _DiscountPageState extends State<DiscountPage> {
     );
   }
 
-  void onAddDataTap() {
-    showDialog(
-      context: context,
-      builder: (context) => const FormDiscountDialog(),
-    );
+  void _onSearchChanged(String value) {
+    setState(() {
+      // Filtering will be done in the build method based on current discounts
+    });
+  }
+
+  List<Discount> _filterDiscounts(List<Discount> discounts, String query) {
+    if (query.isEmpty) {
+      return discounts;
+    }
+    final lowerQuery = query.trim().toLowerCase();
+    return discounts.where((discount) {
+      final name = (discount.name ?? '').toLowerCase();
+      final description = (discount.description ?? '').toLowerCase();
+      final discountValue = (discount.value ?? '').toLowerCase();
+      return name.contains(lowerQuery) ||
+          description.contains(lowerQuery) ||
+          discountValue.contains(lowerQuery);
+    }).toList();
   }
 
   @override
@@ -57,6 +62,7 @@ class _DiscountPageState extends State<DiscountPage> {
   @override
   void dispose() {
     _listController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -129,27 +135,10 @@ class _DiscountPageState extends State<DiscountPage> {
             },
           ),
           const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: 220,
-              child: FeatureGuard(
-                featureCode: 'add_discount',
-                child: Button.filled(
-                  icon: Assets.icons.plus.svg(height: 24, width: 24),
-                  label: 'Tambah Diskon',
-                  fontSize: 16,
-                  onPressed: onAddDataTap,
-                ),
-                disabledChild: Button.filled(
-                  icon: Assets.icons.plus.svg(height: 24, width: 24),
-                  label: 'Tambah Diskon',
-                  fontSize: 16,
-                  onPressed: () {},
-                  disabled: true,
-                ),
-              ),
-            ),
+          SearchInput(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            hintText: 'Cari Diskon',
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -165,10 +154,18 @@ class _DiscountPageState extends State<DiscountPage> {
                     ),
                   ),
                   loaded: (discounts) {
-                    if (discounts.isEmpty) {
+                    // Filter discounts based on search query
+                    final displayDiscounts = _filterDiscounts(
+                      discounts,
+                      _searchController.text,
+                    );
+
+                    if (displayDiscounts.isEmpty) {
                       return _DiscountEmptyState(
                         controller: _listController,
-                        message: 'Belum ada diskon terdaftar.',
+                        message: _searchController.text.isEmpty
+                            ? 'Belum ada diskon terdaftar.'
+                            : 'Diskon tidak ditemukan untuk kata kunci tersebut.',
                       );
                     }
                     return Column(
@@ -185,11 +182,11 @@ class _DiscountPageState extends State<DiscountPage> {
                               physics: const BouncingScrollPhysics(
                                   parent: AlwaysScrollableScrollPhysics()),
                               padding: EdgeInsets.zero,
-                              itemCount: discounts.length,
+                              itemCount: displayDiscounts.length,
                               separatorBuilder: (context, _) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
-                                final item = discounts[index];
+                                final item = displayDiscounts[index];
                                 return FeatureGuard(
                                   featureCode: 'edit_discount',
                                   child: ManageDiscountCard(

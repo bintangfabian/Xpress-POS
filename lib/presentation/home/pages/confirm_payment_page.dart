@@ -377,85 +377,51 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                 '✅ Open bill order already saved locally (UUID: $localOrderUuid)');
           }
 
-          // Step 1: Update order to open status (if online)
+          // ✅ Skip update order - langsung complete payment saja
+          // Order sudah ada dan sudah benar, tidak perlu di-update lagi
+          // Langsung complete payment yang akan auto-complete order
           if (isOnline) {
-            print('📝 Step 2: Updating open bill order (set to open)...');
-            payload['payment_mode'] = 'open_bill';
-            payload['status'] =
-                'open'; // ✅ Set to open - payment will complete it
-            payload['subtotal'] = submissionData.amounts.subtotal;
-            payload['total_amount'] = submissionData.amounts.total;
-            payload['discount_amount'] =
-                submissionData.amounts.discount.toDouble();
-            payload['service_charge'] =
-                submissionData.amounts.service.toDouble();
-            payload['tax_amount'] = submissionData.amounts.tax.toDouble();
-            payload['skip_inventory_deduction'] =
-                true; // ✅ Skip deduct stok saat bayar (sudah di-deduct saat create open bill)
-            if (widget.orderNumber.isNotEmpty) {
-              payload['order_number'] = widget.orderNumber;
+            print(
+                '💰 Completing open bill payment directly (no order update needed)...');
+
+            final paymentMethod = isCash ? 'cash' : 'qris';
+            final paymentNotes =
+                'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
+
+            final receivedAmount = _currentTotalPay();
+            final dueAmount = submissionData.amounts.total;
+
+            print('   Order ID: $orderId');
+            print('   Payment Method: $paymentMethod');
+            print('   Amount: $dueAmount');
+            print('   Received: $receivedAmount');
+
+            // ✅ Complete pending payment → Backend auto-completes order → Loyalty points added
+            final paymentCompleted =
+                await orderRemoteDatasource.completeOpenBillPayment(
+              orderId: orderId,
+              paymentMethod: paymentMethod,
+              amount: dueAmount,
+              receivedAmount: receivedAmount > 0 ? receivedAmount : dueAmount,
+              notes: paymentNotes,
+            );
+
+            if (paymentCompleted && localOrderUuid != null) {
+              await orderRepository.markAsSynced(localOrderUuid!,
+                  serverId: orderId);
+              print('✅ Payment completed! Order auto-completed by backend.');
+              print('⭐ Loyalty points automatically added via OrderObserver');
+
+              // Show points earned notification if member selected
+              if (_selectedMemberId != null && _selectedMemberId!.isNotEmpty) {
+                _showPointsEarnedNotification(dueAmount);
+              }
+            } else {
+              print(
+                  '❌ WARNING: Failed to complete payment, but order saved locally');
             }
 
-            final updateResult =
-                await orderRemoteDatasource.updateOpenBillOrder(
-              orderId: orderId,
-              orderData: payload,
-            );
-
-            return await updateResult.fold(
-              (error) async {
-                print('❌ ERROR updating open bill: $error');
-                print('✅ Order saved locally, will sync when online');
-                return true; // ✅ Return true because order saved locally
-              },
-              (_) async {
-                print('✅ Open bill order updated (status: open)');
-
-                // Step 2: Create payment (will auto-complete order & trigger loyalty)
-                print('💰 Step 3: Creating payment...');
-                final paymentMethod = isCash ? 'cash' : 'qris';
-                final paymentNotes =
-                    'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
-
-                final receivedAmount = _currentTotalPay();
-                final dueAmount = submissionData.amounts.total;
-
-                print('   Order ID: $orderId');
-                print('   Payment Method: $paymentMethod');
-                print('   Amount: $dueAmount');
-                print('   Received: $receivedAmount');
-
-                // ✅ Create payment → Backend auto-completes order → Loyalty points added
-                final paymentCreated =
-                    await orderRemoteDatasource.createPayment(
-                  orderId: orderId,
-                  paymentMethod: paymentMethod,
-                  amount: dueAmount,
-                  receivedAmount:
-                      receivedAmount > 0 ? receivedAmount : dueAmount,
-                  notes: paymentNotes,
-                );
-
-                if (paymentCreated && localOrderUuid != null) {
-                  await orderRepository.markAsSynced(localOrderUuid!,
-                      serverId: orderId);
-                  print('✅ Payment created! Order auto-completed by backend.');
-                  print(
-                      '⭐ Loyalty points automatically added via OrderObserver');
-
-                  // Show points earned notification if member selected
-                  if (_selectedMemberId != null &&
-                      _selectedMemberId!.isNotEmpty) {
-                    _showPointsEarnedNotification(dueAmount);
-                  }
-                } else {
-                  print(
-                      '❌ WARNING: Failed to create payment, but order saved locally');
-                }
-
-                return true; // ✅ Always return true (order saved locally)
-              },
-            );
+            return paymentCompleted; // Return payment completion status
           } else {
             print(
                 '📴 Offline: Open bill order saved locally, will sync when online');
