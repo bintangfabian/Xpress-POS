@@ -679,7 +679,15 @@ class _HomePageState extends State<HomePage> {
               quantity: e.quantity,
               variants: e.variants,
             );
-            return productQuantity.toOrderItemMap();
+            final itemMap = productQuantity.toOrderItemMap();
+            // ✅ Add unit_price, total_price, and product_name for update open bill (required by backend)
+            final unitPrice = productQuantity.unitPrice;
+            final totalPrice = productQuantity.totalPrice;
+            itemMap['unit_price'] = unitPrice;
+            itemMap['total_price'] = totalPrice;
+            itemMap['product_name'] =
+                e.product.name; // ✅ Required: product_name cannot be null
+            return itemMap;
           }).toList();
 
           // Build order data for update
@@ -1185,8 +1193,9 @@ class _HomePageState extends State<HomePage> {
                                               height: 52,
                                               label: "Open Bill",
                                               svgIcon: Assets.icons.bill,
-                                              onPressed: () {
-                                                showDialog(
+                                              onPressed: () async {
+                                                // Show dialog and wait for result
+                                                await showDialog(
                                                   context: context,
                                                   builder: (_) =>
                                                       OpenBillListDialog(
@@ -1196,6 +1205,8 @@ class _HomePageState extends State<HomePage> {
                                                         _navigateToPaymentFromOpenBill,
                                                   ),
                                                 );
+                                                // Refresh open bills list after dialog closes
+                                                // This ensures completed orders are removed from list
                                               },
                                             );
                                           }

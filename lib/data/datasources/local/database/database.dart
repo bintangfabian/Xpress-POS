@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:drift_sqflite/drift_sqflite.dart';
@@ -61,10 +59,8 @@ LazyDatabase _openConnection() {
     final directory = await getApplicationDocumentsDirectory();
     final file = File(p.join(directory.path, 'xpress_app.db'));
 
-    if (kReleaseMode) {
-      return NativeDatabase.createInBackground(file);
-    }
-
+    // Always use SqfliteQueryExecutor for better compatibility
+    // NativeDatabase requires SQLite native library which may not be available
     return SqfliteQueryExecutor(path: file.path, singleInstance: true);
   });
 }
