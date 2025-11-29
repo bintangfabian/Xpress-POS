@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'package:xpress/data/models/response/order_item_modifier_model.dart';
 
 void _orderResponseLog(String message) {
   assert(() {
@@ -52,7 +53,8 @@ class OrderResponseModel {
           ? []
           : List<ItemOrder>.from(
               json["data"]!.map((x) => ItemOrder.fromMap(x))),
-      meta: json["meta"] == null ? null : OrderResponseMeta.fromMap(json["meta"]),
+      meta:
+          json["meta"] == null ? null : OrderResponseMeta.fromMap(json["meta"]),
     );
   }
 
@@ -438,6 +440,7 @@ class OrderItem {
   String? unitPrice;
   String? totalPrice;
   List<dynamic>? productOptions;
+  List<OrderItemModifier>? modifiers;
   String? notes;
   DateTime? createdAt;
   DateTime? updatedAt;
@@ -453,6 +456,7 @@ class OrderItem {
     this.unitPrice,
     this.totalPrice,
     this.productOptions,
+    this.modifiers,
     this.notes,
     this.createdAt,
     this.updatedAt,
@@ -471,6 +475,10 @@ class OrderItem {
         productOptions: json["product_options"] == null
             ? null
             : List<dynamic>.from(json["product_options"]),
+        modifiers: json["modifiers"] == null
+            ? null
+            : List<OrderItemModifier>.from(
+                json["modifiers"].map((x) => OrderItemModifier.fromMap(x))),
         notes: json["notes"]?.toString(),
         createdAt: json["created_at"] == null
             ? null
@@ -492,6 +500,7 @@ class OrderItem {
         "unit_price": unitPrice,
         "total_price": totalPrice,
         "product_options": productOptions,
+        "modifiers": modifiers?.map((x) => x.toMap()).toList(),
         "notes": notes,
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),

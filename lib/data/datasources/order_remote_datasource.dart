@@ -589,6 +589,17 @@ class OrderRemoteDatasource {
                   .where((opt) => opt is String && opt.isNotEmpty)
                   .toList();
             }
+            // Ensure modifier_item_ids is array of UUIDs
+            if (!item.containsKey('modifier_item_ids') ||
+                item['modifier_item_ids'] == null) {
+              item['modifier_item_ids'] = [];
+            }
+            // Validate modifier_item_ids is array of strings (UUIDs)
+            if (item['modifier_item_ids'] is List) {
+              item['modifier_item_ids'] = (item['modifier_item_ids'] as List)
+                  .where((opt) => opt is String && opt.isNotEmpty)
+                  .toList();
+            }
             // Ensure notes is string
             if (!item.containsKey('notes') || item['notes'] == null) {
               item['notes'] = '';
@@ -642,11 +653,41 @@ class OrderRemoteDatasource {
         final orderId = extractOrderId(response.body);
 
         if (orderId != null && orderId.isNotEmpty) {
-          // Create payment with status="pending" using the provided totalAmount
-          if (totalAmount > 0) {
+          // ✅ FIX: Get total_amount from backend response instead of using frontend calculation
+          // This ensures payment amount matches backend calculation (including modifiers correctly)
+          int backendTotalAmount = 0;
+          try {
+            final decoded = jsonDecode(response.body);
+            final data = decoded['data'];
+            if (data != null && data['total_amount'] != null) {
+              final totalAmountValue = data['total_amount'];
+              if (totalAmountValue is num) {
+                backendTotalAmount = totalAmountValue.round();
+              } else if (totalAmountValue is String) {
+                backendTotalAmount =
+                    (double.tryParse(totalAmountValue) ?? 0.0).round();
+              }
+            }
+
+            log('✅ Parsed total_amount from backend: $backendTotalAmount');
+            log('   Frontend calculated totalAmount: $totalAmount');
+
+            // If backend total_amount is 0, fallback to frontend calculation (should not happen)
+            if (backendTotalAmount == 0) {
+              log('⚠️ WARNING: Backend total_amount is 0, using frontend calculation');
+              backendTotalAmount = totalAmount;
+            }
+          } catch (e) {
+            log('⚠️ Failed to parse total_amount from response: $e');
+            log('   Falling back to frontend calculation: $totalAmount');
+            backendTotalAmount = totalAmount;
+          }
+
+          // Create payment with status="pending" using backend total_amount
+          if (backendTotalAmount > 0) {
             await createPendingPayment(
               orderId: orderId,
-              amount: totalAmount,
+              amount: backendTotalAmount, // ✅ Use backend total_amount
             );
           }
 

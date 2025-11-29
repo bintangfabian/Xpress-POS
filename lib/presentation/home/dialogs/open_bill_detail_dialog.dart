@@ -211,8 +211,60 @@ class OpenBillDetailDialog extends StatelessWidget {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
+                                    // ✅ Display variants
+                                    if (item.productOptions != null &&
+                                        item.productOptions!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      ...item.productOptions!.map((option) {
+                                        if (option is Map<String, dynamic>) {
+                                          final name =
+                                              option['name']?.toString() ?? '';
+                                          final value =
+                                              option['value']?.toString() ?? '';
+                                          final priceAdj =
+                                              option['price_adjustment'] ?? 0;
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 8, top: 2),
+                                            child: Text(
+                                              '$name: $value${priceAdj != 0 && priceAdj != '0' ? ' (+${priceAdj})' : ''}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.grey,
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      }).toList(),
+                                    ],
+                                    // ✅ Display modifiers
+                                    if (item.modifiers != null &&
+                                        item.modifiers!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      ...item.modifiers!.map((modifier) {
+                                        final name =
+                                            modifier.modifierItem?.name ??
+                                                'Modifier';
+                                        final priceDelta =
+                                            modifier.priceDelta ?? '0';
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8, top: 2),
+                                          child: Text(
+                                            '+ $name${priceDelta != '0' && priceDelta != 0 ? ' (+$priceDelta)' : ''}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.grey,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ],
                                     if (item.notes != null &&
-                                        item.notes!.isNotEmpty)
+                                        item.notes!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
                                       Text(
                                         item.notes!,
                                         style: const TextStyle(
@@ -220,6 +272,7 @@ class OpenBillDetailDialog extends StatelessWidget {
                                           color: AppColors.grey,
                                         ),
                                       ),
+                                    ],
                                   ],
                                 ),
                               ),

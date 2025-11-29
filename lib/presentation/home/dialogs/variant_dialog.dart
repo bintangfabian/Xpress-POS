@@ -10,17 +10,22 @@ import 'package:xpress/core/utils/image_utils.dart';
 import 'package:xpress/data/models/response/product_response_model.dart';
 import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/data/datasources/product_variant_remote_datasource.dart';
+import 'package:xpress/data/datasources/product_modifier_remote_datasource.dart';
+import 'package:xpress/data/models/response/product_modifier_response_model.dart';
 import 'package:xpress/presentation/home/models/product_variant.dart';
+import 'package:xpress/presentation/home/models/product_modifier.dart';
 
 class VariantDialog extends StatefulWidget {
   final Product product;
   final List<ProductVariant>? initialSelectedVariants;
+  final List<ProductModifier>? initialSelectedModifiers;
   final List<String> options;
 
   const VariantDialog({
     super.key,
     required this.product,
     this.initialSelectedVariants,
+    this.initialSelectedModifiers,
     this.options = const [
       'Small',
       'Medium',
@@ -75,6 +80,12 @@ class _VariantDialogState extends State<VariantDialog> {
   List<_VariantGroupData> _variantGroups = [];
   String? _error;
 
+  // Modifier state
+  bool _loadingModifiers = false;
+  List<ModifierGroup> _modifierGroups = [];
+  final Map<String, Set<String>> _selectedModifiers =
+      {}; // groupId -> Set of item IDs
+
   void _logDebug(String message, {Object? error}) {
     assert(() {
       developer.log(message, name: 'VariantDialog', error: error);
@@ -123,34 +134,42 @@ class _VariantDialogState extends State<VariantDialog> {
           _variantGroups = [];
           _loading = false;
         });
-        return;
+        // Continue to fetch modifiers even if no variants
       }
 
-      // Convert to internal format
-      final groups = variantData.variantGroups.map((group) {
-        return _VariantGroupData(
-          groupName: group.groupName,
-          isRequired: group.isRequired,
-          options: group.options.map((option) {
-            return _VariantOptionData(
-              id: option.id,
-              value: option.value,
-              priceAdjustment: option.priceAdjustmentInt,
-              isDefault: option.isDefault,
-            );
-          }).toList(),
-        );
-      }).toList();
+      // Convert to internal format (only if variants exist)
+      if (variantData != null && variantData.hasVariants) {
+        final groups = variantData.variantGroups.map((group) {
+          return _VariantGroupData(
+            groupName: group.groupName,
+            isRequired: group.isRequired,
+            options: group.options.map((option) {
+              return _VariantOptionData(
+                id: option.id,
+                value: option.value,
+                priceAdjustment: option.priceAdjustmentInt,
+                isDefault: option.isDefault,
+              );
+            }).toList(),
+          );
+        }).toList();
 
-      _logDebug('VARIANT DIALOG - Found ${groups.length} variant groups');
+        _logDebug('VARIANT DIALOG - Found ${groups.length} variant groups');
+
+        setState(() {
+          _variantGroups = groups;
+        });
+
+        // Auto-select default options for required groups
+        _autoSelectDefaults();
+      }
+
+      // Always fetch modifiers (even if no variants)
+      await _fetchModifiers(productId);
 
       setState(() {
-        _variantGroups = groups;
         _loading = false;
       });
-
-      // Auto-select default options for required groups
-      _autoSelectDefaults();
     } catch (e, stackTrace) {
       _logDebug('VARIANT DIALOG - Error: $e', error: e);
       _logDebug('Stack trace: $stackTrace');
@@ -158,6 +177,54 @@ class _VariantDialogState extends State<VariantDialog> {
         _error = 'Failed to load variants';
         _loading = false;
       });
+    }
+  }
+
+  /// Fetch modifiers for the product
+  Future<void> _fetchModifiers(String productId) async {
+    setState(() {
+      _loadingModifiers = true;
+    });
+
+    try {
+      final modifierDatasource = ProductModifierRemoteDatasource();
+      final modifierData =
+          await modifierDatasource.getProductModifiers(productId);
+
+      if (modifierData != null && modifierData.hasModifiers) {
+        _logDebug(
+            'VARIANT DIALOG - Found ${modifierData.modifierGroups.length} modifier groups');
+        for (var group in modifierData.modifierGroups) {
+          _logDebug('  - ${group.name}: ${group.items.length} items');
+        }
+        if (mounted) {
+          setState(() {
+            _modifierGroups = modifierData.modifierGroups;
+            _loadingModifiers = false;
+          });
+          _logDebug(
+              'VARIANT DIALOG - State updated with ${_modifierGroups.length} modifier groups');
+          // Auto-select initial modifiers after modifiers are loaded
+          _autoSelectInitialModifiers();
+        }
+      } else {
+        _logDebug(
+            'VARIANT DIALOG - No modifiers found (data: ${modifierData != null}, hasModifiers: ${modifierData?.hasModifiers ?? false})');
+        if (mounted) {
+          setState(() {
+            _modifierGroups = [];
+            _loadingModifiers = false;
+          });
+        }
+      }
+    } catch (e) {
+      _logDebug('VARIANT DIALOG - Error fetching modifiers: $e');
+      if (mounted) {
+        setState(() {
+          _modifierGroups = [];
+          _loadingModifiers = false;
+        });
+      }
     }
   }
 
@@ -208,6 +275,42 @@ class _VariantDialogState extends State<VariantDialog> {
 
           _logDebug(
               'Auto-selected ${defaultOption.value} for ${group.groupName}');
+        }
+      }
+    }
+  }
+
+  /// Auto-select initial modifiers (for editing mode)
+  void _autoSelectInitialModifiers() {
+    if (widget.initialSelectedModifiers == null ||
+        widget.initialSelectedModifiers!.isEmpty) {
+      return;
+    }
+
+    _logDebug(
+        'Loading initial selected modifiers: ${widget.initialSelectedModifiers!.length}');
+
+    // Map initial modifiers to groups by finding matching items
+    for (var initialModifier in widget.initialSelectedModifiers!) {
+      _logDebug(
+          '  - Initial modifier: ${initialModifier.name} (ID: ${initialModifier.id})');
+
+      // Find which group and item this modifier belongs to
+      for (var group in _modifierGroups) {
+        final matchingItem = group.items
+            .where((item) =>
+                item.id == initialModifier.id ||
+                item.name == initialModifier.name)
+            .firstOrNull;
+
+        if (matchingItem != null) {
+          setState(() {
+            final groupSelection = _selectedModifiers[group.id] ?? <String>{};
+            groupSelection.add(matchingItem.id);
+            _selectedModifiers[group.id] = groupSelection;
+          });
+          _logDebug('  ✓ Pre-selected ${matchingItem.name} for ${group.name}');
+          break;
         }
       }
     }
@@ -339,77 +442,100 @@ class _VariantDialogState extends State<VariantDialog> {
               // Right: Options (Grouped Variants)
               Expanded(
                 flex: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Pilihan :',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 8),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Pilihan :',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
 
-                    // Loading state
-                    if (_loading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
+                      // Loading state
+                      if (_loading)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
 
-                    // Error state
-                    else if (_error != null)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Column(
-                            children: [
-                              Icon(Icons.error_outline,
-                                  size: 48, color: AppColors.grey),
-                              const SizedBox(height: 8),
-                              Text(_error!,
-                                  style: TextStyle(color: AppColors.grey)),
-                              const SizedBox(height: 8),
-                              TextButton(
-                                onPressed: _fetchOptions,
-                                child: const Text('Retry'),
+                      // Error state
+                      else if (_error != null)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Column(
+                              children: [
+                                Icon(Icons.error_outline,
+                                    size: 48, color: AppColors.grey),
+                                const SizedBox(height: 8),
+                                Text(_error!,
+                                    style: TextStyle(color: AppColors.grey)),
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  onPressed: _fetchOptions,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+
+                      // Variant groups list (if exists) and Modifier section
+                      else
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Variant groups
+                            if (_variantGroups.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ...List.generate(_variantGroups.length,
+                                      (groupIdx) {
+                                    final group = _variantGroups[groupIdx];
+                                    return Column(
+                                      children: [
+                                        if (groupIdx > 0)
+                                          const Divider(height: 24),
+                                        _buildVariantGroup(group),
+                                      ],
+                                    );
+                                  }),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      )
 
-                    // No variants
-                    else if (_variantGroups.isEmpty)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Text(
-                            'No variants available',
-                            style: TextStyle(color: AppColors.grey),
-                          ),
-                        ),
-                      )
+                            // Divider between variants and modifiers
+                            if (_variantGroups.isNotEmpty &&
+                                !_loadingModifiers &&
+                                _modifierGroups.isNotEmpty)
+                              const Divider(height: 24),
 
-                    // Variant groups list
-                    else
-                      Flexible(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxHeight: 370,
-                          ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: _variantGroups.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 24),
-                            itemBuilder: (context, groupIdx) {
-                              final group = _variantGroups[groupIdx];
-                              return _buildVariantGroup(group);
-                            },
-                          ),
+                            // Modifier section (always show, even if loading or empty)
+                            if (!_loading && _error == null)
+                              _buildModifierSection(),
+
+                            // Show message only if both are empty and not loading
+                            if (_variantGroups.isEmpty &&
+                                _modifierGroups.isEmpty &&
+                                !_loadingModifiers &&
+                                !_loading)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32.0),
+                                  child: Text(
+                                    'No variants or modifiers available',
+                                    style: TextStyle(color: AppColors.grey),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -611,9 +737,231 @@ class _VariantDialogState extends State<VariantDialog> {
     }
   }
 
+  /// Build modifier section UI
+  Widget _buildModifierSection() {
+    _logDebug(
+        '_buildModifierSection called - loading: $_loadingModifiers, groups: ${_modifierGroups.length}');
+
+    if (_loadingModifiers) {
+      _logDebug('Modifiers still loading...');
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_modifierGroups.isEmpty) {
+      _logDebug('No modifier groups, returning empty');
+      return const SizedBox.shrink();
+    }
+
+    _logDebug(
+        'Building modifier section with ${_modifierGroups.length} groups');
+    for (var group in _modifierGroups) {
+      _logDebug('  - Group: ${group.name} (${group.items.length} items)');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(_modifierGroups.length, (index) {
+        final group = _modifierGroups[index];
+        _logDebug('Building modifier group: ${group.name}');
+        return Column(
+          children: [
+            if (index > 0) const Divider(height: 24),
+            _buildModifierGroup(group),
+          ],
+        );
+      }),
+    );
+  }
+
+  /// Build modifier group UI (same design as variant)
+  Widget _buildModifierGroup(ModifierGroup group) {
+    final selectedIds = _selectedModifiers[group.id] ?? {};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Group header (same as variant, with status and max select info)
+        Row(
+          children: [
+            Text(
+              group.name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.grey,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Status badge (Wajib/Opsional)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: group.isRequired
+                    ? AppColors.primary.withOpacity(0.1)
+                    : AppColors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                group.isRequired ? 'Wajib' : 'Opsional',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: group.isRequired ? AppColors.primary : AppColors.grey,
+                ),
+              ),
+            ),
+            // Max select info
+            if (group.maxSelect != null && group.maxSelect! > 0) ...[
+              const SizedBox(width: 6),
+              Text(
+                '(Max ${group.maxSelect})',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.grey,
+                ),
+              ),
+            ] else if (group.allowsMultipleSelections &&
+                (group.maxSelect == null || group.maxSelect == 0)) ...[
+              const SizedBox(width: 6),
+              Text(
+                '(Max unlimited)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.grey,
+                ),
+              ),
+            ] else if (!group.allowsMultipleSelections) ...[
+              const SizedBox(width: 6),
+              Text(
+                '(Max 1)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.grey,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Group items (same design as variant options)
+        ...group.items.map((item) {
+          final isSelected = selectedIds.contains(item.id);
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: InkWell(
+              onTap: () => _toggleModifierItem(group, item),
+              child: Row(
+                children: [
+                  // Radio/Checkbox button (same as variant: 48x48, border radius 8)
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: isSelected
+                          ? Border.all(color: AppColors.primary, width: 2)
+                          : Border.all(
+                              color: AppColors.greyLightActive, width: 2),
+                    ),
+                    alignment: Alignment.center,
+                    child: isSelected
+                        ? Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Item name (same font as variant)
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  // Price adjustment (same as variant, show "Free" if 0)
+                  Text(
+                    item.priceDelta == 0 ? 'Free' : item.formattedPriceDelta,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: item.priceDelta == 0
+                          ? AppColors.success
+                          : AppColors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  /// Toggle modifier item selection
+  void _toggleModifierItem(ModifierGroup group, ModifierItem item) {
+    setState(() {
+      final groupSelection = _selectedModifiers[group.id] ?? <String>{};
+
+      if (group.allowsMultipleSelections) {
+        if (groupSelection.contains(item.id)) {
+          groupSelection.remove(item.id);
+        } else {
+          final maxSelect = group.maxSelect ?? 999;
+          if (groupSelection.length < maxSelect) {
+            groupSelection.add(item.id);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Maximum ${group.maxSelect ?? "unlimited"} selections for ${group.name}'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            return;
+          }
+        }
+      } else {
+        groupSelection.clear();
+        groupSelection.add(item.id);
+      }
+
+      _selectedModifiers[group.id] = groupSelection;
+    });
+  }
+
   /// Validate and confirm selection
   void _handleConfirm() {
-    // Validate required groups
+    // If no variants and no modifiers, just close
+    if (_variantGroups.isEmpty && _modifierGroups.isEmpty) {
+      Navigator.pop(context, {
+        'variants': <ProductVariant>[],
+        'modifiers': <ProductModifier>[],
+      });
+      return;
+    }
+
+    // Validate required variant groups
     for (var group in _variantGroups) {
       if (group.isRequired && !_selectedPerGroup.containsKey(group.groupName)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -624,6 +972,24 @@ class _VariantDialogState extends State<VariantDialog> {
           ),
         );
         return;
+      }
+    }
+
+    // Validate required modifier groups
+    for (var group in _modifierGroups) {
+      if (group.isRequired) {
+        final selectedIds = _selectedModifiers[group.id] ?? {};
+        if (selectedIds.isEmpty || selectedIds.length < group.minSelect) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Mohon pilih minimal ${group.minSelect} dari ${group.name}'),
+              backgroundColor: AppColors.danger,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
       }
     }
 
@@ -655,12 +1021,39 @@ class _VariantDialogState extends State<VariantDialog> {
       ));
     }
 
+    // Build selected modifiers list
+    final List<ProductModifier> selectedModifiers = [];
+    for (var group in _modifierGroups) {
+      final selectedIds = _selectedModifiers[group.id] ?? {};
+      for (var itemId in selectedIds) {
+        final item = group.items.firstWhere(
+          (it) => it.id == itemId,
+          orElse: () => group.items.first,
+        );
+        selectedModifiers.add(ProductModifier(
+          id: item.id,
+          name: item.name,
+          groupName: group.name,
+          priceDelta: item.priceDelta,
+        ));
+      }
+    }
+
     _logDebug('Selected variants: ${selectedVariants.length}');
     for (var v in selectedVariants) {
       _logDebug('  - ${v.name}: ${v.id} (+${v.priceAdjustment})');
     }
 
-    Navigator.pop(context, selectedVariants);
+    _logDebug('Selected modifiers: ${selectedModifiers.length}');
+    for (var m in selectedModifiers) {
+      _logDebug('  - ${m.name}: ${m.id} (+${m.priceDelta})');
+    }
+
+    // Return both variants and modifiers as Map
+    Navigator.pop(context, {
+      'variants': selectedVariants,
+      'modifiers': selectedModifiers,
+    });
   }
 
   // Helper methods for stock display
