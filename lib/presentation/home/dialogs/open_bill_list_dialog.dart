@@ -369,23 +369,76 @@ class _OpenBillListDialogState extends State<OpenBillListDialog> {
                   ...order.items!.take(3).map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '${item.quantity}x',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                '${item.quantity}x',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.productName ?? 'N/A',
+                                  style: const TextStyle(fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              item.productName ?? 'N/A',
-                              style: const TextStyle(fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          // ✅ Display variants
+                          if (item.productOptions != null &&
+                              item.productOptions!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            ...item.productOptions!.map((option) {
+                              if (option is Map<String, dynamic>) {
+                                final name = option['name']?.toString() ?? '';
+                                final value = option['value']?.toString() ?? '';
+                                final priceAdj =
+                                    option['price_adjustment'] ?? 0;
+                                return Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: 24, top: 1),
+                                  child: Text(
+                                    '$name: $value${priceAdj != 0 && priceAdj != '0' ? ' (+${priceAdj})' : ''}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.grey,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            }).toList(),
+                          ],
+                          // ✅ Display modifiers
+                          if (item.modifiers != null &&
+                              item.modifiers!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            ...item.modifiers!.map((modifier) {
+                              final name =
+                                  modifier.modifierItem?.name ?? 'Modifier';
+                              final priceDelta = modifier.priceDelta ?? '0';
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 24, top: 1),
+                                child: Text(
+                                  '+ $name${priceDelta != '0' && priceDelta != 0 ? ' (+$priceDelta)' : ''}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.grey,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ],
                         ],
                       ),
                     );

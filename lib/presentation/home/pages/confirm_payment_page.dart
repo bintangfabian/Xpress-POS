@@ -9,7 +9,8 @@ import 'package:xpress/core/extensions/int_ext.dart';
 import 'package:xpress/core/extensions/string_ext.dart';
 import 'package:xpress/core/extensions/build_context_ext.dart';
 import 'package:xpress/data/datasources/store_local_datasource.dart';
-import 'package:xpress/data/models/response/order_response_model.dart';
+import 'package:xpress/data/models/response/order_response_model.dart'
+    hide Product;
 import 'package:xpress/data/models/response/table_model.dart';
 import 'package:xpress/presentation/home/bloc/checkout/checkout_bloc.dart';
 import 'package:xpress/presentation/home/dialogs/cash_success_dialog.dart';
@@ -23,6 +24,9 @@ import 'package:xpress/core/services/printer_service.dart';
 import 'package:xpress/data/dataoutputs/print_dataoutputs.dart';
 import 'package:xpress/presentation/home/models/order_model.dart';
 import 'package:xpress/presentation/home/models/product_quantity.dart';
+import 'package:xpress/data/models/response/product_response_model.dart';
+import 'package:xpress/presentation/home/models/product_variant.dart';
+import 'package:xpress/presentation/home/models/product_modifier.dart';
 import 'package:xpress/presentation/home/pages/dashboard_page.dart';
 import 'package:xpress/presentation/home/widgets/custom_button.dart';
 import 'package:xpress/presentation/home/widgets/order_menu.dart';
@@ -33,7 +37,8 @@ import 'package:xpress/core/constants/variables.dart';
 import 'package:xpress/data/datasources/auth_local_datasource.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
 import 'package:xpress/data/repositories/order_repository.dart';
-import 'package:xpress/data/datasources/local/database/database.dart';
+import 'package:xpress/data/datasources/local/database/database.dart'
+    hide Product, OrderItem;
 import 'package:xpress/presentation/home/bloc/online_checker/online_checker_bloc.dart';
 import 'package:xpress/core/utils/amount_parser.dart';
 import 'package:xpress/core/utils/timezone_helper.dart';
@@ -499,20 +504,58 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                   final paymentNotes =
                       'Pembayaran ${paymentMethod == 'cash' ? 'Tunai' : 'Qris'} Mandiri';
 
+                  // ✅ FIX: Parse total_amount from API response more robustly
                   int apiTotal = 0;
                   try {
                     final decoded = jsonDecode(res.body);
+                    // Try multiple paths to get total_amount
                     final data = decoded['data'];
-                    if (data != null && data['total_amount'] != null) {
-                      apiTotal =
-                          (double.tryParse(data['total_amount'].toString()) ??
-                                  0.0)
+                    if (data != null) {
+                      // Try direct total_amount
+                      if (data['total_amount'] != null) {
+                        final totalAmountValue = data['total_amount'];
+                        if (totalAmountValue is num) {
+                          apiTotal = totalAmountValue.round();
+                        } else if (totalAmountValue is String) {
+                          apiTotal = (double.tryParse(totalAmountValue) ?? 0.0)
                               .round();
-                    }
-                  } catch (_) {}
+                        }
+                      }
 
+                      // If still 0, try calculating from subtotal + tax + service - discount
+                      if (apiTotal == 0) {
+                        final subtotal =
+                            _parseNumericValue(data['subtotal'] ?? 0);
+                        final taxAmount =
+                            _parseNumericValue(data['tax_amount'] ?? 0);
+                        final serviceCharge =
+                            _parseNumericValue(data['service_charge'] ?? 0);
+                        final discountAmount =
+                            _parseNumericValue(data['discount_amount'] ?? 0);
+                        apiTotal = (subtotal +
+                                taxAmount +
+                                serviceCharge -
+                                discountAmount)
+                            .round();
+                      }
+                    }
+
+                    print('   ✅ Parsed apiTotal from response: $apiTotal');
+                  } catch (e) {
+                    print('   ⚠️ Failed to parse apiTotal: $e');
+                  }
+
+                  // ✅ FIX: Always use apiTotal if available, otherwise use submissionData.amounts.total
+                  // But log a warning if apiTotal is 0 (should not happen)
                   final finalAmount =
                       apiTotal > 0 ? apiTotal : submissionData.amounts.total;
+
+                  if (apiTotal == 0) {
+                    print(
+                        '   ⚠️ WARNING: apiTotal is 0, using frontend calculation: ${submissionData.amounts.total}');
+                  } else {
+                    print('   ✅ Using backend total_amount: $apiTotal');
+                  }
 
                   final receivedAmount = _currentTotalPay();
 
@@ -669,6 +712,86 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
   int _parseAmount(String? raw) => AmountParser.parse(raw);
 
+  // ✅ Helper: Create ProductQuantity from OrderItem with correct price from server
+  // ✅ Helper: Create ProductQuantity from OrderItem (from order_response_model) with correct price from server
+  ProductQuantity? _createProductQuantityFromOrderItem(OrderItem orderItem) {
+    if (orderItem.productId == null || orderItem.productName == null) {
+      return null;
+    }
+
+    // Get unit_price from server (this is the base price + variant + modifier adjustments)
+    final unitPriceFromServer = AmountParser.parse(orderItem.unitPrice);
+
+    // Create Product with price from server
+    final product = Product(
+      id: orderItem.productId,
+      productId: orderItem.productId,
+      name: orderItem.productName,
+      price: unitPriceFromServer.toString(), // ✅ Use price from server
+      image: orderItem.product?.image,
+    );
+
+    // Restore variants from productOptions
+    List<ProductVariant>? variants;
+    if (orderItem.productOptions != null &&
+        orderItem.productOptions!.isNotEmpty) {
+      variants = [];
+      for (var option in orderItem.productOptions!) {
+        if (option is Map<String, dynamic>) {
+          variants.add(ProductVariant(
+            id: option['id']?.toString(),
+            name:
+                option['name']?.toString() ?? option['value']?.toString() ?? '',
+            groupName: option['name']?.toString(),
+            value: option['value']?.toString(),
+            priceAdjustment:
+                _parseNumericValue(option['price_adjustment'] ?? 0),
+          ));
+        }
+      }
+    }
+
+    // Restore modifiers from modifiers field
+    List<ProductModifier>? modifiers;
+    if (orderItem.modifiers != null && orderItem.modifiers!.isNotEmpty) {
+      modifiers = [];
+      for (var modifierData in orderItem.modifiers!) {
+        final modifierItem = modifierData.modifierItem;
+        if (modifierItem != null) {
+          modifiers.add(ProductModifier(
+            id: modifierItem.id,
+            name: modifierItem.name ?? 'Unknown Modifier',
+            priceDelta: modifierItem.priceDelta ?? 0.0,
+          ));
+        } else if (modifierData.modifierItemId != null) {
+          modifiers.add(ProductModifier(
+            id: modifierData.modifierItemId,
+            name: 'Modifier',
+            priceDelta: modifierData.priceDelta ?? 0.0,
+          ));
+        }
+      }
+    }
+
+    return ProductQuantity(
+      product: product,
+      quantity: orderItem.quantity ?? 1,
+      variants: variants,
+      modifiers: modifiers,
+    );
+  }
+
+  // ✅ Helper: Parse numeric value from dynamic (int, double, or string)
+  int _parseNumericValue(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.round();
+    if (value is String) {
+      return (double.tryParse(value) ?? 0.0).round();
+    }
+    return 0;
+  }
+
   /// Get tax rate from store settings (returns percentage, e.g., 10 for 10%)
   Future<int> _getTaxRateFromStore() async {
     try {
@@ -689,11 +812,16 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
     int taxPercent,
     int servicePercent,
   ) {
+    // ✅ FIX: Include modifier in subtotal calculation for consistency with backend
     int subtotal = products.map((e) {
       final basePrice = e.product.price?.toIntegerFromText ?? 0;
       final variantPrice =
           e.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ?? 0;
-      return (basePrice + variantPrice) * e.quantity;
+      // ✅ Include modifier price adjustment
+      final modifierPrice =
+          e.modifiers?.fold<int>(0, (sum, m) => sum + m.priceDelta.toInt()) ??
+              0;
+      return (basePrice + variantPrice + modifierPrice) * e.quantity;
     }).fold(0, (a, b) => a + b);
 
     if (subtotal <= 0 && _isOpenBillPayment) {
@@ -740,6 +868,26 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   }
 
   _CheckoutAmounts _computeCheckoutAmounts() {
+    // ✅ FIX: For open bill payment, use data from openBillOrder instead of CheckoutBloc
+    // This ensures we use the correct prices from the server, not recalculated prices
+    if (_isOpenBillPayment && _openBill != null) {
+      final openBill = _openBill!;
+      final subtotal = AmountParser.parse(openBill.subtotal);
+      final discountAmount = AmountParser.parse(openBill.discountAmount);
+      final taxAmount = AmountParser.parse(openBill.taxAmount);
+      final serviceAmount = AmountParser.parse(openBill.serviceCharge);
+      final total = AmountParser.parse(openBill.totalAmount);
+
+      return _CheckoutAmounts(
+        subtotal: subtotal,
+        discount: discountAmount,
+        tax: taxAmount,
+        service: serviceAmount,
+        total: total,
+      );
+    }
+
+    // Normal order flow - use CheckoutBloc state
     final state = context.read<CheckoutBloc>().state;
     return state.maybeWhen(
       loaded: (
@@ -929,6 +1077,7 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             'quantity': p.quantity,
           };
 
+          // ✅ Include variants (product_options)
           if (p.variants != null && p.variants!.isNotEmpty) {
             final variantIds = p.variants!
                 .where((v) => v.id != null && v.id!.isNotEmpty)
@@ -936,6 +1085,17 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                 .toList();
             if (variantIds.isNotEmpty) {
               item['product_options'] = variantIds;
+            }
+          }
+
+          // ✅ Include modifiers (modifier_item_ids)
+          if (p.modifiers != null && p.modifiers!.isNotEmpty) {
+            final modifierIds = p.modifiers!
+                .where((m) => m.id != null && m.id!.isNotEmpty)
+                .map((m) => m.id!)
+                .toList();
+            if (modifierIds.isNotEmpty) {
+              item['modifier_item_ids'] = modifierIds;
             }
           }
 
@@ -1471,6 +1631,15 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                                           height: 24,
                                           width: 24),
                                       onPressed: () {
+                                        // ✅ FIX: Clear CheckoutBloc before navigating back to prevent duplication
+                                        // For open bill, we don't want to keep the items in checkout
+                                        if (_isOpenBillPayment) {
+                                          context.read<CheckoutBloc>().add(
+                                                const CheckoutEvent
+                                                    .clearOrder(),
+                                              );
+                                        }
+
                                         final checkoutBloc =
                                             context.read<CheckoutBloc>();
                                         Navigator.pushReplacement(
@@ -2145,6 +2314,233 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
 
   // 🔹 Detail Pesanan
   Widget _buildOrderDetail() {
+    // ✅ FIX: For open bill payment, display items from openBillOrder with correct prices
+    // For normal order, use CheckoutBloc state
+    if (_isOpenBillPayment &&
+        _openBill != null &&
+        _openBill!.items != null &&
+        _openBill!.items!.isNotEmpty) {
+      // Display items from openBillOrder with correct prices from server
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: const Text(
+                      'Detail Pesanan',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        height: 37,
+                        width: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.greyLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Center(
+                            child: Text(
+                          widget.orderNumber,
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600),
+                        )),
+                      ),
+                      const SizedBox(width: 12),
+                      IntrinsicWidth(
+                        child: Container(
+                          height: 37,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _orderTypeLabel,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if ((_selectedTableNumber ??
+                              _parseTableNumber(widget.table?.tableNumber)) !=
+                          null) ...[
+                        const SizedBox(width: 12),
+                        Container(
+                          height: 37,
+                          width: 72,
+                          decoration: BoxDecoration(
+                            color: AppColors.successLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text(
+                              widget.table?.name ??
+                                  "Meja ${_selectedTableNumber ?? _parseTableNumber(widget.table?.tableNumber) ?? ''}",
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              Spacer(),
+              CustomButton(
+                width: 175,
+                height: 52,
+                svgIcon: Assets.icons.bill,
+                label: "Ubah Pesanan",
+                onPressed: () {
+                  // ✅ FIX: Clear CheckoutBloc before navigating back to prevent duplication
+                  if (_isOpenBillPayment) {
+                    context.read<CheckoutBloc>().add(
+                          const CheckoutEvent.clearOrder(),
+                        );
+                  }
+
+                  final checkoutBloc = context.read<CheckoutBloc>();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider.value(
+                        value: checkoutBloc,
+                        child: DashboardPage(),
+                      ),
+                    ),
+                  );
+                },
+              )
+            ],
+          ),
+          const SpaceHeight(20),
+          // 🔹 Header kolom
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: const [
+                Expanded(
+                  flex: 4,
+                  child: Text(
+                    "Menu",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    "Quantity",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    "Subtotal",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 🔹 List pesanan
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              itemCount: _openBill!.items!.length + 1,
+              itemBuilder: (context, i) {
+                if (i < _openBill!.items!.length) {
+                  final orderItem = _openBill!.items![i];
+                  // Create ProductQuantity from OrderItem with correct price from server
+                  final productQuantity =
+                      _createProductQuantityFromOrderItem(orderItem);
+                  if (productQuantity != null) {
+                    return OrderMenu(
+                      data: productQuantity,
+                    );
+                  }
+                  return const SizedBox.shrink();
+                } else {
+                  // After the last product, show the "Detail Pesanan" section
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Detail Pesanan',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 130,
+                        width: double.infinity,
+                        child: TextFormField(
+                          controller: noteController,
+                          maxLines: 5,
+                          decoration: InputDecoration(
+                            alignLabelWithHint: true,
+                            hintText: "Tambahkan Catatan Pesanan Jika Perlu",
+                            hintStyle: const TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 16,
+                            ),
+                            contentPadding: const EdgeInsets.all(12),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              borderSide: const BorderSide(
+                                  color: AppColors.grey, width: 1),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              borderSide: const BorderSide(
+                                  color: AppColors.primary, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+              },
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Normal order flow - use CheckoutBloc state
     return BlocBuilder<CheckoutBloc, CheckoutState>(
       builder: (context, state) {
         return state.maybeWhen(
@@ -2246,6 +2642,14 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                       svgIcon: Assets.icons.bill,
                       label: "Ubah Pesanan",
                       onPressed: () {
+                        // ✅ FIX: Clear CheckoutBloc before navigating back to prevent duplication
+                        // For open bill, we don't want to keep the items in checkout
+                        if (_isOpenBillPayment) {
+                          context.read<CheckoutBloc>().add(
+                                const CheckoutEvent.clearOrder(),
+                              );
+                        }
+
                         final checkoutBloc = context.read<
                             CheckoutBloc>(); // ✅ simpan dulu sebelum navigate
 
@@ -2581,50 +2985,24 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
           const SpaceHeight(16),
 
           // 🔹 Breakdown harga (dinamis)
-          BlocBuilder<CheckoutBloc, CheckoutState>(
-            builder: (context, state) {
-              return state.maybeWhen(
-                orElse: () {
-                  final amounts = _computeCheckoutAmounts();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _priceRow("Subtotal", amounts.subtotal.currencyFormatRp),
-                      _priceRow(
-                          "Diskon", "-${amounts.discount.currencyFormatRp}"),
-                      _priceRow("Layanan", amounts.service.currencyFormatRp),
-                      _priceRow("Pajak", amounts.tax.currencyFormatRp),
-                      _totalPriceRow("Total", amounts.total.currencyFormatRp),
-                    ],
-                  );
-                },
-                loaded: (products,
-                    discountModel,
-                    discount,
-                    discountAmount,
-                    tax,
-                    serviceCharge,
-                    totalQuantity,
-                    totalPrice,
-                    draftName,
-                    orderType) {
-                  final amounts = _resolveAmounts(
-                      products, discountModel, tax, serviceCharge);
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _priceRow("Subtotal", amounts.subtotal.currencyFormatRp),
-                      _priceRow(
-                          "Diskon", "-${amounts.discount.currencyFormatRp}"),
-                      _priceRow("Layanan", amounts.service.currencyFormatRp),
-                      _priceRow("Pajak", amounts.tax.currencyFormatRp),
-                      const SizedBox(
-                        height: 8,
-                      ),
-                      _totalPriceRow("Total", amounts.total.currencyFormatRp),
-                    ],
-                  );
-                },
+          // ✅ FIX: For open bill payment, always use _computeCheckoutAmounts() which uses data from openBillOrder
+          // For normal order, use CheckoutBloc state
+          Builder(
+            builder: (context) {
+              // Always use _computeCheckoutAmounts() which handles both open bill and normal order
+              final amounts = _computeCheckoutAmounts();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _priceRow("Subtotal", amounts.subtotal.currencyFormatRp),
+                  _priceRow("Diskon", "-${amounts.discount.currencyFormatRp}"),
+                  _priceRow("Layanan", amounts.service.currencyFormatRp),
+                  _priceRow("Pajak", amounts.tax.currencyFormatRp),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  _totalPriceRow("Total", amounts.total.currencyFormatRp),
+                ],
               );
             },
           ),

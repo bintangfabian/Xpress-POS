@@ -22,6 +22,8 @@ import '../bloc/checkout/checkout_bloc.dart';
 import '../widgets/product_card.dart';
 import 'package:xpress/presentation/home/dialogs/variant_dialog.dart';
 import 'package:xpress/data/datasources/product_variant_remote_datasource.dart';
+import 'package:xpress/data/datasources/product_modifier_remote_datasource.dart';
+import 'package:xpress/presentation/home/models/product_modifier.dart';
 import 'package:xpress/presentation/setting/bloc/get_categories/get_categories_bloc.dart';
 import 'package:xpress/presentation/setting/bloc/sync_product/sync_product_bloc.dart';
 import 'package:xpress/data/datasources/order_remote_datasource.dart';
@@ -82,8 +84,10 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
-    // Force delete and re-sync products to ensure trackInventory is loaded
-    _forceResyncProducts();
+    // ✅ Load products directly from API (no local database storage to prevent duplication)
+    context
+        .read<LocalProductBloc>()
+        .add(const LocalProductEvent.getLocalProduct());
 
     context.read<GetCategoriesBloc>().add(const GetCategoriesEvent.fetch());
     _loadNextOrderNumber();
@@ -154,13 +158,15 @@ class _HomePageState extends State<HomePage> {
       setState(() => _orderNumber = next);
     } catch (_) {}
   }
+  //
 
-  /// Handle editing variant for item already in cart
+  /// Handle editing variant and modifier for item already in cart
   Future<void> _handleEditVariant(ProductQuantity productQuantity) async {
     try {
       _logHome('========================================');
-      _logHome('Edit variant for: ${productQuantity.product.name}');
+      _logHome('Edit variant/modifier for: ${productQuantity.product.name}');
       _logHome('Current variants: ${productQuantity.variants?.length ?? 0}');
+      _logHome('Current modifiers: ${productQuantity.modifiers?.length ?? 0}');
 
       // Get product ID
       final productId = productQuantity.product.productId?.toString() ??
@@ -171,46 +177,59 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      // Check if product has variants (double check)
+      // Check if product has variants or modifiers
       final datasource = ProductVariantRemoteDatasource();
       final variantData = await datasource.getProductVariants(productId);
 
+      final modifierDatasource = ProductModifierRemoteDatasource();
+      final modifierData =
+          await modifierDatasource.getProductModifiers(productId);
+
       if (!mounted) return;
 
-      if (variantData != null && variantData.hasVariants) {
-        _logHome('✅ Opening variant dialog for edit...');
+      // Show dialog if has variants OR modifiers
+      if ((variantData != null && variantData.hasVariants) ||
+          (modifierData != null && modifierData.hasModifiers)) {
+        _logHome('✅ Opening variant/modifier dialog for edit...');
 
-        // Show dialog with pre-selected variants
-        final res = await showDialog<List<ProductVariant>>(
+        // Show dialog with pre-selected variants and modifiers
+        final dialogResult = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (_) => VariantDialog(
             product: productQuantity.product,
             initialSelectedVariants: productQuantity.variants,
+            initialSelectedModifiers: productQuantity.modifiers,
           ),
         );
 
         if (!mounted) return;
 
-        if (res != null) {
-          _logHome('✅ Variants updated: ${res.length} options');
+        if (dialogResult != null) {
+          final variants = dialogResult['variants'] as List<ProductVariant>?;
+          final modifiers = dialogResult['modifiers'] as List<ProductModifier>?;
 
-          // Update the item in cart with new variants
+          _logHome('✅ Variants updated: ${variants?.length ?? 0} options');
+          _logHome('✅ Modifiers updated: ${modifiers?.length ?? 0} items');
+
+          // Update the item in cart with new variants and modifiers
           final bloc = context.read<CheckoutBloc>();
-          bloc.add(CheckoutEvent.updateItemVariants(
+          bloc.add(CheckoutEvent.updateItemVariantsAndModifiers(
             productQuantity.product,
             productQuantity.variants, // old variants
-            res, // new variants
+            variants ?? [], // new variants
+            productQuantity.modifiers, // old modifiers
+            modifiers ?? [], // new modifiers
           ));
 
-          _logHome('✅ Item variants updated in cart');
+          _logHome('✅ Item variants and modifiers updated in cart');
         } else {
-          _logHome('ℹ️ Variant edit cancelled');
+          _logHome('ℹ️ Edit cancelled');
         }
       }
 
       _logHome('========================================');
     } catch (e, stackTrace) {
-      _logHome('❌ Error editing variants: $e');
+      _logHome('❌ Error editing variants/modifiers: $e');
       _logHome('Stack trace: $stackTrace');
     }
   }
@@ -246,52 +265,80 @@ class _HomePageState extends State<HomePage> {
 
       if (!mounted) return;
 
-      // If product has variants, show dialog
-      if (variantData != null && variantData.hasVariants) {
-        _logHome(
-            '✅ Product has ${variantData.variantGroups.length} variant groups');
-        _logHome('   Opening variant dialog...');
+      // Show variant dialog (which now includes modifiers, even if no variants)
+      // This dialog will show modifiers if available, regardless of variants
+      List<ProductVariant>? selectedVariants;
+      List<ProductModifier>? selectedModifiers;
 
-        // Use old VariantDialog design with new conditional logic
-        final res = await showDialog<List<ProductVariant>>(
+      // Check if product has modifiers
+      final modifierDatasource = ProductModifierRemoteDatasource();
+      final modifierData =
+          await modifierDatasource.getProductModifiers(productId);
+
+      if (!mounted) return;
+
+      // Show dialog if has variants OR modifiers
+      if ((variantData != null && variantData.hasVariants) ||
+          (modifierData != null && modifierData.hasModifiers)) {
+        if (variantData != null && variantData.hasVariants) {
+          _logHome(
+              '✅ Product has ${variantData.variantGroups.length} variant groups');
+        }
+        if (modifierData != null && modifierData.hasModifiers) {
+          _logHome(
+              '✅ Product has ${modifierData.modifierGroups.length} modifier groups');
+        }
+        _logHome('   Opening variant dialog (with modifiers)...');
+
+        // VariantDialog now returns Map with both variants and modifiers
+        final dialogResult = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (_) => VariantDialog(product: product),
         );
 
         if (!mounted) return;
 
-        if (res != null && res.isNotEmpty) {
-          _logHome('✅ Variants selected: ${res.length} options');
+        if (dialogResult != null) {
+          final variants = dialogResult['variants'] as List<ProductVariant>?;
+          final modifiers = dialogResult['modifiers'] as List<ProductModifier>?;
 
-          // Add to cart with selected variants
-          final bloc = context.read<CheckoutBloc>();
-          bloc.setPendingVariants(res);
-          bloc.add(CheckoutEvent.addItem(product));
+          if (variants != null && variants.isNotEmpty) {
+            _logHome('✅ Variants selected: ${variants.length} options');
+            selectedVariants = variants;
 
-          // Store selected variants for this product
-          if (product.id != null) {
-            setState(() {
-              _selectedVariants[product.id!] = res;
-            });
+            // Store selected variants for this product
+            if (product.id != null) {
+              setState(() {
+                _selectedVariants[product.id!] = variants;
+              });
+            }
           }
 
-          _logHome('✅ Product added to cart with variants');
+          if (modifiers != null && modifiers.isNotEmpty) {
+            _logHome('✅ Modifiers selected: ${modifiers.length} items');
+            selectedModifiers = modifiers;
+          } else {
+            _logHome('ℹ️ No modifiers selected (optional)');
+          }
         } else {
-          _logHome('ℹ️ Variant selection cancelled');
+          _logHome('ℹ️ Dialog cancelled');
+          return; // User cancelled
         }
       } else {
-        // Product has no variants, add directly to cart
-        _logHome('ℹ️ Product has no variants');
-        _logHome('✅ Adding directly to cart...');
-
-        final bloc = context.read<CheckoutBloc>();
-        bloc.setPendingVariants(null); // No variants
-        bloc.add(CheckoutEvent.addItem(product));
-
-        _logHome('✅ Product added to cart without variants');
-
-        // No snackbar for products without variants (as requested)
+        _logHome('ℹ️ Product has no variants or modifiers');
+        // Add directly to cart without dialog
       }
+
+      // Add to cart with selected variants and modifiers
+      _logHome('✅ Adding to cart...');
+      final bloc = context.read<CheckoutBloc>();
+      bloc.setPendingVariants(selectedVariants);
+      bloc.setPendingModifiers(selectedModifiers);
+      bloc.add(CheckoutEvent.addItem(product));
+
+      _logHome('✅ Product added to cart');
+      _logHome('   Variants: ${selectedVariants?.length ?? 0}');
+      _logHome('   Modifiers: ${selectedModifiers?.length ?? 0}');
 
       _logHome('========================================');
     } catch (e, stackTrace) {
@@ -416,6 +463,7 @@ class _HomePageState extends State<HomePage> {
               product: e.product,
               quantity: e.quantity,
               variants: e.variants,
+              modifiers: e.modifiers, // ✅ Include modifiers
             );
             return productQuantity.toOrderItemMap();
           }).toList();
@@ -559,8 +607,8 @@ class _HomePageState extends State<HomePage> {
     _logHome('🧹 Clearing existing checkout...');
     context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
 
-    // ✅ Wait for clear to complete
-    await Future.delayed(const Duration(milliseconds: 200));
+    // ✅ Wait for clear to complete - increase delay to ensure state is cleared
+    await Future.delayed(const Duration(milliseconds: 300));
 
     // Load items to checkout one by one
     if (order.items != null && order.items!.isNotEmpty) {
@@ -571,38 +619,137 @@ class _HomePageState extends State<HomePage> {
           _logHome(
               '  - Loading product: ${item.productName} (ID: ${item.productId}) x${item.quantity}');
 
-          // Fetch the product from local DB to get proper Product model
-          final result = await ProductLocalDatasource.instance
-              .getProductById(item.productId!);
+          // ✅ Create Product directly from OrderItem data (no local database query)
+          Product? result;
 
-          if (result != null) {
+          // Use item.product if available (from eager loaded relationship), otherwise create from OrderItem fields
+          if (item.product != null) {
+            // Convert order_response_model.Product to Product from product_response_model
+            final orderProduct = item.product!;
+            result = Product(
+              id: orderProduct.id,
+              productId: orderProduct.id,
+              name: orderProduct.name,
+              price: item.unitPrice ?? '0', // Use unitPrice from order item
+              image: orderProduct.image,
+              category: null,
+            );
             _logHome(
-                '    ✓ Product found in local DB: ${result.name} (ID: ${result.id})');
-
-            // 🔍 CRITICAL: Check if product name matches
-            if (result.name != item.productName) {
-              _logHome('    ⚠️ WARNING: Product name mismatch!');
-              _logHome('       Server says: ${item.productName}');
-              _logHome('       Local DB has: ${result.name}');
-              _logHome('       → Local database NOT synced with server!');
-            }
-
-            // ✅ Add item with the exact quantity from order
-            final quantity = item.quantity ?? 1;
-            for (int i = 0; i < quantity; i++) {
-              if (mounted) {
-                context.read<CheckoutBloc>().add(
-                      CheckoutEvent.addItem(result),
-                    );
-              }
-              // Small delay between each add to prevent race condition
-              await Future.delayed(const Duration(milliseconds: 30));
-            }
+                '    ✓ Product from order item: ${result.name} (ID: ${result.id})');
           } else {
+            // Create Product from OrderItem fields
+            result = Product(
+              id: item.productId,
+              productId: item.productId,
+              name: item.productName ?? '',
+              price: item.unitPrice ?? '0',
+              image: null,
+              category: null,
+            );
             _logHome(
-                '    ✗ Product NOT found in local DB with ID: ${item.productId}');
-            _logHome('       Server product name: ${item.productName}');
-            _logHome('       → Need to sync database!');
+                '    ✓ Product created from order item data: ${result.name} (ID: ${result.id})');
+          }
+
+          // ✅ Restore variants from productOptions
+          List<ProductVariant>? restoredVariants;
+          if (item.productOptions != null && item.productOptions!.isNotEmpty) {
+            _logHome(
+                '    📦 Restoring ${item.productOptions!.length} variants...');
+            restoredVariants = [];
+            for (var option in item.productOptions!) {
+              if (option is Map<String, dynamic>) {
+                // ✅ FIX: Parse price_adjustment safely (can be String, int, or double)
+                final priceAdj = option['price_adjustment'];
+                final priceAdjInt = priceAdj is int
+                    ? priceAdj
+                    : priceAdj is double
+                        ? priceAdj.toInt()
+                        : priceAdj is String
+                            ? (double.tryParse(priceAdj) ?? 0.0).toInt()
+                            : 0;
+
+                final variant = ProductVariant(
+                  id: option['id']?.toString(),
+                  name: option['name']?.toString() ??
+                      option['value']?.toString() ??
+                      '',
+                  groupName: option['name']?.toString(),
+                  value: option['value']?.toString(),
+                  priceAdjustment: priceAdjInt,
+                );
+                restoredVariants.add(variant);
+                _logHome(
+                    '      ✓ Variant: ${variant.name} (+${variant.priceAdjustment})');
+              }
+            }
+          }
+
+          // ✅ Restore modifiers from modifiers field
+          List<ProductModifier>? restoredModifiers;
+          if (item.modifiers != null && item.modifiers!.isNotEmpty) {
+            _logHome('    🎨 Restoring ${item.modifiers!.length} modifiers...');
+            restoredModifiers = [];
+            for (var modifierData in item.modifiers!) {
+              // Use modifier_item data if available, otherwise use order_item_modifier data
+              final modifierItem = modifierData.modifierItem;
+              if (modifierItem != null) {
+                final modifier = ProductModifier(
+                  id: modifierItem.id,
+                  name: modifierItem.name ?? '',
+                  groupName: null, // Can be enhanced later if needed
+                  priceDelta: modifierItem.priceDelta ?? 0.0,
+                );
+                restoredModifiers.add(modifier);
+                _logHome(
+                    '      ✓ Modifier: ${modifier.name} (+${modifier.priceDelta.toInt()})');
+              } else if (modifierData.modifierItemId != null) {
+                // Fallback: create modifier from modifier_item_id
+                final modifier = ProductModifier(
+                  id: modifierData.modifierItemId,
+                  name:
+                      'Modifier', // Will be updated when product modifiers are loaded
+                  priceDelta: modifierData.priceDelta ?? 0.0,
+                );
+                restoredModifiers.add(modifier);
+                _logHome(
+                    '      ✓ Modifier (ID only): ${modifier.id} (+${modifier.priceDelta.toInt()})');
+              }
+            }
+          }
+
+          // ✅ Set pending variants and modifiers BEFORE adding items
+          // This ensures variants/modifiers are applied when items are added
+          if (restoredVariants != null && restoredVariants.isNotEmpty) {
+            context.read<CheckoutBloc>().setPendingVariants(restoredVariants);
+            _logHome('    ✅ Variants set as pending');
+          }
+          if (restoredModifiers != null && restoredModifiers.isNotEmpty) {
+            context.read<CheckoutBloc>().setPendingModifiers(restoredModifiers);
+            _logHome('    ✅ Modifiers set as pending');
+          }
+
+          // Add item multiple times to match quantity (CheckoutBloc will handle grouping)
+          // Variants and modifiers are already set as pending, so they will be applied
+          final quantity = item.quantity ?? 1;
+          _logHome('    Adding $quantity items to checkout...');
+          for (int i = 0; i < quantity; i++) {
+            if (mounted) {
+              context.read<CheckoutBloc>().add(
+                    CheckoutEvent.addItem(result),
+                  );
+              _logHome('      ✓ Added item ${i + 1}/$quantity');
+              // Small delay between each add to ensure CheckoutBloc processes the event
+              await Future.delayed(const Duration(milliseconds: 150));
+            }
+          }
+
+          // ✅ Clear pending after adding all items for this product (variants/modifiers already applied)
+          // Wait a bit longer to ensure all items are fully processed by CheckoutBloc
+          await Future.delayed(const Duration(milliseconds: 200));
+          if (mounted) {
+            context.read<CheckoutBloc>().setPendingVariants(null);
+            context.read<CheckoutBloc>().setPendingModifiers(null);
+            _logHome('    ✅ Pending variants/modifiers cleared');
           }
         }
       }
@@ -678,6 +825,7 @@ class _HomePageState extends State<HomePage> {
               product: e.product,
               quantity: e.quantity,
               variants: e.variants,
+              modifiers: e.modifiers, // ✅ Include modifiers
             );
             final itemMap = productQuantity.toOrderItemMap();
             // ✅ Add unit_price, total_price, and product_name for update open bill (required by backend)
@@ -885,28 +1033,172 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Clear existing checkout first
+    // ✅ Clear existing checkout first
+    _logHome('🧹 Clearing existing checkout for payment...');
     context.read<CheckoutBloc>().add(const CheckoutEvent.clearOrder());
 
-    // Convert OrderItem to Product for checkout
-    if (order.items != null) {
+    // ✅ Wait for clear to complete - increase delay to ensure state is cleared
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // ✅ FIX: Load items with variants and modifiers to CheckoutBloc
+    if (order.items != null && order.items!.isNotEmpty) {
+      _logHome(
+          '📦 Loading ${order.items!.length} items to checkout for payment...');
+
+      // Group items by product_id, variants, and modifiers to add them once with correct quantity
+      final Map<String, ProductQuantity> groupedItems = {};
+
       for (var item in order.items!) {
         if (item.productId != null) {
-          // Fetch the product from local DB
-          final result = await ProductLocalDatasource.instance
-              .getProductById(item.productId!);
-          if (result != null) {
-            // Add to checkout with quantity
-            for (int i = 0; i < (item.quantity ?? 1); i++) {
-              if (mounted) {
-                context.read<CheckoutBloc>().add(
-                      CheckoutEvent.addItem(result),
-                    );
+          _logHome(
+              '  - Processing product: ${item.productName} (ID: ${item.productId}) x${item.quantity}');
+
+          // Convert productOptions (List<dynamic>) to List<ProductVariant>
+          final List<ProductVariant> itemVariants = [];
+          if (item.productOptions != null && item.productOptions!.isNotEmpty) {
+            for (var option in item.productOptions!) {
+              if (option is Map<String, dynamic>) {
+                final priceAdj = option['price_adjustment'];
+                final priceAdjInt = priceAdj is int
+                    ? priceAdj
+                    : priceAdj is double
+                        ? priceAdj.toInt()
+                        : priceAdj is String
+                            ? (int.tryParse(priceAdj) ?? 0)
+                            : 0;
+                itemVariants.add(ProductVariant(
+                  id: option['id']?.toString(),
+                  name: option['name']?.toString() ??
+                      option['value']?.toString() ??
+                      '',
+                  groupName: option['name']?.toString(),
+                  value: option['value']?.toString(),
+                  priceAdjustment: priceAdjInt,
+                ));
               }
             }
           }
+
+          // Convert modifiers (List<OrderItemModifier>) to List<ProductModifier>
+          final List<ProductModifier> itemModifiers = [];
+          if (item.modifiers != null && item.modifiers!.isNotEmpty) {
+            for (var modifierData in item.modifiers!) {
+              final modifierItem = modifierData.modifierItem;
+              if (modifierItem != null) {
+                itemModifiers.add(ProductModifier(
+                  id: modifierItem.id,
+                  name: modifierItem.name ?? 'Unknown Modifier',
+                  priceDelta: modifierItem.priceDelta ?? 0.0,
+                ));
+              } else if (modifierData.modifierItemId != null) {
+                itemModifiers.add(ProductModifier(
+                  id: modifierData.modifierItemId,
+                  name: 'Modifier',
+                  priceDelta: modifierData.priceDelta ?? 0.0,
+                ));
+              }
+            }
+          }
+
+          // Create a unique key for grouping based on product, variants, and modifiers
+          final itemKey =
+              '${item.productId}-${itemVariants.map((v) => v.id).join(',')}-${itemModifiers.map((m) => m.id).join(',')}';
+
+          if (groupedItems.containsKey(itemKey)) {
+            groupedItems[itemKey]!.quantity += (item.quantity ?? 1);
+          } else {
+            // ✅ Create Product directly from OrderItem data (no local database query)
+            Product? result;
+
+            // Use item.product if available (from eager loaded relationship), otherwise create from OrderItem fields
+            if (item.product != null) {
+              // Convert order_response_model.Product to Product from product_response_model
+              final orderProduct = item.product!;
+              result = Product(
+                id: orderProduct.id,
+                productId: orderProduct.id,
+                name: orderProduct.name,
+                price: item.unitPrice ?? '0', // Use unitPrice from order item
+                image: orderProduct.image,
+                category: null,
+              );
+            } else {
+              // Create Product from OrderItem fields
+              result = Product(
+                id: item.productId,
+                productId: item.productId,
+                name: item.productName ?? '',
+                price: item.unitPrice ?? '0',
+                image: null,
+                category: null,
+              );
+            }
+
+            // result is always non-null after creation
+            groupedItems[itemKey] = ProductQuantity(
+              product: result,
+              quantity: item.quantity ?? 1,
+              variants: itemVariants.isNotEmpty ? itemVariants : null,
+              modifiers: itemModifiers.isNotEmpty ? itemModifiers : null,
+            );
+          }
         }
       }
+
+      // Add grouped items to checkout bloc
+      for (var entry in groupedItems.entries) {
+        final productQuantity = entry.value;
+        _logHome(
+            '  Adding grouped item: ${productQuantity.product.name} x${productQuantity.quantity}');
+        _logHome(
+            '    Variants: ${productQuantity.variants?.map((v) => v.name).join(', ') ?? 'None'}');
+        _logHome(
+            '    Modifiers: ${productQuantity.modifiers?.map((m) => m.name).join(', ') ?? 'None'}');
+
+        if (mounted) {
+          // ✅ Set pending variants and modifiers BEFORE adding items
+          if (productQuantity.variants != null &&
+              productQuantity.variants!.isNotEmpty) {
+            context
+                .read<CheckoutBloc>()
+                .setPendingVariants(productQuantity.variants);
+            _logHome('    ✅ Variants set as pending');
+          }
+          if (productQuantity.modifiers != null &&
+              productQuantity.modifiers!.isNotEmpty) {
+            context
+                .read<CheckoutBloc>()
+                .setPendingModifiers(productQuantity.modifiers);
+            _logHome('    ✅ Modifiers set as pending');
+          }
+
+          // Add the item with the correct quantity
+          _logHome(
+              '    Adding ${productQuantity.quantity} items to checkout...');
+          for (int i = 0; i < productQuantity.quantity; i++) {
+            if (mounted) {
+              context.read<CheckoutBloc>().add(
+                    CheckoutEvent.addItem(productQuantity.product),
+                  );
+              _logHome(
+                  '      ✓ Added item ${i + 1}/${productQuantity.quantity}');
+              // Small delay between each add to prevent race condition
+              await Future.delayed(const Duration(milliseconds: 150));
+            }
+          }
+
+          // ✅ Clear pending after adding all items for this product
+          // Wait a bit longer to ensure all items are fully processed by CheckoutBloc
+          await Future.delayed(const Duration(milliseconds: 200));
+          if (mounted) {
+            context.read<CheckoutBloc>().setPendingVariants(null);
+            context.read<CheckoutBloc>().setPendingModifiers(null);
+            _logHome('    ✅ Pending variants/modifiers cleared');
+          }
+        }
+      }
+
+      _logHome('✅ All items loaded to checkout');
     }
 
     // Navigate to payment page
@@ -929,536 +1221,328 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<SyncProductBloc, SyncProductState>(
-      listener: (context, state) async {
-        state.maybeWhen(
-          orElse: () {},
-          error: (message) {
-            _logHome('❌ Sync failed: $message');
-            // ✅ FIX: Check mounted before setState to prevent crash after dispose
-            if (!mounted) return;
-            // ✅ Reset resync flag on error
-            setState(() {
-              _isResyncInProgress = false;
-            });
-            SnackbarHelper.showErrorOrOffline(
-              context,
-              message,
-              offlineMessage:
-                  'Sinkronisasi produk tidak tersedia dalam mode offline. '
-                  'Silahkan hubungkan kembali koneksi internet.',
-            );
-          },
-          loaded: (productResponseModel) async {
-            _logHome('✅ Sync completed, updating local database...');
-            _logHome(
-                '   Received ${productResponseModel.data?.length ?? 0} products from server');
-
-            // ✅ FIX: Prevent race condition by proper sequencing
-            // Replace local products with server data then refresh LocalProductBloc
-            _logHome('   Deleting all local products...');
-            await ProductLocalDatasource.instance.deleteAllProducts();
-
-            _logHome(
-                '   Inserting ${productResponseModel.data?.length ?? 0} products...');
-            await ProductLocalDatasource.instance
-                .insertProducts(productResponseModel.data!);
-
-            _logHome(
-                '✅ Local database updated with ${productResponseModel.data?.length ?? 0} products');
-
-            // ✅ FIX: Check mounted before setState to prevent crash after dispose
-            if (!mounted) {
-              _logHome('⚠️ Widget not mounted, skipping state update');
-              return;
-            }
-
-            // ✅ Reset resync flag before loading products
-            setState(() {
-              _isResyncInProgress = false;
-            });
-
-            if (!context.mounted) {
-              _logHome('⚠️ Context not mounted, skipping bloc event');
-              return;
-            }
-
-            _logHome('📤 Triggering LocalProductBloc to reload products...');
-            context
-                .read<LocalProductBloc>()
-                .add(const LocalProductEvent.getLocalProduct());
-          },
-        );
-      },
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        backgroundColor: Colors.transparent,
-        body: Padding(
-          padding: const EdgeInsets.only(top: 6.0, right: 6.0),
-          child: Column(
-            children: [
-              BlocBuilder<SyncBloc, SyncState>(
-                builder: (context, state) {
-                  final isSyncing = state.maybeWhen(
-                    inProgress: () => true,
-                    orElse: () => false,
-                  );
-                  if (!isSyncing) {
-                    return const SizedBox.shrink();
-                  }
-                  return const Padding(
-                    padding: EdgeInsets.only(bottom: 8.0),
-                    child: LinearProgressIndicator(),
-                  );
-                },
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    // ✅ Kiri: Daftar Menu
-                    Expanded(
-                      flex: 4,
-                      child: Container(
-                        padding:
-                            const EdgeInsets.only(left: 16, top: 12, right: 16),
-                        decoration: const BoxDecoration(
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                          color: AppColors.white,
+    // ✅ FIX: Disable BlocListener for SyncProductBloc to prevent auto resync and duplication
+    // Products are loaded from local database only. Resync is done manually when needed.
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.only(top: 6.0, right: 6.0),
+        child: Column(
+          children: [
+            BlocBuilder<SyncBloc, SyncState>(
+              builder: (context, state) {
+                final isSyncing = state.maybeWhen(
+                  inProgress: () => true,
+                  orElse: () => false,
+                );
+                if (!isSyncing) {
+                  return const SizedBox.shrink();
+                }
+                return const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  child: LinearProgressIndicator(),
+                );
+              },
+            ),
+            Expanded(
+              child: Row(
+                children: [
+                  // ✅ Kiri: Daftar Menu
+                  Expanded(
+                    flex: 4,
+                    child: Container(
+                      padding:
+                          const EdgeInsets.only(left: 16, top: 12, right: 16),
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Header + search
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Daftar Menu',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                        color: AppColors.white,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header + search
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Daftar Menu',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                SizedBox(
-                                  width: 328,
-                                  height: 48,
-                                  child: SearchInput(
-                                    controller: searchController,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _searchQuery = value.toLowerCase();
-                                      });
-                                    },
-                                    hintText: 'Search Menu',
-                                  ),
-                                ),
-                                SortDropdown(
-                                  selectedOption: _sortOption,
-                                  onChanged: (option) {
+                              ),
+                              SizedBox(
+                                width: 328,
+                                height: 48,
+                                child: SearchInput(
+                                  controller: searchController,
+                                  onChanged: (value) {
                                     setState(() {
-                                      _sortOption = option;
+                                      _searchQuery = value.toLowerCase();
                                     });
                                   },
+                                  hintText: 'Search Menu',
                                 ),
-                              ],
-                            ),
-
-                            const SpaceHeight(16),
-
-                            // Tab kategori
-                            Expanded(
-                              child: BlocBuilder<GetCategoriesBloc,
-                                  GetCategoriesState>(
-                                builder: (context, state) {
-                                  return state.maybeWhen(
-                                    success: (cats) {
-                                      final titles = [
-                                        'Semua',
-                                        ...cats.map((e) => e.name ?? '-')
-                                      ];
-                                      final views = [
-                                        _buildProductGrid(),
-                                        ...cats.map((e) => _buildProductGrid(
-                                            filterCategoryId: e.id)),
-                                      ];
-                                      return CustomTabBar(
-                                        tabTitles: titles,
-                                        initialTabIndex: 0,
-                                        tabViews: views,
-                                      );
-                                    },
-                                    orElse: () => CustomTabBar(
-                                      tabTitles: const ['Semua'],
-                                      initialTabIndex: 0,
-                                      tabViews: [
-                                        _buildProductGrid(),
-                                      ],
-                                    ),
-                                  );
+                              ),
+                              SortDropdown(
+                                selectedOption: _sortOption,
+                                onChanged: (option) {
+                                  setState(() {
+                                    _sortOption = option;
+                                  });
                                 },
                               ),
+                            ],
+                          ),
+
+                          const SpaceHeight(16),
+
+                          // Tab kategori
+                          Expanded(
+                            child: BlocBuilder<GetCategoriesBloc,
+                                GetCategoriesState>(
+                              builder: (context, state) {
+                                return state.maybeWhen(
+                                  success: (cats) {
+                                    final titles = [
+                                      'Semua',
+                                      ...cats.map((e) => e.name ?? '-')
+                                    ];
+                                    final views = [
+                                      _buildProductGrid(),
+                                      ...cats.map((e) => _buildProductGrid(
+                                          filterCategoryId: e.id)),
+                                    ];
+                                    return CustomTabBar(
+                                      tabTitles: titles,
+                                      initialTabIndex: 0,
+                                      tabViews: views,
+                                    );
+                                  },
+                                  orElse: () => CustomTabBar(
+                                    tabTitles: const ['Semua'],
+                                    initialTabIndex: 0,
+                                    tabViews: [
+                                      _buildProductGrid(),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 6),
+                  ),
+                  const SizedBox(width: 6),
 
-                    // ✅ Kanan: Pesanan
-                    Expanded(
-                      flex: 3,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              child: Row(
-                                children: [
-                                  const Text(
-                                    "Pesanan",
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w600),
+                  // ✅ Kanan: Pesanan
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
+                            child: Row(
+                              children: [
+                                const Text(
+                                  "Pesanan",
+                                  style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  height: 37,
+                                  width: 72,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.greyLight,
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
+                                  child: Center(
+                                    child: Text(_orderNumber,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600)),
+                                  ),
+                                ),
+                                // ✅ Tampilkan table dari widget.table atau _editingOpenBillTable
+                                if ((widget.isTable && widget.table != null) ||
+                                    _editingOpenBillTable != null) ...[
                                   const SizedBox(width: 12),
                                   Container(
                                     height: 37,
                                     width: 72,
                                     decoration: BoxDecoration(
-                                      color: AppColors.greyLight,
+                                      color: AppColors.successLight,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Center(
-                                      child: Text(_orderNumber,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600)),
-                                    ),
-                                  ),
-                                  // ✅ Tampilkan table dari widget.table atau _editingOpenBillTable
-                                  if ((widget.isTable &&
-                                          widget.table != null) ||
-                                      _editingOpenBillTable != null) ...[
-                                    const SizedBox(width: 12),
-                                    Container(
-                                      height: 37,
-                                      width: 72,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.successLight,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          _editingOpenBillTable?.name ??
-                                              widget.table?.name ??
-                                              "Meja ${_editingOpenBillTable?.tableNumber ?? widget.table?.tableNumber ?? ''}",
-                                          style: const TextStyle(
-                                            color: AppColors.success,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                      child: Text(
+                                        _editingOpenBillTable?.name ??
+                                            widget.table?.name ??
+                                            "Meja ${_editingOpenBillTable?.tableNumber ?? widget.table?.tableNumber ?? ''}",
+                                        style: const TextStyle(
+                                          color: AppColors.success,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
-                                  ],
-                                  const Spacer(),
-
-                                  // 🔹 Open Bill di header hanya kalau kosong - Menampilkan List Open Bill
-                                  BlocBuilder<CheckoutBloc, CheckoutState>(
-                                    builder: (context, state) {
-                                      return state.maybeWhen(
-                                        orElse: () => const SizedBox(),
-                                        loaded: (
-                                          products,
-                                          _,
-                                          __,
-                                          ___,
-                                          ____,
-                                          _____,
-                                          ______,
-                                          _______,
-                                          ________,
-                                          _________,
-                                        ) {
-                                          if (products.isEmpty) {
-                                            return CustomButton(
-                                              height: 52,
-                                              label: "Open Bill",
-                                              svgIcon: Assets.icons.bill,
-                                              onPressed: () async {
-                                                // Show dialog and wait for result
-                                                await showDialog(
-                                                  context: context,
-                                                  builder: (_) =>
-                                                      OpenBillListDialog(
-                                                    onContinue:
-                                                        _loadOpenBillToCheckout,
-                                                    onPay:
-                                                        _navigateToPaymentFromOpenBill,
-                                                  ),
-                                                );
-                                                // Refresh open bills list after dialog closes
-                                                // This ensures completed orders are removed from list
-                                              },
-                                            );
-                                          }
-                                          return const SizedBox();
-                                        },
-                                      );
-                                    },
                                   ),
                                 ],
-                              ),
+                                const Spacer(),
+
+                                // 🔹 Open Bill di header hanya kalau kosong - Menampilkan List Open Bill
+                                BlocBuilder<CheckoutBloc, CheckoutState>(
+                                  builder: (context, state) {
+                                    return state.maybeWhen(
+                                      orElse: () => const SizedBox(),
+                                      loaded: (
+                                        products,
+                                        _,
+                                        __,
+                                        ___,
+                                        ____,
+                                        _____,
+                                        ______,
+                                        _______,
+                                        ________,
+                                        _________,
+                                      ) {
+                                        if (products.isEmpty) {
+                                          return CustomButton(
+                                            height: 52,
+                                            label: "Open Bill",
+                                            svgIcon: Assets.icons.bill,
+                                            onPressed: () async {
+                                              // Show dialog and wait for result
+                                              await showDialog(
+                                                context: context,
+                                                builder: (_) =>
+                                                    OpenBillListDialog(
+                                                  onContinue:
+                                                      _loadOpenBillToCheckout,
+                                                  onPay:
+                                                      _navigateToPaymentFromOpenBill,
+                                                ),
+                                              );
+                                              // Refresh open bills list after dialog closes
+                                              // This ensures completed orders are removed from list
+                                            },
+                                          );
+                                        }
+                                        return const SizedBox();
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
+                          ),
 
-                            // 🔹 Pilihan Dine In / Take Away
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              child: BlocBuilder<CheckoutBloc, CheckoutState>(
-                                builder: (context, state) {
-                                  final selectedType = state.maybeWhen(
-                                    loaded: (products,
-                                        discountModel,
-                                        discount,
-                                        discountAmount,
-                                        tax,
-                                        serviceCharge,
-                                        totalQuantity,
-                                        totalPrice,
-                                        draftName,
-                                        orderType) {
-                                      return orderType;
-                                    },
-                                    orElse: () => null,
-                                  );
+                          // 🔹 Pilihan Dine In / Take Away
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: BlocBuilder<CheckoutBloc, CheckoutState>(
+                              builder: (context, state) {
+                                final selectedType = state.maybeWhen(
+                                  loaded: (products,
+                                      discountModel,
+                                      discount,
+                                      discountAmount,
+                                      tax,
+                                      serviceCharge,
+                                      totalQuantity,
+                                      totalPrice,
+                                      draftName,
+                                      orderType) {
+                                    return orderType;
+                                  },
+                                  orElse: () => null,
+                                );
 
-                                  return Row(
-                                    children: [
-                                      Expanded(
-                                        child: selectedType == "dinein"
-                                            ? Button.filled(
-                                                label: "Dine In",
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                onPressed: () {
-                                                  context
-                                                      .read<CheckoutBloc>()
-                                                      .add(const CheckoutEvent
-                                                          .setOrderType(
-                                                          "dinein"));
-                                                },
-                                              )
-                                            : Button.outlined(
-                                                label: "Dine In",
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                onPressed: () {
-                                                  context
-                                                      .read<CheckoutBloc>()
-                                                      .add(const CheckoutEvent
-                                                          .setOrderType(
-                                                          "dinein"));
-                                                },
-                                              ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: selectedType == "takeaway"
-                                            ? Button.filled(
-                                                label: "Take Away",
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                onPressed: () {
-                                                  context
-                                                      .read<CheckoutBloc>()
-                                                      .add(const CheckoutEvent
-                                                          .setOrderType(
-                                                          "takeaway"));
-                                                },
-                                              )
-                                            : Button.outlined(
-                                                label: "Take Away",
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                onPressed: () {
-                                                  context
-                                                      .read<CheckoutBloc>()
-                                                      .add(const CheckoutEvent
-                                                          .setOrderType(
-                                                          "takeaway"));
-                                                },
-                                              ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-
-                            const SpaceHeight(20),
-
-                            // Area pesanan
-                            Expanded(
-                              child: BlocBuilder<CheckoutBloc, CheckoutState>(
-                                builder: (context, state) {
-                                  return state.maybeWhen(
-                                    orElse: () => _emptyOrder(),
-                                    loaded: (
-                                      products,
-                                      _,
-                                      __,
-                                      ___,
-                                      ____,
-                                      _____,
-                                      ______,
-                                      _______,
-                                      ________,
-                                      _________,
-                                    ) {
-                                      if (products.isEmpty) {
-                                        return _emptyOrder();
-                                      }
-
-                                      return Column(
-                                        children: [
-                                          // Header kolom
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 24.0),
-                                            child: Row(
-                                              children: const [
-                                                Expanded(
-                                                    flex: 4,
-                                                    child: Text("Menu",
-                                                        style: TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600))),
-                                                SizedBox(
-                                                    width: 150,
-                                                    child: Text("Quantity",
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        style: TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600))),
-                                                Expanded(
-                                                    flex: 3,
-                                                    child: Text("Subtotal",
-                                                        textAlign:
-                                                            TextAlign.end,
-                                                        style: TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600))),
-                                              ],
-                                            ),
-                                          ),
-
-                                          // List pesanan
-                                          Expanded(
-                                            child: ListView.builder(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 8),
-                                              itemCount: products.length,
-                                              itemBuilder: (_, i) {
-                                                return OrderMenu(
-                                                  data: products[i],
-                                                  onTap: products[i].hasVariants
-                                                      ? () =>
-                                                          _handleEditVariant(
-                                                              products[i])
-                                                      : null,
-                                                );
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: selectedType == "dinein"
+                                          ? Button.filled(
+                                              label: "Dine In",
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              onPressed: () {
+                                                context
+                                                    .read<CheckoutBloc>()
+                                                    .add(const CheckoutEvent
+                                                        .setOrderType(
+                                                        "dinein"));
+                                              },
+                                            )
+                                          : Button.outlined(
+                                              label: "Dine In",
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              onPressed: () {
+                                                context
+                                                    .read<CheckoutBloc>()
+                                                    .add(const CheckoutEvent
+                                                        .setOrderType(
+                                                        "dinein"));
                                               },
                                             ),
-                                          ),
-
-                                          // Total
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 16, vertical: 8),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primaryLight,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  const Text("Total",
-                                                      style: TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color:
-                                                              AppColors.primary,
-                                                          fontSize: 20)),
-                                                  Text(
-                                                    products
-                                                        .map((e) {
-                                                          final basePrice = e
-                                                                  .product
-                                                                  .price
-                                                                  ?.toIntegerFromText ??
-                                                              0;
-                                                          final variantPrice = e
-                                                                  .variants
-                                                                  ?.fold<int>(
-                                                                      0,
-                                                                      (sum, v) =>
-                                                                          sum +
-                                                                          v.priceAdjustment) ??
-                                                              0;
-                                                          return (basePrice +
-                                                                  variantPrice) *
-                                                              e.quantity;
-                                                        })
-                                                        .fold(
-                                                            0, (a, b) => a + b)
-                                                        .currencyFormatRp,
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color:
-                                                            AppColors.primary,
-                                                        fontSize: 20),
-                                                  ),
-                                                ],
-                                              ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: selectedType == "takeaway"
+                                          ? Button.filled(
+                                              label: "Take Away",
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              onPressed: () {
+                                                context
+                                                    .read<CheckoutBloc>()
+                                                    .add(const CheckoutEvent
+                                                        .setOrderType(
+                                                        "takeaway"));
+                                              },
+                                            )
+                                          : Button.outlined(
+                                              label: "Take Away",
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              onPressed: () {
+                                                context
+                                                    .read<CheckoutBloc>()
+                                                    .add(const CheckoutEvent
+                                                        .setOrderType(
+                                                        "takeaway"));
+                                              },
                                             ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
+                          ),
 
-                            // 🔹 Tombol aksi hanya kalau ada pesanan
-                            BlocBuilder<CheckoutBloc, CheckoutState>(
+                          const SpaceHeight(20),
+
+                          // Area pesanan
+                          Expanded(
+                            child: BlocBuilder<CheckoutBloc, CheckoutState>(
                               builder: (context, state) {
                                 return state.maybeWhen(
-                                  orElse: () => const SizedBox(),
+                                  orElse: () => _emptyOrder(),
                                   loaded: (
                                     products,
                                     _,
@@ -1472,192 +1556,348 @@ class _HomePageState extends State<HomePage> {
                                     _________,
                                   ) {
                                     if (products.isEmpty) {
-                                      return const SizedBox();
+                                      return _emptyOrder();
                                     }
 
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 8),
-                                      child: Row(
-                                        children: [
-                                          // Tombol Clear
-                                          Button.outlined(
-                                            width: 64,
-                                            height: 64,
-                                            color: AppColors.greyLight,
-                                            icon: Assets.icons.trash.svg(
-                                                height: 24,
-                                                width: 24,
-                                                colorFilter:
-                                                    const ColorFilter.mode(
-                                                        AppColors.grey,
-                                                        BlendMode.srcIn)),
-                                            borderColor: AppColors.grey,
-                                            padding: EdgeInsets.zero,
-                                            onPressed: () async {
-                                              final confirm =
-                                                  await showDialog<bool>(
-                                                context: context,
-                                                builder: (_) =>
-                                                    const ClearOrderDialog(),
+                                    return Column(
+                                      children: [
+                                        // Header kolom
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24.0),
+                                          child: Row(
+                                            children: const [
+                                              Expanded(
+                                                  flex: 4,
+                                                  child: Text("Menu",
+                                                      style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight
+                                                              .w600))),
+                                              SizedBox(
+                                                  width: 150,
+                                                  child: Text("Quantity",
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight
+                                                              .w600))),
+                                              Expanded(
+                                                  flex: 3,
+                                                  child: Text("Subtotal",
+                                                      textAlign: TextAlign.end,
+                                                      style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight
+                                                              .w600))),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // List pesanan
+                                        Expanded(
+                                          child: ListView.builder(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 8),
+                                            itemCount: products.length,
+                                            itemBuilder: (_, i) {
+                                              return OrderMenu(
+                                                data: products[i],
+                                                onTap: products[i].hasVariants
+                                                    ? () => _handleEditVariant(
+                                                        products[i])
+                                                    : null,
                                               );
-
-                                              if (!context.mounted) return;
-
-                                              if (confirm == true) {
-                                                // If editing open bill, cancel the order
-                                                if (_isEditingOpenBill &&
-                                                    _editingOpenBillId !=
-                                                        null) {
-                                                  await _cancelOpenBillOrder();
-                                                } else {
-                                                  // Normal clear order
-                                                  context
-                                                      .read<CheckoutBloc>()
-                                                      .add(const CheckoutEvent
-                                                          .clearOrder());
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    const SnackBar(
-                                                        content: Text(
-                                                            "Pesanan berhasil dihapus")),
-                                                  );
-                                                }
-                                              }
                                             },
                                           ),
-                                          const SizedBox(width: 8),
+                                        ),
 
-                                          Expanded(
-                                            child: BlocBuilder<CheckoutBloc,
-                                                CheckoutState>(
-                                              builder: (context, state) {
-                                                int total = 0;
-                                                String? orderType;
-                                                state.maybeWhen(
-                                                  loaded: (products,
-                                                      discountModel,
-                                                      discount,
-                                                      discountAmount,
-                                                      tax,
-                                                      serviceCharge,
-                                                      totalQuantity,
-                                                      totalPrice,
-                                                      draftName,
-                                                      ordType) {
-                                                    total = products.map((e) {
-                                                      final basePrice = e
-                                                              .product
-                                                              .price
-                                                              ?.toIntegerFromText ??
-                                                          0;
-                                                      final variantPrice =
-                                                          e.variants?.fold<int>(
-                                                                  0,
-                                                                  (sum, v) =>
-                                                                      sum +
-                                                                      v.priceAdjustment) ??
-                                                              0;
-                                                      return (basePrice +
-                                                              variantPrice) *
-                                                          e.quantity;
-                                                    }).fold(0, (a, b) => a + b);
-                                                    orderType = ordType;
-                                                  },
-                                                  orElse: () {},
-                                                );
-                                                final isDisabled = total <= 0 ||
-                                                    orderType == null;
-                                                return CustomButton(
-                                                  height: 64,
-                                                  svgIcon: _isEditingOpenBill
-                                                      ? Assets.icons.refresh
-                                                      : Assets.icons.bill,
-                                                  label: _isEditingOpenBill
-                                                      ? 'Simpan'
-                                                      : 'Open Bill',
-                                                  disabled: isDisabled,
-                                                  onPressed: isDisabled
-                                                      ? () {}
-                                                      : _isEditingOpenBill
-                                                          ? () =>
-                                                              _updateOpenBillOrder(
-                                                                  orderType!)
-                                                          : () =>
-                                                              _createOpenBillOrder(
-                                                                  orderType!),
-                                                );
-                                              },
+                                        // Total
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primaryLight,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text("Total",
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color:
+                                                            AppColors.primary,
+                                                        fontSize: 20)),
+                                                Text(
+                                                  products
+                                                      .map((e) {
+                                                        final basePrice = e
+                                                                .product
+                                                                .price
+                                                                ?.toIntegerFromText ??
+                                                            0;
+                                                        final variantPrice = e
+                                                                .variants
+                                                                ?.fold<int>(
+                                                                    0,
+                                                                    (sum, v) =>
+                                                                        sum +
+                                                                        v.priceAdjustment) ??
+                                                            0;
+                                                        // ✅ Include modifier price adjustment
+                                                        final modifierPrice = e
+                                                                .modifiers
+                                                                ?.fold<int>(
+                                                                    0,
+                                                                    (sum, m) =>
+                                                                        sum +
+                                                                        m.priceDelta
+                                                                            .toInt()) ??
+                                                            0;
+                                                        return (basePrice +
+                                                                variantPrice +
+                                                                modifierPrice) *
+                                                            e.quantity;
+                                                      })
+                                                      .fold(0, (a, b) => a + b)
+                                                      .currencyFormatRp,
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: AppColors.primary,
+                                                      fontSize: 20),
+                                                ),
+                                              ],
                                             ),
                                           ),
-
-                                          const SizedBox(width: 8),
-
-                                          Expanded(
-                                            child: BlocBuilder<CheckoutBloc,
-                                                CheckoutState>(
-                                              builder: (context, state) {
-                                                final orderType =
-                                                    state.maybeWhen(
-                                                  loaded: (products,
-                                                      discountModel,
-                                                      discount,
-                                                      discountAmount,
-                                                      tax,
-                                                      serviceCharge,
-                                                      totalQuantity,
-                                                      totalPrice,
-                                                      draftName,
-                                                      orderType) {
-                                                    return orderType;
-                                                  },
-                                                  orElse: () => null,
-                                                );
-
-                                                return CustomButton(
-                                                  filled: true,
-                                                  height: 64,
-                                                  svgIcon: Assets.icons.cash,
-                                                  label: "Lanjutkan",
-                                                  disabled: orderType == null,
-                                                  onPressed: orderType == null
-                                                      ? () {}
-                                                      : () {
-                                                          // Pass open bill context if in editing mode
-                                                          widget.onGoToPayment
-                                                              ?.call(
-                                                            orderType,
-                                                            _orderNumber,
-                                                            existingOrderId:
-                                                                _isEditingOpenBill
-                                                                    ? _editingOpenBillId
-                                                                    : null,
-                                                            openBillOrder:
-                                                                _isEditingOpenBill
-                                                                    ? _editingOpenBillOrder
-                                                                    : null,
-                                                          );
-                                                        },
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     );
                                   },
                                 );
                               },
                             ),
-                          ],
-                        ),
+                          ),
+
+                          // 🔹 Tombol aksi hanya kalau ada pesanan
+                          BlocBuilder<CheckoutBloc, CheckoutState>(
+                            builder: (context, state) {
+                              return state.maybeWhen(
+                                orElse: () => const SizedBox(),
+                                loaded: (
+                                  products,
+                                  _,
+                                  __,
+                                  ___,
+                                  ____,
+                                  _____,
+                                  ______,
+                                  _______,
+                                  ________,
+                                  _________,
+                                ) {
+                                  if (products.isEmpty) {
+                                    return const SizedBox();
+                                  }
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                    child: Row(
+                                      children: [
+                                        // Tombol Clear
+                                        Button.outlined(
+                                          width: 64,
+                                          height: 64,
+                                          color: AppColors.greyLight,
+                                          icon: Assets.icons.trash.svg(
+                                              height: 24,
+                                              width: 24,
+                                              colorFilter:
+                                                  const ColorFilter.mode(
+                                                      AppColors.grey,
+                                                      BlendMode.srcIn)),
+                                          borderColor: AppColors.grey,
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () async {
+                                            final confirm =
+                                                await showDialog<bool>(
+                                              context: context,
+                                              builder: (_) =>
+                                                  const ClearOrderDialog(),
+                                            );
+
+                                            if (!context.mounted) return;
+
+                                            if (confirm == true) {
+                                              // If editing open bill, cancel the order
+                                              if (_isEditingOpenBill &&
+                                                  _editingOpenBillId != null) {
+                                                await _cancelOpenBillOrder();
+                                              } else {
+                                                // Normal clear order
+                                                context
+                                                    .read<CheckoutBloc>()
+                                                    .add(const CheckoutEvent
+                                                        .clearOrder());
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          "Pesanan berhasil dihapus")),
+                                                );
+                                              }
+                                            }
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+
+                                        Expanded(
+                                          child: BlocBuilder<CheckoutBloc,
+                                              CheckoutState>(
+                                            builder: (context, state) {
+                                              int total = 0;
+                                              String? orderType;
+                                              state.maybeWhen(
+                                                loaded: (products,
+                                                    discountModel,
+                                                    discount,
+                                                    discountAmount,
+                                                    tax,
+                                                    serviceCharge,
+                                                    totalQuantity,
+                                                    totalPrice,
+                                                    draftName,
+                                                    ordType) {
+                                                  total = products.map((e) {
+                                                    final basePrice = e
+                                                            .product
+                                                            .price
+                                                            ?.toIntegerFromText ??
+                                                        0;
+                                                    final variantPrice =
+                                                        e.variants?.fold<int>(
+                                                                0,
+                                                                (sum, v) =>
+                                                                    sum +
+                                                                    v.priceAdjustment) ??
+                                                            0;
+                                                    // ✅ Include modifier price adjustment
+                                                    final modifierPrice =
+                                                        e.modifiers?.fold<int>(
+                                                                0,
+                                                                (sum, m) =>
+                                                                    sum +
+                                                                    m.priceDelta
+                                                                        .toInt()) ??
+                                                            0;
+                                                    return (basePrice +
+                                                            variantPrice +
+                                                            modifierPrice) *
+                                                        e.quantity;
+                                                  }).fold(0, (a, b) => a + b);
+                                                  orderType = ordType;
+                                                },
+                                                orElse: () {},
+                                              );
+                                              final isDisabled = total <= 0 ||
+                                                  orderType == null;
+                                              return CustomButton(
+                                                height: 64,
+                                                svgIcon: _isEditingOpenBill
+                                                    ? Assets.icons.refresh
+                                                    : Assets.icons.bill,
+                                                label: _isEditingOpenBill
+                                                    ? 'Simpan'
+                                                    : 'Open Bill',
+                                                disabled: isDisabled,
+                                                onPressed: isDisabled
+                                                    ? () {}
+                                                    : _isEditingOpenBill
+                                                        ? () =>
+                                                            _updateOpenBillOrder(
+                                                                orderType!)
+                                                        : () =>
+                                                            _createOpenBillOrder(
+                                                                orderType!),
+                                              );
+                                            },
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 8),
+
+                                        Expanded(
+                                          child: BlocBuilder<CheckoutBloc,
+                                              CheckoutState>(
+                                            builder: (context, state) {
+                                              final orderType = state.maybeWhen(
+                                                loaded: (products,
+                                                    discountModel,
+                                                    discount,
+                                                    discountAmount,
+                                                    tax,
+                                                    serviceCharge,
+                                                    totalQuantity,
+                                                    totalPrice,
+                                                    draftName,
+                                                    orderType) {
+                                                  return orderType;
+                                                },
+                                                orElse: () => null,
+                                              );
+
+                                              return CustomButton(
+                                                filled: true,
+                                                height: 64,
+                                                svgIcon: Assets.icons.cash,
+                                                label: "Lanjutkan",
+                                                disabled: orderType == null,
+                                                onPressed: orderType == null
+                                                    ? () {}
+                                                    : () {
+                                                        // Pass open bill context if in editing mode
+                                                        widget.onGoToPayment
+                                                            ?.call(
+                                                          orderType,
+                                                          _orderNumber,
+                                                          existingOrderId:
+                                                              _isEditingOpenBill
+                                                                  ? _editingOpenBillId
+                                                                  : null,
+                                                          openBillOrder:
+                                                              _isEditingOpenBill
+                                                                  ? _editingOpenBillOrder
+                                                                  : null,
+                                                        );
+                                                      },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

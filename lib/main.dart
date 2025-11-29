@@ -136,8 +136,10 @@ class MyApp extends StatelessWidget {
             create: (context) => SyncProductBloc(ProductRemoteDatasource()),
           ),
           BlocProvider(
-            create: (context) =>
-                LocalProductBloc(ProductLocalDatasource.instance),
+            create: (context) => LocalProductBloc(
+              ProductRemoteDatasource(),
+              ProductLocalDatasource.instance,
+            ),
           ),
           BlocProvider(
             create: (context) => CheckoutBloc(),

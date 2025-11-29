@@ -22,7 +22,11 @@ class OrderMenu extends StatelessWidget {
     final basePrice = data.product.price?.toIntegerFromText ?? 0;
     final variantPrice =
         data.variants?.fold<int>(0, (sum, v) => sum + v.priceAdjustment) ?? 0;
-    final totalPrice = basePrice + variantPrice;
+    final modifierPrice =
+        (data.modifiers?.fold<double>(0.0, (sum, m) => sum + m.priceDelta) ??
+                0.0)
+            .toInt();
+    final totalPrice = basePrice + variantPrice + modifierPrice;
     final subtotal = totalPrice * data.quantity;
 
     return InkWell(
@@ -67,6 +71,19 @@ class OrderMenu extends StatelessWidget {
                           ),
                         )),
                   ],
+                  if (data.modifiers != null && data.modifiers!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    ...data.modifiers!.map((m) => Padding(
+                          padding: const EdgeInsets.only(left: 8, top: 2),
+                          child: Text(
+                            '+ ${m.name}',
+                            style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.grey,
+                                fontWeight: FontWeight.normal),
+                          ),
+                        )),
+                  ],
                 ],
               ),
             ),
@@ -96,6 +113,9 @@ class OrderMenu extends StatelessWidget {
                           context
                               .read<CheckoutBloc>()
                               .setPendingVariants(data.variants);
+                          context
+                              .read<CheckoutBloc>()
+                              .setPendingModifiers(data.modifiers);
                           context
                               .read<CheckoutBloc>()
                               .add(CheckoutEvent.removeItem(data.product));
@@ -137,6 +157,9 @@ class OrderMenu extends StatelessWidget {
                               .setPendingVariants(data.variants);
                           context
                               .read<CheckoutBloc>()
+                              .setPendingModifiers(data.modifiers);
+                          context
+                              .read<CheckoutBloc>()
                               .add(CheckoutEvent.addItem(data.product));
                         },
                       ),
@@ -152,7 +175,7 @@ class OrderMenu extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  subtotal.currencyFormatRp,
+                  subtotal.toInt().currencyFormatRp,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

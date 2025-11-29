@@ -52,4 +52,13 @@ class CheckoutEvent with _$CheckoutEvent {
     List<ProductVariant>? oldVariants,
     List<ProductVariant> newVariants,
   ) = _UpdateItemVariants;
+
+  // ✅ NEW: update item variants and modifiers
+  const factory CheckoutEvent.updateItemVariantsAndModifiers(
+    Product product,
+    List<ProductVariant>? oldVariants,
+    List<ProductVariant> newVariants,
+    List<ProductModifier>? oldModifiers,
+    List<ProductModifier> newModifiers,
+  ) = _UpdateItemVariantsAndModifiers;
 }
